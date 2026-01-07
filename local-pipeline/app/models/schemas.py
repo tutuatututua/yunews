@@ -10,19 +10,38 @@ Topic = Literal[
     "Earnings",
     "Valuation",
     "Macro",
-    "Technical Analysis",
+    "Technical",
     "Risk",
-    "Long-term thesis",
-    "Short-term trade",
+    "LongTerm",
+    "ShortTerm",
 ]
-
 
 class VideoMetadata(BaseModel):
     video_id: str
     title: str
+    # Keep both for backward compatibility with older DB schemas.
     channel: str
+    channel_id: Optional[str] = None
+    channel_title: Optional[str] = None
     published_at: datetime
     description: str
+    duration_seconds: Optional[int] = None
+
+    # Useful YouTube metadata for explaining content / ranking
+    video_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+
+    view_count: Optional[int] = None
+    like_count: Optional[int] = None
+    comment_count: Optional[int] = None
+
+    tags: Optional[List[str]] = None
+    category_id: Optional[str] = None
+    default_language: Optional[str] = None
+    default_audio_language: Optional[str] = None
+
+    channel_subscriber_count: Optional[int] = None
+    channel_video_count: Optional[int] = None
 
 
 class TranscriptEntry(BaseModel):

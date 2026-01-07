@@ -14,14 +14,19 @@ class ChunkingService:
         self._window = float(window_seconds)
 
     def chunk_by_time(self, video_id: str, entries: List[TranscriptEntry]) -> List[TranscriptChunk]:
+        # Defensive: upstream typically provides sorted, non-empty entries,
+        # but keep this robust in case the source changes.
+        entries = [e for e in entries if getattr(e, "text", "") and str(e.text).strip()]
         if not entries:
             return []
+
+        entries = sorted(entries, key=lambda e: float(e.start))
 
         chunks: List[TranscriptChunk] = []
 
         current_text_parts: List[str] = []
-        chunk_start = float(entries[0].start)
-        chunk_end = float(entries[0].start)
+        chunk_start = 0.0
+        chunk_end = 0.0
         chunk_index = 0
 
         def flush() -> None:

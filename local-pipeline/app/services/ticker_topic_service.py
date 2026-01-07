@@ -14,16 +14,16 @@ from app.models.schemas import ExtractionResult, Topic
 
 logger = logging.getLogger(__name__)
 
-_TICKER_RE = re.compile(r"\$([A-Z]{1,5})(?:\b|\s)")
+_TICKER_RE = re.compile(r"\$([A-Z]{1,5})(?=\b|[\s.,;:!?])")
 
 _ALLOWED_TOPICS: List[Topic] = [
     "Earnings",
     "Valuation",
     "Macro",
-    "Technical Analysis",
+    "Technical",
     "Risk",
-    "Long-term thesis",
-    "Short-term trade",
+    "LongTerm",
+    "ShortTerm",
 ]
 
 
@@ -39,28 +39,30 @@ class TickerTopicService:
         self._llm = ChatOpenAI(api_key=SecretStr(openai_api_key), model=model, temperature=temperature)
 
         self._prompt = PromptTemplate(
-            input_variables=["chunk_text"],
-            template=(
-                "You are an expert financial analyst.\n"
-                "Given a transcript chunk, extract stock tickers and classify topics.\n\n"
-                "Rules:\n"
-                "- Return STRICT JSON only. No markdown.\n"
-                "- tickers: array of uppercase tickers WITHOUT '$'.\n"
-                "- Include tickers explicitly mentioned with $ (e.g., $AAPL) and infer tickers from company names when reasonable.\n"
-                "- If uncertain, omit rather than guessing.\n"
-                "- topics must be a subset of: {topics}.\n\n"
-                "Chunk:\n{chunk_text}\n\n"
-                "JSON schema:\n"
-                "{{\n  \"tickers\": [\"AAPL\"],\n  \"topics\": [\"Earnings\", \"Risk\"]\n}}"
-            ).format(topics=json.dumps(_ALLOWED_TOPICS)),
-        )
+        input_variables=["chunk_text", "topics"],
+        template=(
+            "You are an expert financial analyst.\n"
+            "Given a transcript chunk, extract stock tickers and classify topics.\n\n"
+            "Rules:\n"
+            "- Return STRICT JSON only. No markdown.\n"
+            "- tickers: array of uppercase tickers WITHOUT '$'.\n"
+            "- Include tickers explicitly mentioned with $ (e.g., $AAPL) and infer tickers from company names when reasonable.\n"
+            "- If uncertain, omit rather than guessing.\n"
+            "- topics must be a subset of: {topics}.\n\n"
+            "Chunk:\n{chunk_text}\n\n"
+            "JSON schema:\n"
+            "{{\n  \"tickers\": [\"AAPL\"],\n  \"topics\": [\"Earnings\", \"Risk\"]\n}}"
+        ),
+    )
+
 
     def extract(self, chunk_text: str) -> ExtractionResult:
         tickers: Set[str] = {m.group(1) for m in _TICKER_RE.finditer(chunk_text or "")}
 
         llm_result = None
         try:
-            msg = self._llm.invoke(self._prompt.format(chunk_text=chunk_text[:12000]))
+            msg = self._llm.invoke(self._prompt.format(chunk_text=chunk_text[:12000],
+                                                       topics=json.dumps(_ALLOWED_TOPICS)))
             llm_result = msg.content
         except Exception:
             logger.exception("Ticker/topic LLM call failed")

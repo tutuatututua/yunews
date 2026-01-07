@@ -10,11 +10,29 @@ create table if not exists public.videos (
   video_id text primary key,
   title text not null,
   channel text not null,
+  channel_id text null,
+  channel_title text null,
   published_at timestamptz not null,
   description text not null,
+  duration_seconds int null,
+  video_url text null,
+  thumbnail_url text null,
+
+  view_count bigint null,
+  like_count bigint null,
+  comment_count bigint null,
+
+  tags text[] null,
+  category_id text null,
+  default_language text null,
+  default_audio_language text null,
+
+  channel_subscriber_count bigint null,
+  channel_video_count bigint null,
   discovered_at timestamptz not null default now(),
   processed_at timestamptz null
 );
+
 
 -- Time-windowed transcript chunks (<= 5 minutes)
 create table if not exists public.transcript_chunks (

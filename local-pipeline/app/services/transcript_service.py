@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import List, Optional
-
+import random
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     CouldNotRetrieveTranscript,
@@ -21,23 +22,38 @@ class TranscriptService:
     def fetch_transcript(self, video_id: str, *, languages: Optional[List[str]] = None) -> List[TranscriptEntry]:
         languages = languages or ["en"]
 
+        # Simple throttling to reduce chances of YouTube blocking your IP.
+        # (Keep values fixed per your request; adjust here if needed.)
+        time.sleep(1.5)
+
+        transcript = None
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
-        except (TranscriptsDisabled, NoTranscriptFound, CouldNotRetrieveTranscript):
-            logger.info("No transcript available for video_id=%s", video_id)
-            return []
-        except Exception:
-            logger.exception("Unexpected transcript error for video_id=%s", video_id)
+            transcript = YouTubeTranscriptApi().fetch(video_id, languages=languages)
+        except Exception as exc:
+            print(f"Error fetching transcript for video {video_id}: {exc}")
+        time.sleep(random.uniform(0.5, 1.5))
+
+
+        if transcript is None:
             return []
 
         entries: List[TranscriptEntry] = []
         for row in transcript:
             try:
+                start = getattr(row, "start", None)
+                duration = getattr(row, "duration", None)
+                text = getattr(row, "text", None)
+
+                if isinstance(row, dict):
+                    start = row.get("start", start)
+                    duration = row.get("duration", duration)
+                    text = row.get("text", text)
+
                 entries.append(
                     TranscriptEntry(
-                        start=float(row.get("start", 0.0)),
-                        duration=float(row.get("duration", 0.0)),
-                        text=str(row.get("text", "")).strip(),
+                        start=float(start or 0.0),
+                        duration=float(duration or 0.0),
+                        text=str(text or "").strip(),
                     )
                 )
             except Exception:

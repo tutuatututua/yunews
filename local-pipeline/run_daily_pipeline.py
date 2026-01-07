@@ -33,7 +33,7 @@ def main() -> None:
     configure_logging()
     settings = get_settings()
 
-    db = SupabaseDB(url=settings.supabase_url, service_key=settings.supabase_service_key)
+    db = SupabaseDB(url=settings.supabase_url, service_key=settings.supabase_key)
 
     youtube = YouTubeService(api_key=settings.youtube_api_key)
     transcript = TranscriptService()
@@ -59,9 +59,7 @@ def main() -> None:
 
     # 1) Daily discovery
     queries = [
-        YouTubeSearchQuery("stock market analysis"),
-        YouTubeSearchQuery("earnings analysis"),
-        YouTubeSearchQuery("investing commentary"),
+        YouTubeSearchQuery("stock"),
     ]
 
     videos = youtube.discover_daily_videos(
@@ -70,7 +68,7 @@ def main() -> None:
         max_videos=settings.discovery_max_videos,
         language=settings.discovery_language,
     )
-
+    print([video.video_id for video in videos])
     run_started = datetime.now(timezone.utc)
     processed = 0
     skipped = 0
@@ -94,7 +92,7 @@ def main() -> None:
             db.mark_video_processed(video.video_id)
             no_transcript += 1
             continue
-
+        
         # 4) Time-based chunking
         chunks = chunker.chunk_by_time(video.video_id, entries)
         db.upsert_transcript_chunks(chunks)
