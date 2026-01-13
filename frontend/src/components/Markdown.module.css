@@ -1,0 +1,32 @@
+.markdown {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.markdown p {
+  margin: 8px 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: 14px 0 8px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  border: 1px solid var(--border-2);
+  padding: 1px 6px;
+  border-radius: 8px;
+}

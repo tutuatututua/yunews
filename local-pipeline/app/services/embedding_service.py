@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
-from typing import Any, List, Optional
+from typing import Any, List
 
 import numpy as np
 
@@ -116,8 +115,8 @@ class EmbeddingService:
             except Exception:
                 logger.warning("HuggingFace login failed; continuing")
 
-        tokenizer = AutoTokenizer.from_pretrained(self._model_name, use_auth_token=self._hf_token or None)
-        model = AutoModel.from_pretrained(self._model_name, use_auth_token=self._hf_token or None)
+        tokenizer = AutoTokenizer.from_pretrained(self._model_name, token=self._hf_token or None)
+        model = AutoModel.from_pretrained(self._model_name, token=self._hf_token or None)
 
         if self._device == "auto":
             device = "cuda" if torch.cuda.is_available() else "cpu"

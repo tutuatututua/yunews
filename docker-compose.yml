@@ -2,20 +2,8 @@ services:
   local-pipeline:
     build:
       context: ./local-pipeline
-    environment:
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_SUMMARY_MODEL=${OPENAI_SUMMARY_MODEL}
-      - QWEN_EMBED_MODEL=${QWEN_EMBED_MODEL}
-      - QWEN_EMBED_MAX_TOKENS=${QWEN_EMBED_MAX_TOKENS}
-      - PIPELINE_SEARCH_QUERY=${PIPELINE_SEARCH_QUERY}
-      - PIPELINE_REGION_CODE=${PIPELINE_REGION_CODE}
-      - PIPELINE_LANGUAGE=${PIPELINE_LANGUAGE}
-      - PIPELINE_MAX_VIDEOS=${PIPELINE_MAX_VIDEOS}
-      - PIPELINE_MIN_DURATION_SECONDS=${PIPELINE_MIN_DURATION_SECONDS}
-      - PIPELINE_MAX_DURATION_SECONDS=${PIPELINE_MAX_DURATION_SECONDS}
+    env_file:
+      - ./local-pipeline/.env
     ports:
       - "8001:8000"
     profiles:
@@ -24,10 +12,8 @@ services:
   backend-api:
     build:
       context: ./backend-api
-    environment:
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - BACKEND_PORT=${BACKEND_PORT}
+    env_file:
+      - ./backend-api/.env
     ports:
       - "8080:8080"
 
@@ -35,7 +21,7 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_BACKEND_BASE_URL=${VITE_BACKEND_BASE_URL}
+        - VITE_BACKEND_BASE_URL=${VITE_BACKEND_BASE_URL:-http://localhost:8080}
     ports:
       - "5173:80"
     depends_on:

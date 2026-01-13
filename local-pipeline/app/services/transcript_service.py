@@ -24,14 +24,20 @@ class TranscriptService:
 
         # Simple throttling to reduce chances of YouTube blocking your IP.
         # (Keep values fixed per your request; adjust here if needed.)
-        time.sleep(1.5)
+        time.sleep(random.uniform(1.5, 2.5))
 
         transcript = None
         try:
-            transcript = YouTubeTranscriptApi().fetch(video_id, languages=languages)
+            # NOTE: youtube-transcript-api can return an iterable that performs
+            # network work lazily; eagerly materialize it so errors are caught here.
+            transcript = list(YouTubeTranscriptApi().fetch(video_id, languages=languages))
+        except (NoTranscriptFound, TranscriptsDisabled) as exc:
+            logger.info("No transcript for video_id=%s: %s", video_id, exc)
+        except CouldNotRetrieveTranscript as exc:
+            logger.warning("Could not retrieve transcript for video_id=%s: %s", video_id, exc)
         except Exception as exc:
-            print(f"Error fetching transcript for video {video_id}: {exc}")
-        time.sleep(random.uniform(0.5, 1.5))
+            logger.warning("Error fetching transcript for video_id=%s: %s", video_id, exc)
+        time.sleep(random.uniform(1.5, 2.5))
 
 
         if transcript is None:

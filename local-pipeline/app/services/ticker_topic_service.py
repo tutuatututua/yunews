@@ -10,59 +10,77 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 from pydantic import ValidationError
 
-from app.models.schemas import ExtractionResult, Topic
+from app.core.logging import log_llm_prompt_stats
+from app.models.schemas import ExtractionResult
 
 logger = logging.getLogger(__name__)
 
 _TICKER_RE = re.compile(r"\$([A-Z]{1,5})(?=\b|[\s.,;:!?])")
 
-_ALLOWED_TOPICS: List[Topic] = [
-    "Earnings",
-    "Valuation",
-    "Macro",
-    "Technical",
-    "Risk",
-    "LongTerm",
-    "ShortTerm",
-]
-
 
 class TickerTopicService:
-    """Extract tickers and topics per chunk.
+    """Extract tickers per chunk.
 
     Uses a hybrid approach:
     - regex extraction for explicit $TICKER patterns
-    - LLM extraction to infer tickers from company names and classify topics
+    - LLM extraction to infer tickers from company names and produce categorized keypoints
     """
 
     def __init__(self, *, openai_api_key: str, model: str, temperature: float) -> None:
+        self._model = model
         self._llm = ChatOpenAI(api_key=SecretStr(openai_api_key), model=model, temperature=temperature)
 
         self._prompt = PromptTemplate(
-        input_variables=["chunk_text", "topics"],
-        template=(
-            "You are an expert financial analyst.\n"
-            "Given a transcript chunk, extract stock tickers and classify topics.\n\n"
-            "Rules:\n"
-            "- Return STRICT JSON only. No markdown.\n"
-            "- tickers: array of uppercase tickers WITHOUT '$'.\n"
-            "- Include tickers explicitly mentioned with $ (e.g., $AAPL) and infer tickers from company names when reasonable.\n"
-            "- If uncertain, omit rather than guessing.\n"
-            "- topics must be a subset of: {topics}.\n\n"
-            "Chunk:\n{chunk_text}\n\n"
-            "JSON schema:\n"
-            "{{\n  \"tickers\": [\"AAPL\"],\n  \"topics\": [\"Earnings\", \"Risk\"]\n}}"
-        ),
-    )
-
+            input_variables=["chunk_text"],
+            template=(
+                "You are an expert financial analyst.\n"
+                "Task: From the transcript chunk below, extract up to 10 tickers (plus optional MARKET) and write concise, transcript-grounded keypoints.\n"
+                "Focus on HIGH-SIGNAL items: risks, opportunities, and catalysts/events (earnings, guidance changes, product launches, M&A, lawsuits, regulation, macro releases like CPI/FOMC/jobs, rate cuts/hikes).\n"
+                "If a statement is uncertain, preserve the uncertainty (e.g., 'Speaker expects/might/could ...').\n\n"
+                "Transcript chunk (verbatim):\n"
+                "<chunk>\n"
+                "{chunk_text}\n"
+                "</chunk>\n\n"
+                "Output requirements:\n"
+                "- Output ONE valid JSON object only (no markdown/code fences, no commentary).\n"
+                "- JSON schema: {{\"ticker_topic_pairs\": [ ... ]}}.\n"
+                "- Each item in ticker_topic_pairs must be:\n"
+                "  {{\"ticker\": \"AAPL\", \"positive_keypoints\": [...], \"negative_keypoints\": [...], \"neutral_keypoints\": [...]}}\n"
+                "- ticker: uppercase letters only, 1-5 chars (no '$'). Use ticker \"MARKET\" for macro/market-wide items.\n"
+                "- Keypoints: short bullet-like strings. Prefer numbers + direction + timeframe/date when present.\n"
+                "- Categorize: upside/opportunities in positive_keypoints; risks/headwinds in negative_keypoints; dated facts/events (if not clearly +/-) in neutral_keypoints.\n"
+                "- Include explicit $TICKER mentions. Infer ticker from company name only when you are confident; otherwise omit the ticker rather than guessing.\n"
+                "- If there are no relevant tickers or macro items, return {{\"ticker_topic_pairs\": []}}.\n\n"
+                "Example output (shape only):\n"
+                "{{\n"
+                "  \"ticker_topic_pairs\": [\n"
+                "    {{\"ticker\": \"AAPL\", \"positive_keypoints\": [\"Speaker says iPhone demand improved\"], \"negative_keypoints\": [], \"neutral_keypoints\": [\"Earnings scheduled for Jan 30\"]}},\n"
+                "    {{\"ticker\": \"MARKET\", \"positive_keypoints\": [], \"negative_keypoints\": [\"Speaker warns CPI print could push yields higher\"], \"neutral_keypoints\": []}}\n"
+                "  ]\n"
+                "}}"
+            ),
+        )
 
     def extract(self, chunk_text: str) -> ExtractionResult:
-        tickers: Set[str] = {m.group(1) for m in _TICKER_RE.finditer(chunk_text or "")}
+        """Extract tickers with categorized keypoints."""
+        regex_tickers: Set[str] = {m.group(1) for m in _TICKER_RE.finditer(chunk_text or "")}
 
         llm_result = None
         try:
-            msg = self._llm.invoke(self._prompt.format(chunk_text=chunk_text[:12000],
-                                                       topics=json.dumps(_ALLOWED_TOPICS)))
+            formatted_prompt = self._prompt.format(
+                chunk_text=(chunk_text or "")[:12000],
+            )
+            log_llm_prompt_stats(
+                logger,
+                model=self._model,
+                label="ticker_topic_extraction",
+                prompt=formatted_prompt,
+                extra={
+                    "chunk_chars": len(chunk_text or ""),
+                    "regex_tickers_count": len(regex_tickers),
+                },
+            )
+            msg = self._llm.invoke(formatted_prompt)
             llm_result = msg.content
         except Exception:
             logger.exception("Ticker/topic LLM call failed")
@@ -71,15 +89,105 @@ class TickerTopicService:
             parsed = self._safe_json(str(llm_result))
             if parsed:
                 try:
-                    er = ExtractionResult.model_validate(parsed)
-                    tickers.update([t.strip().upper() for t in er.tickers if t.strip()])
-                    # topics already validated by Literal
-                    return ExtractionResult(tickers=sorted(tickers), topics=er.topics)
-                except ValidationError:
-                    logger.warning("Ticker/topic output failed validation")
+                    normalized = self._normalize_extraction_dict(parsed, regex_tickers)
+                    er = ExtractionResult.model_validate(normalized)
+                    # Validate we got pairs
+                    if er.ticker_topic_pairs:
+                        return er
+                except ValidationError as e:
+                    logger.warning("Ticker/topic output failed validation: %s", e)
 
-        # Fallback: regex tickers only, no topics
-        return ExtractionResult(tickers=sorted(tickers), topics=[])
+        # Fallback: regex tickers with no keypoints
+        from app.models.schemas import TickerTopicPair
+        return ExtractionResult(
+            ticker_topic_pairs=[
+                TickerTopicPair(
+                    ticker=t,
+                    positive_keypoints=[],
+                    negative_keypoints=[],
+                    neutral_keypoints=[]
+                )
+                for t in sorted(regex_tickers)
+            ],
+            tickers=sorted(regex_tickers),  # legacy field
+        )
+
+    @staticmethod
+    def _normalize_extraction_dict(payload: dict, regex_tickers: Set[str]) -> dict:
+        """Normalize a loosely-correct LLM payload into the expected schema.
+
+        - ticker_topic_pairs: array of {ticker, positive_keypoints, negative_keypoints, neutral_keypoints} objects
+        - tickers: strip '$', whitespace, uppercase, keep 1-5 alpha (or 'MARKET' for market-wide topics)
+        - positive_keypoints: bullish claims (max 4 per ticker)
+        - negative_keypoints: bearish claims (max 4 per ticker)
+        - neutral_keypoints: neutral/factual claims (max 4 per ticker)
+        """
+        from app.models.schemas import TickerTopicPair
+
+        raw_pairs = payload.get("ticker_topic_pairs") if isinstance(payload, dict) else None
+        
+        normalized_pairs: List[dict] = []
+        seen_tickers: Set[str] = set()
+        
+        if isinstance(raw_pairs, list):
+            for pair in raw_pairs[:10]:  # max 10 pairs per chunk
+                if not isinstance(pair, dict):
+                    continue
+                
+                raw_ticker = pair.get("ticker", "")
+                ticker = str(raw_ticker).strip().upper()
+                if ticker.startswith("$"):
+                    ticker = ticker[1:]
+                # Allow 'MARKET' as a special ticker for macro/market-wide topics
+                if ticker == "MARKET":
+                    pass  # Valid special ticker
+                elif not ticker or not re.fullmatch(r"[A-Z]{1,5}", ticker):
+                    continue
+                
+                # Deduplicate tickers within same chunk
+                if ticker in seen_tickers:
+                    continue
+                seen_tickers.add(ticker)
+                
+                # Validate categorized keypoints (max 4 each, non-empty)
+                positive_keypoints: List[str] = []
+                negative_keypoints: List[str] = []
+                neutral_keypoints: List[str] = []
+                
+                for kp_type, kp_list in [("positive_keypoints", positive_keypoints),
+                                          ("negative_keypoints", negative_keypoints),
+                                          ("neutral_keypoints", neutral_keypoints)]:
+                    raw_kps = pair.get(kp_type, [])
+                    if isinstance(raw_kps, list):
+                        for kp in raw_kps[:4]:
+                            kp_str = str(kp).strip()
+                            if kp_str:
+                                kp_list.append(kp_str)
+                
+                normalized_pairs.append({
+                    "ticker": ticker,
+                    "positive_keypoints": positive_keypoints,
+                    "negative_keypoints": negative_keypoints,
+                    "neutral_keypoints": neutral_keypoints,
+                })
+        
+        # Merge in any regex-detected tickers not in LLM output
+        for ticker in regex_tickers:
+            if ticker not in seen_tickers:
+                normalized_pairs.append({
+                    "ticker": ticker,
+                    "positive_keypoints": [],
+                    "negative_keypoints": [],
+                    "neutral_keypoints": [],
+                })
+                seen_tickers.add(ticker)
+        
+        # Legacy field for backward compatibility
+        all_tickers = sorted(seen_tickers)
+        return {
+            "ticker_topic_pairs": normalized_pairs,
+            "tickers": all_tickers,  # legacy
+        }
 
     @staticmethod
     def _safe_json(text: str) -> dict | None:
@@ -95,6 +203,9 @@ class TickerTopicService:
 
         candidate = text[first : last + 1]
         try:
-            return json.loads(candidate)
+            parsed = json.loads(candidate)
+            return parsed if isinstance(parsed, dict) else None
         except json.JSONDecodeError:
             return None
+
+

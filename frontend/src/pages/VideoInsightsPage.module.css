@@ -1,0 +1,235 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headerActions {
+  display: inline-flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.select {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.select:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.videoRow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-2);
+}
+
+.videoRow:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.videoRowExpanded {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  margin: 0 -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 14px;
+}
+
+.videoTop {
+  display: flex;
+  gap: 12px;
+}
+
+.thumb {
+  width: 156px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 540px) {
+  .thumb {
+    width: 118px;
+    height: 70px;
+  }
+}
+
+.videoMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.titleRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.videoTitleButton {
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.videoTitleButton:hover {
+  text-decoration: underline;
+}
+
+.videoTitleButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 8px;
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tickerChip {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--primary));
+}
+
+.moreChip {
+  color: var(--muted);
+}
+
+.sentimentChip {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.videoDesc {
+  color: color-mix(in srgb, var(--text) 75%, var(--muted));
+  font-size: 15px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.sentimentPos {
+  color: var(--sent-pos);
+  border-color: color-mix(in srgb, var(--sent-pos) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-pos) 10%, var(--surface));
+}
+
+.sentimentNeg {
+  color: var(--sent-neg);
+  border-color: color-mix(in srgb, var(--sent-neg) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-neg) 10%, var(--surface));
+}
+
+.sentimentNeu {
+  color: var(--sent-neu);
+  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
+  background: color-mix(in srgb, var(--sent-neu) 10%, var(--surface));
+}
+
+.videoActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.inlineDetail {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  padding: 12px;
+}
+
+.inlineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.inlineTitle {
+  margin: 0;
+  font-size: 14px;
+}
+
+.inlineMeta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+@media (min-width: 720px) {
+  .inlineMeta {
+    grid-template-columns: 1fr 0.6fr;
+  }
+}
+
+.metaItem {
+  min-width: 0;
+}
+
+.metaLabel {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.overallBlock {
+  margin: 10px 0 12px;
+}
+
+.overallText {
+  font-size: 13px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  white-space: pre-wrap;
+}

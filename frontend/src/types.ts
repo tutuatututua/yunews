@@ -2,47 +2,36 @@ export type DailySummary = {
   id: string
   market_date: string
   title: string
+  overall_summarize?: string
   summary_markdown: string
   movers: Array<{ symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }>
   risks: string[]
   opportunities: string[]
   per_entity_summaries?: Array<{ symbol: string; summary_markdown: string; key_claims: string[] }>
-  anomaly_section?: DailyAnomalySectionItem[]
-  chunks_total?: number
-  chunks_used?: number
-  anomaly_threshold?: number
   model: string
   generated_at: string
 }
 
-export type DailyAnomalySectionItem = {
-  video_url: string
-  channel: string | null
-  timestamp_start: number
-  timestamp_end: number
-  claim: string | null
-  explanation: string
-  scores: {
-    final: number
-    embedding_outlier: number
-    sentiment_deviation: number
-    llm_speculation: number
-  }
-  flags: string[]
+export type TopMover = {
+  symbol: string
+  direction: 'bullish' | 'bearish' | 'mixed'
+  reason: string
 }
 
 export type VideoListItem = {
   id: string
   video_id: string
   title: string
-  channel_title: string | null
+  channel: string | null
   published_at: string
-  video_url: string
+  video_url: string | null
   thumbnail_url: string | null
   view_count: number | null
   like_count: number | null
   comment_count: number | null
   duration_seconds: number | null
+  overall_explanation?: string | null
+  sentiment?: string | null
 }
 
 export type VideoDetail = {
@@ -51,73 +40,47 @@ export type VideoDetail = {
   summary: {
     id: string
     summary_markdown: string
+    overall_explanation: string
+    risks?: string[]
+    opportunities?: string[]
     key_points: string[]
     tickers: string[]
     sentiment: string | null
+    events?: Array<{ date: string | null; timeframe: string | null; description: string; tickers: string[] }>
     model: string
     summarized_at: string
   } | null
 }
 
-// Backend extra endpoints (PostgREST nested shapes)
-export type ChunkAnomalyRow = {
-  final_anomaly_score: number
-  embedding_outlier_score?: number
-  sentiment_deviation_score?: number
-  llm_speculation_score?: number
-  flags?: string[]
-  explanation?: string
-  computed_at?: string
-}
-
-export type ChunkFeatureRow = {
-  entities?: Array<any>
-  sentiment_label?: 'positive' | 'negative' | 'neutral'
-  sentiment_score?: number
-  fact_score?: number
-  opinion_score?: number
-  speculation_score?: number
+export type VideoInfographicItem = {
+  id: string
+  video_id: string
+  title: string
+  channel: string | null
+  published_at: string
+  video_url: string
+  thumbnail_url: string | null
+  edges: Array<{ ticker: string; sentiment: 'positive' | 'negative' | 'neutral'; key_points: string[] }>
 }
 
 export type VideoNested = {
   video_url?: string
   video_id?: string
-  channel_title?: string | null
+  channel?: string | null
   title?: string
-}
-
-export type DailyAnomalousChunk = {
-  id: string
-  market_date: string
-  channel_title: string | null
-  start_seconds: number
-  end_seconds: number
-  claim: string | null
-  topic: string | null
-  stance: 'fact' | 'opinion' | 'speculation' | null
-  videos?: VideoNested | null
-  chunk_anomalies?: ChunkAnomalyRow | null
-  chunk_features?: ChunkFeatureRow | null
 }
 
 export type EntityChunkRow = {
   chunk_id: string
-  entities?: Array<any>
-  sentiment_label?: 'positive' | 'negative' | 'neutral'
-  sentiment_score?: number
-  fact_score?: number
-  opinion_score?: number
-  speculation_score?: number
+  entities?: Array<{ type: string; symbol?: string }>
   computed_at?: string
-  chunks?: {
-    market_date: string
-    channel_title: string | null
-    start_seconds: number
-    end_seconds: number
-    claim: string | null
-    topic: string | null
-    stance: 'fact' | 'opinion' | 'speculation' | null
-    videos?: VideoNested | null
+  market_date?: string | null
+  keypoint?: string | null
+  videos?: {
+    video_url?: string | null
+    video_id?: string
+    channel?: string | null
+    title?: string
+    published_at?: string
   } | null
-  chunk_anomalies?: ChunkAnomalyRow | null
 }

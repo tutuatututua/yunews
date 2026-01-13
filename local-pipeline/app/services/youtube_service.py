@@ -60,7 +60,7 @@ class YouTubeService:
             if len(collected) >= max_videos:
                 break
 
-            items = self._search_page(
+            items = self._search_youtube(
                 query=q.query,
                 published_after=published_after,
                 language=language,
@@ -100,8 +100,8 @@ class YouTubeService:
                 v = v.model_copy(
                     update={
                         "duration_seconds": duration_seconds,
-                        "channel_id": channel_id,
-                        "channel_title": d.get("channel_title") or v.channel,
+                        # Persist only `channel` in the videos table.
+                        "channel": d.get("channel_title") or v.channel,
                         "video_url": d.get("video_url"),
                         "thumbnail_url": d.get("thumbnail_url"),
                         "view_count": d.get("view_count"),
@@ -123,7 +123,7 @@ class YouTubeService:
 
         return videos
 
-    def _search_page(
+    def _search_youtube(
         self,
         *,
         query: str,
@@ -142,7 +142,7 @@ class YouTubeService:
             "safeSearch": "moderate",
             "regionCode": "US",
             "relevanceLanguage": language,
-            #"publishedAfter": published_after,
+            "publishedAfter": published_after,
         }
 
         resp = self._session.get(self.BASE_URL, params=params, timeout=30)
@@ -182,8 +182,6 @@ class YouTubeService:
                     channel=snippet.get("channelTitle") or "",
                     published_at=published_at,
                     description=snippet.get("description") or "",
-                    channel_id=snippet.get("channelId"),
-                    channel_title=snippet.get("channelTitle") or "",
                 )
             )
 

@@ -4,25 +4,24 @@ from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
+from pydantic import model_validator
 
 
-Topic = Literal[
-    "Earnings",
-    "Valuation",
-    "Macro",
-    "Technical",
-    "Risk",
-    "LongTerm",
-    "ShortTerm",
-]
+
+
+Sentiment = Literal["Positive", "Negative", "Neutral"]
+
+class KeypointsSummary(BaseModel):
+    """Categorized keypoints structure stored in `chunk_analysis.chunk_summary` and `summaries.summary`."""
+
+    positive: List[str] = Field(default_factory=list)
+    negative: List[str] = Field(default_factory=list)
+    neutral: List[str] = Field(default_factory=list)
 
 class VideoMetadata(BaseModel):
     video_id: str
     title: str
-    # Keep both for backward compatibility with older DB schemas.
     channel: str
-    channel_id: Optional[str] = None
-    channel_title: Optional[str] = None
     published_at: datetime
     description: str
     duration_seconds: Optional[int] = None
@@ -58,9 +57,22 @@ class TranscriptChunk(BaseModel):
     chunk_text: str
 
 
+class TickerTopicPair(BaseModel):
+    """Per-ticker categorized keypoints extracted from a chunk."""
+    ticker: str = Field(description="Uppercase ticker without $ prefix")
+    positive_keypoints: List[str] = Field(default_factory=list, description="Positive/bullish points about this ticker")
+    negative_keypoints: List[str] = Field(default_factory=list, description="Negative/bearish points about this ticker")
+    neutral_keypoints: List[str] = Field(default_factory=list, description="Neutral/factual points about this ticker")
+
+
 class ExtractionResult(BaseModel):
-    tickers: List[str] = Field(default_factory=list, description="Uppercase tickers without $ prefix")
-    topics: List[Topic] = Field(default_factory=list)
+    """Extraction result with one entry per ticker."""
+    ticker_topic_pairs: List[TickerTopicPair] = Field(
+        default_factory=list,
+        description="Per-ticker keypoints"
+    )
+    # Keep legacy fields for backward compatibility (deprecated)
+    tickers: List[str] = Field(default_factory=list, description="Uppercase tickers without $ prefix [DEPRECATED]")
 
 
 class ChunkSummary(BaseModel):
@@ -70,21 +82,105 @@ class ChunkSummary(BaseModel):
 
 
 class AggregatedSummary(BaseModel):
-    bull_case: List[str] = Field(default_factory=list)
-    bear_case: List[str] = Field(default_factory=list)
+    """Aggregated keypoints structure.
+
+    Current format (preferred): {positive, negative, neutral}
+    Legacy format (accepted on input): {bull_case, bear_case, risks}
+    """
+
+    positive: List[str] = Field(default_factory=list)
+    negative: List[str] = Field(default_factory=list)
+    neutral: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_formats(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        if any(k in data for k in ("positive", "negative", "neutral")):
+            return data
+
+        # Legacy mapping.
+        bull = data.get("bull_case") or []
+        bear = data.get("bear_case") or []
+        risks = data.get("risks") or []
+
+        positive = list(bull) if isinstance(bull, list) else []
+        negative: List[Any] = []
+        if isinstance(bear, list):
+            negative.extend(bear)
+        if isinstance(risks, list):
+            negative.extend(risks)
+
+        return {
+            "positive": [str(x) for x in positive if str(x).strip()],
+            "negative": [str(x) for x in negative if str(x).strip()],
+            "neutral": [],
+        }
+
+
+class VideoEvent(BaseModel):
+    """Transcript-grounded dated catalyst/event mentioned in the video."""
+
+    # ISO date (YYYY-MM-DD) if the transcript provides an explicit date; otherwise null.
+    date: Optional[str] = None
+    # Short timeframe hint when there's no exact date (e.g., "next week", "Q1").
+    timeframe: Optional[str] = None
+    description: str = ""
+    tickers: List[str] = Field(default_factory=list)
+
+
+class VideoMover(BaseModel):
+    symbol: str
+    direction: Literal["up", "down", "mixed"]
+    reason: str
+
+
+class VideoOverallSummary(BaseModel):
+    """Overall per-video summary (stored in `video_summaries`)."""
+
+    summary_markdown: str = ""
+    overall_explanation: str = ""
+    movers: List[VideoMover] = Field(default_factory=list)
     risks: List[str] = Field(default_factory=list)
+    opportunities: List[str] = Field(default_factory=list)
+    key_points: List[str] = Field(default_factory=list)
+    tickers: List[str] = Field(default_factory=list)
+    sentiment: Optional[str] = None
+    events: List[VideoEvent] = Field(default_factory=list)
+    
+
+
+class DailyMover(BaseModel):
+    symbol: str
+    direction: Literal["up", "down", "mixed"]
+    reason: str
+
+
+class DailyOverallSummary(BaseModel):
+    """Overall per-day summary (stored in `daily_summaries`)."""
+
+    title: str = ""
+    # Plain-text, short daily TL;DR (in addition to summary_markdown).
+    overall_summarize: str = ""
+    summary_markdown: str = ""
+    movers: List[DailyMover] = Field(default_factory=list)
+    risks: List[str] = Field(default_factory=list)
+    opportunities: List[str] = Field(default_factory=list)
 
 
 class SummaryRow(BaseModel):
-    """DB payload for a single aggregated (video_id, ticker, topic) summary."""
+    """DB payload for a single aggregated (video_id, ticker) summary."""
 
     video_id: str
+    published_at: datetime | None = None
     ticker: str
-    topic: str
     summary: Dict[str, Any]
 
 
 class EmbeddingRow(BaseModel):
     summary_id: int
     model: str
+    dimension: int
     embedding: List[float]

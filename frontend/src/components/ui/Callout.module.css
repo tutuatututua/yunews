@@ -1,0 +1,32 @@
+.alert {
+  border: 1px solid color-mix(in srgb, var(--sent-neg) 35%, var(--border));
+  background: color-mix(in srgb, var(--sent-neg) 8%, var(--surface));
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alertTitle {
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.alertBody {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.emptyState {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+.emptyTitle {
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
