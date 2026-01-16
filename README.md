@@ -27,6 +27,26 @@
      - EC2 (direct, not recommended): `http://<your-ec2-public-ip-or-dns>:8080`
    - If you change `VITE_BACKEND_BASE_URL`, rebuild the frontend image: `docker compose build frontend`
 
+## Deploy: Vercel (frontend) + external backend
+
+Recommended setup on Vercel is **same-origin** API calls from the browser (`/api/...`) with a server-side proxy.
+This avoids CORS issues and avoids relying on backend IPs (which can change).
+
+This repo includes a Vercel proxy function at:
+- [frontend/api/[...path].ts](frontend/api/[...path].ts) (when your Vercel project root is `frontend/`)
+- [api/[...path].ts](api/[...path].ts) (when your Vercel project root is the repo root)
+
+Vercel project settings:
+1. Set the **Root Directory** to `frontend` (recommended) OR keep it as repo root.
+2. Set an environment variable (server-side):
+  - `BACKEND_BASE_URL=https://your-backend.example.com`
+3. Do **not** set `VITE_BACKEND_BASE_URL` (prod default is `/api`).
+
+After deploy, the frontend will call:
+- `GET /api/daily-summaries/latest`
+and Vercel will forward it to:
+- `https://your-backend.example.com/daily-summaries/latest`
+
 3. Local pipeline env (LOCAL ONLY):
    - Fill `local-pipeline/.env`
    - Fill:
