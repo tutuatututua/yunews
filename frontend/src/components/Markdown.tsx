@@ -1,6 +1,7 @@
 ﻿import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { safeMarkdownUrlTransform } from '../lib/safeUrl'
 import styles from './Markdown.module.css'
 
 /**
@@ -10,7 +11,9 @@ import styles from './Markdown.module.css'
 export default React.memo(function Markdown(props: { markdown: string }) {
   return (
     <div className={styles.markdown}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{props.markdown || ''}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeMarkdownUrlTransform}>
+        {props.markdown || ''}
+      </ReactMarkdown>
     </div>
   )
 })

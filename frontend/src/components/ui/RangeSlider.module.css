@@ -1,0 +1,59 @@
+.root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 34px;
+  touch-action: none;
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--border));
+  border: 1px solid var(--border);
+}
+
+.range {
+  position: absolute;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 78%, transparent);
+}
+
+.thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 40%, var(--primary));
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  cursor: grab;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.thumb:active {
+  cursor: grabbing;
+}
+
+.thumb:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* When both thumbs are at the same value, visually split them into two touching dots.
+   Each thumb is 18px wide, so shifting by +/-9px makes them "attach" edge-to-edge. */
+.overlap .thumbMin {
+  transform: translateX(-9px);
+}
+
+.overlap .thumbMax {
+  transform: translateX(9px);
+}
+
+.root[data-disabled] {
+  opacity: 0.6;
+}

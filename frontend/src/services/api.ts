@@ -1,11 +1,20 @@
 import type { DailySummary, EntityChunkRow, TopMover, VideoDetail, VideoInfographicItem, VideoListItem } from '../types'
 
-const BASE = (import.meta.env.VITE_BACKEND_BASE_URL as string) || 'http://localhost:8080'
+import { getBackendBaseUrl } from '../config/env'
+
+const BASE = getBackendBaseUrl()
+
+function buildUrl(path: string): string {
+  if (!path.startsWith('/')) {
+    throw new Error(`API path must start with "/": ${path}`)
+  }
+  return `${BASE}${path}`
+}
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildUrl(path), {
     method: 'GET',
-    headers: { 'content-type': 'application/json' },
+    headers: { accept: 'application/json' },
     cache: 'no-store',
   })
   if (!res.ok) {

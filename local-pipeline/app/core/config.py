@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     embedding_device: str = Field(default="auto", alias="EMBEDDING_DEVICE")
 
     # YouTube discovery config
-    discovery_lookback_hours: int = Field(default=48, alias="DISCOVERY_LOOKBACK_HOURS")
+    discovery_lookback_hours: int = Field(default=36, alias="DISCOVERY_LOOKBACK_HOURS")
     discovery_max_videos: int = Field(default=10, alias="DISCOVERY_MAX_VIDEOS")
     discovery_language: str = Field(default="en", alias="DISCOVERY_LANGUAGE")
 

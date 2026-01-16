@@ -1,22 +1,16 @@
-import React, { Suspense, useEffect, useMemo, useState } from 'react'
+import React, { Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Markdown from '../components/Markdown'
 import { ErrorCallout, EmptyState } from '../components/ui/Callout'
 import { LoadingLine } from '../components/ui/Loading'
 import { cn } from '../lib/cn'
 import { formatDateTime, parseDays } from '../lib/format'
-import type { VideoListItem } from '../types'
+import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
 import { useLatestDailySummary, useTopMovers, useVideoInfographic, useVideos } from '../services/queries'
 import { ui, util } from '../styles'
 import styles from './HomePage.module.css'
 
 const VideoTickerInfographic = React.lazy(() => import('../components/features/VideoTickerInfographic'))
-
-function videoHref(v: VideoListItem): string {
-  if (v.video_url) return v.video_url
-  if (v.video_id) return `https://www.youtube.com/watch?v=${encodeURIComponent(v.video_id)}`
-  return '#'
-}
 
 type Sentiment = 'positive' | 'negative' | 'neutral'
 
@@ -62,6 +56,10 @@ function buildSentimentTotals(items: Array<{ edges: Array<{ ticker: string; sent
 }
 
 export default function HomePage() {
+  const { timeZone, timeShiftMinutes } = useTimeZone()
+  const intlTimeZone = resolveTimeZoneForIntl(timeZone)
+  const effectiveShiftMinutes = resolveTimeShiftMinutes(timeZone, timeShiftMinutes)
+
   const [params] = useSearchParams()
   const [dismissedError, setDismissedError] = useState<string | null>(null)
   const [entityFilter, setEntityFilter] = useState('')
@@ -75,12 +73,6 @@ export default function HomePage() {
 
   const dailyQuery = useLatestDailySummary()
   const anchorDate = dailyQuery.data?.market_date
-
-  const summaryMarkdown = dailyQuery.data?.summary_markdown
-  useEffect(() => {
-    if (!summaryMarkdown?.trim()) return
-    console.log('[yunews] daily summary markdown', summaryMarkdown)
-  }, [summaryMarkdown])
 
   const canQueryWindow = !dailyQuery.isLoading
   const videosQuery = useVideos(anchorDate, days, limit, canQueryWindow)
@@ -130,7 +122,7 @@ export default function HomePage() {
                 <div className={styles.titleRow}>
                   <div className={styles.headline}>{dailyQuery.data.title}</div>
                   <div className={cn(util.muted, util.small)}>
-                    Generated {formatDateTime(dailyQuery.data.generated_at)} • Model {dailyQuery.data.model}
+                    Generated {formatDateTime(dailyQuery.data.generated_at, { timeZone: intlTimeZone, shiftMinutes: effectiveShiftMinutes })} • Model {dailyQuery.data.model}
                   </div>
                 </div>
 

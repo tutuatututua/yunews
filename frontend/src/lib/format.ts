@@ -3,14 +3,20 @@
  * This file should stay dependency-free and easy to test.
  */
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, opts?: { timeZone?: string | null; shiftMinutes?: number | null }): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    if (!iso) return '—'
+    const timeZone = opts?.timeZone ?? undefined
+    const shiftMinutes = opts?.shiftMinutes ?? 0
+    const baseMs = Date.parse(iso)
+    const d = Number.isFinite(baseMs) ? new Date(baseMs + (Number(shiftMinutes) || 0) * 60_000) : new Date(iso)
+    return d.toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: timeZone || undefined,
     })
   } catch {
     return iso

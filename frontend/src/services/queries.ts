@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import type { DailySummary, TopMover, VideoDetail, VideoInfographicItem, VideoListItem } from '../types'
-import { fetchLatestDailySummary, fetchTopMovers, fetchVideoDetail, fetchVideoInfographic, fetchVideos } from './api'
+import type { DailySummary, EntityChunkRow, TopMover, VideoDetail, VideoInfographicItem, VideoListItem } from '../types'
+import {
+  fetchEntityChunks,
+  fetchLatestDailySummary,
+  fetchTopMovers,
+  fetchVideoDetail,
+  fetchVideoInfographic,
+  fetchVideos,
+} from './api'
 
 /**
  * Query hooks isolate server-contract details from UI components.
@@ -52,6 +59,19 @@ export function useVideoDetail(selectedId: string | null) {
   })
 }
 
+export function useEntityChunks(
+  symbol: string | null,
+  opts?: { days?: number; limit?: number; date?: string },
+  enabled: boolean = true,
+) {
+  return useQuery({
+    queryKey: ['entityChunks', symbol ?? null, opts?.days ?? null, opts?.limit ?? null, opts?.date ?? null],
+    queryFn: () => (symbol ? fetchEntityChunks(symbol, opts) : Promise.resolve([] as EntityChunkRow[])),
+    enabled: !!symbol && enabled,
+    refetchOnWindowFocus: true,
+  })
+}
+
 export function useTopMovers(
   anchorDate: string | undefined,
   days: number,
@@ -67,4 +87,4 @@ export function useTopMovers(
   })
 }
 
-export type { DailySummary, TopMover, VideoDetail, VideoInfographicItem, VideoListItem }
+export type { DailySummary, EntityChunkRow, TopMover, VideoDetail, VideoInfographicItem, VideoListItem }

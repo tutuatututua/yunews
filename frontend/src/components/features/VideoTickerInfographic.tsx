@@ -45,10 +45,32 @@ export default function VideoTickerInfographicForce(props: {
   days: number
   enablePopout?: boolean
   showRangeLabel?: boolean
+  selectedNodeId?: string | null
+  onSelectTicker?: (symbol: string) => void
+  onSelectVideo?: (videoId: string) => void
 }) {
-  const { items, days, enablePopout = true, showRangeLabel = true } = props
+  const {
+    items,
+    days,
+    enablePopout = true,
+    showRangeLabel = true,
+    selectedNodeId,
+    onSelectTicker,
+    onSelectVideo,
+  } = props
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [viewportHeight, setViewportHeight] = useState<number>(() => (typeof window === 'undefined' ? 800 : window.innerHeight))
+
+  // Avoid re-creating the entire D3 viz when selection/callback props change.
+  // We keep callbacks in refs and update the highlight via a separate effect.
+  const onSelectTickerRef = useRef<typeof onSelectTicker>(onSelectTicker)
+  const onSelectVideoRef = useRef<typeof onSelectVideo>(onSelectVideo)
+  const nodeCircleSelectionRef = useRef<any>(null)
+
+  useEffect(() => {
+    onSelectTickerRef.current = onSelectTicker
+    onSelectVideoRef.current = onSelectVideo
+  }, [onSelectTicker, onSelectVideo])
 
   useEffect(() => {
     const onResize = () => setViewportHeight(window.innerHeight)
@@ -103,6 +125,12 @@ export default function VideoTickerInfographicForce(props: {
         positiveVideos: r.positiveVideoIds.size,
         neutralVideos: r.neutralVideoIds.size,
         negativeVideos: r.negativeVideoIds.size,
+        overall:
+          r.positiveVideoIds.size === r.negativeVideoIds.size
+            ? ('neutral' as const)
+            : r.positiveVideoIds.size > r.negativeVideoIds.size
+              ? ('positive' as const)
+              : ('negative' as const),
       }))
       .sort(
         (a, b) =>
@@ -114,7 +142,13 @@ export default function VideoTickerInfographicForce(props: {
       )
   }, [items])
 
-  const popoutHref = useMemo(() => `/infographic?days=${encodeURIComponent(String(days))}`, [days])
+  const tickerOverallBySymbol = useMemo(() => {
+    const m = new Map<string, EdgeSentiment>()
+    for (const t of tickerStats) m.set(t.symbol, t.overall)
+    return m
+  }, [tickerStats])
+
+  const popoutHref = useMemo(() => `/ticker?days=${encodeURIComponent(String(days))}`, [days])
 
   const onHeaderClick = () => {
     if (!enablePopout) return
@@ -178,6 +212,16 @@ export default function VideoTickerInfographicForce(props: {
 
   const viz = useMemo(() => computeVizLayout(nodes.length, viewportHeight), [nodes.length, viewportHeight])
 
+  useEffect(() => {
+    const sel = nodeCircleSelectionRef.current
+    if (!sel) return
+
+    sel
+      .attr('stroke', (d: Node) => (selectedNodeId && d.id === selectedNodeId ? 'var(--primary)' : 'var(--text)'))
+      .attr('stroke-opacity', (d: Node) => (selectedNodeId && d.id === selectedNodeId ? 0.85 : 0.25))
+      .attr('stroke-width', (d: Node) => (selectedNodeId && d.id === selectedNodeId ? 2 : 1))
+  }, [selectedNodeId])
+
   /** ---------- D3 force simulation ---------- */
   useEffect(() => {
     if (!svgRef.current) return
@@ -218,10 +262,10 @@ export default function VideoTickerInfographicForce(props: {
       .data(nodes)
       .enter()
       .append('g')
-      .attr('tabindex', (d: Node) => (d.type === 'video' && (d as VideoNode).videoUrl ? 0 : -1))
-      .attr('role', (d: Node) => (d.type === 'video' && (d as VideoNode).videoUrl ? 'link' : null))
+      .attr('tabindex', (d: Node) => (d.type === 'video' || d.type === 'ticker' ? 0 : -1))
+      .attr('role', (d: Node) => (d.type === 'video' || d.type === 'ticker' ? 'button' : null))
       .attr('aria-label', (d: Node) => {
-        if (d.type === 'video') return (d as VideoNode).videoTitle || 'Open video'
+        if (d.type === 'video') return (d as VideoNode).videoTitle || 'Open video insight'
         return `Ticker ${d.label}`
       })
       .call(d3.drag<any, any>()
@@ -233,16 +277,32 @@ export default function VideoTickerInfographicForce(props: {
     nodeEls
       .filter((d: Node) => d.type === 'video')
       .on('click', (event: any, d: Node) => {
-        const url = (d as VideoNode).videoUrl
-        if (!url) return
-        window.open(url, '_blank', 'noopener,noreferrer')
+        const id = (d as VideoNode).id
+        if (!id) return
+        onSelectVideoRef.current?.(id)
       })
       .on('keydown', (event: any, d: Node) => {
-        const url = (d as VideoNode).videoUrl
-        if (!url) return
+        const id = (d as VideoNode).id
+        if (!id) return
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
-          window.open(url, '_blank', 'noopener,noreferrer')
+          onSelectVideoRef.current?.(id)
+        }
+      })
+
+    nodeEls
+      .filter((d: Node) => d.type === 'ticker')
+      .on('click', (event: any, d: Node) => {
+        const sym = String(d.label || '').trim().toUpperCase()
+        if (!sym) return
+        onSelectTickerRef.current?.(sym)
+      })
+      .on('keydown', (event: any, d: Node) => {
+        const sym = String(d.label || '').trim().toUpperCase()
+        if (!sym) return
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelectTickerRef.current?.(sym)
         }
       })
 
@@ -253,14 +313,20 @@ export default function VideoTickerInfographicForce(props: {
       .append('circle')
       .attr('r', (d: Node) => radius(d))
 
-    nodeEls
+    const circleEls = nodeEls
       .append('circle')
       .attr('r', (d: Node) => radius(d))
-      .attr('fill', (d: Node) => (d.type === 'video' ? 'var(--node-video)' : 'var(--node-ticker)'))
-      .attr('opacity', (d: Node) => (d.type === 'video' ? 0.55 : 0.75))
+      .attr('fill', (d: Node) => {
+        if (d.type === 'video') return 'var(--node-video)'
+        const overall = tickerOverallBySymbol.get(d.label) || 'neutral'
+        return sentimentColor(overall)
+      })
+      .attr('opacity', (d: Node) => (d.type === 'video' ? 0.55 : 0.65))
       .attr('stroke', 'var(--text)')
       .attr('stroke-opacity', 0.25)
       .attr('stroke-width', 1)
+
+    nodeCircleSelectionRef.current = circleEls
 
     nodeEls
       .append('title')
@@ -325,7 +391,7 @@ export default function VideoTickerInfographicForce(props: {
     return () => {
       sim.stop()
     }
-  }, [nodes, links, viz])
+  }, [nodes, links, viz, tickerOverallBySymbol])
 
   return (
     <div className={styles.infographicWrap}>
@@ -336,9 +402,9 @@ export default function VideoTickerInfographicForce(props: {
         role={enablePopout ? 'button' : undefined}
         tabIndex={enablePopout ? 0 : -1}
         style={enablePopout ? { cursor: 'pointer' } : undefined}
-        title={enablePopout ? 'Open infographic in new tab' : undefined}
+        title={enablePopout ? 'Open ticker in new tab' : undefined}
       >
-        <div className={styles.infographicTitle}>Infographic – Bubble Graph</div>
+        <div className={styles.infographicTitle}>Ticker – Bubble Graph</div>
         {showRangeLabel ? <div className={cn(util.muted, util.small)}>Last {days} days</div> : null}
       </div>
 
@@ -354,7 +420,14 @@ export default function VideoTickerInfographicForce(props: {
             {tickerStats.length ? (
               tickerStats.map((t) => (
                 <div key={t.symbol} className={styles.infographicStatsRow}>
-                  <div className={styles.infographicStatsSymbol}>{t.symbol}</div>
+                  <button
+                    type="button"
+                    className={styles.infographicStatsSymbolButton}
+                    onClick={() => onSelectTicker?.(t.symbol)}
+                    title={`View ${t.symbol} keypoints`}
+                  >
+                    {t.symbol}
+                  </button>
                   <div className={cn(styles.infographicStatsNums, util.small)}>
                     <span className={util.muted}>mentions {t.mentions}</span>
                     <span className={styles.infographicStatsPos}>+ {t.positiveVideos}</span>

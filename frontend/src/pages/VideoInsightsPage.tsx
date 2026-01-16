@@ -5,6 +5,8 @@ import { EmptyState, ErrorCallout } from '../components/ui/Callout'
 import { LoadingLine } from '../components/ui/Loading'
 import { cn } from '../lib/cn'
 import { formatCompactNumber, formatDateTime, parseDays } from '../lib/format'
+import { safeExternalHref } from '../lib/safeUrl'
+import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
 import { useLatestDailySummary, useVideoDetail, useVideoInfographic, useVideos } from '../services/queries'
 import type { VideoInfographicItem, VideoListItem } from '../types'
 import { ui, util } from '../styles'
@@ -36,9 +38,9 @@ function normalizeSentiment(input: string | null | undefined): Sentiment | null 
 }
 
 function videoHref(v: VideoListItem): string {
-  if (v.video_url) return v.video_url
+  if (v.video_url) return safeExternalHref(v.video_url)
   if (v.video_id) return `https://www.youtube.com/watch?v=${encodeURIComponent(v.video_id)}`
-  return '#'
+  return safeExternalHref('#')
 }
 
 function summarizeVideoEdges(items: VideoInfographicItem[] | undefined): Map<string, VideoEdgeSummary> {
@@ -71,6 +73,10 @@ function sentimentLabel(s: Sentiment): string {
 }
 
 export default function VideoInsightsPage() {
+  const { timeZone, timeShiftMinutes } = useTimeZone()
+  const intlTimeZone = resolveTimeZoneForIntl(timeZone)
+  const effectiveShiftMinutes = resolveTimeShiftMinutes(timeZone, timeShiftMinutes)
+
   const [params, setParams] = useSearchParams()
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -185,7 +191,7 @@ export default function VideoInsightsPage() {
                     )}
                   </div>
                   <div className={cn(util.muted, util.small)}>
-                    {v.channel || 'Unknown channel'} • {formatDateTime(v.published_at)}
+                    {v.channel || 'Unknown channel'} • {formatDateTime(v.published_at, { timeZone: intlTimeZone, shiftMinutes: effectiveShiftMinutes })}
                   </div>
 
                   {v.overall_explanation?.trim() ? (
@@ -220,13 +226,13 @@ export default function VideoInsightsPage() {
                         <>
                           <div className={styles.inlineHeader}>
                             <h3 className={styles.inlineTitle}>Summary</h3>
-                            <a className={cn(ui.button, ui.ghost)} href={videoHref(v)} target="_blank" rel="noreferrer">
+                            <a className={cn(ui.button, ui.ghost)} href={videoHref(v)} target="_blank" rel="noreferrer noopener">
                               Watch
                             </a>
                           </div>
 
                           <div className={cn(util.muted, util.small)}>
-                            Model {detailQuery.data.summary.model} • {formatDateTime(detailQuery.data.summary.summarized_at)}
+                            Model {detailQuery.data.summary.model} • {formatDateTime(detailQuery.data.summary.summarized_at, { timeZone: intlTimeZone, shiftMinutes: effectiveShiftMinutes })}
                           </div>
 
                           <div className={styles.inlineMeta}>
@@ -268,16 +274,6 @@ export default function VideoInsightsPage() {
                         <EmptyState title="No summary stored" body="This video may not have been summarized yet." />
                       )}
 
-                      {detailQuery.data.transcript ? (
-                        <>
-                          <div className={util.divider} />
-                          <div className={styles.metaLabel}>Transcript (preview)</div>
-                          <pre>
-                            {detailQuery.data.transcript.transcript_text.slice(0, 1500)}
-                            {detailQuery.data.transcript.transcript_text.length > 1500 ? '…' : ''}
-                          </pre>
-                        </>
-                      ) : null}
                     </>
                   )}
 

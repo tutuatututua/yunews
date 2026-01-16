@@ -69,6 +69,29 @@
   font-weight: 700;
 }
 
+.infographicStatsSymbolButton {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.infographicStatsSymbolButton:hover {
+  color: var(--primary);
+}
+
+.infographicStatsSymbolButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 8px;
+}
+
 .infographicStatsNums {
   display: inline-flex;
   gap: 10px;
