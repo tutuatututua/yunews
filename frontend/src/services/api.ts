@@ -49,9 +49,12 @@ async function readResponseBody(res: Response): Promise<{ text: string; json: un
 }
 
 async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<T> {
-  const controller = new AbortController()
   const timeoutMs = opts?.timeoutMs ?? 15_000
-  const t = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  const timeoutFn = (AbortSignal as any)?.timeout as ((ms: number) => AbortSignal) | undefined
+  const controller = timeoutFn ? null : new AbortController()
+  const t = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null
+  const signal = timeoutFn ? timeoutFn(timeoutMs) : controller!.signal
 
   let res: Response
   try {
@@ -59,17 +62,17 @@ async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<
       method: 'GET',
       headers: { accept: 'application/json' },
       cache: 'no-store',
-      signal: controller.signal,
+      signal,
     })
   } catch (err) {
-    window.clearTimeout(t)
+    if (t != null) window.clearTimeout(t)
 
     const message = err instanceof Error ? err.message : 'Network error'
     const code = (err as any)?.name === 'AbortError' ? 'timeout' : 'network_error'
     throw new ApiRequestError({ status: 0, code, message })
   }
 
-  window.clearTimeout(t)
+  if (t != null) window.clearTimeout(t)
 
   const { text, json } = await readResponseBody(res)
 
