@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, cast
+from datetime import date, datetime, timezone
+from typing import Any
 
 from supabase import Client, create_client
 
@@ -63,7 +62,7 @@ class SupabaseDB:
             "video_id", video_id
         ).execute()
 
-    def upsert_transcript_chunks(self, chunks: List[TranscriptChunk]) -> None:
+    def upsert_transcript_chunks(self, chunks: list[TranscriptChunk]) -> None:
         if not chunks:
             return
 
@@ -90,7 +89,7 @@ class SupabaseDB:
         video_id: str,
         chunk_index: int,
         ticker: str,
-        chunk_summary: Dict[str, Any],
+        chunk_summary: dict[str, Any],
     ) -> None:
         payload = {
             "video_id": video_id,
@@ -103,7 +102,7 @@ class SupabaseDB:
             on_conflict="video_id,chunk_index,ticker",
         ).execute()
 
-    def list_chunk_analysis(self, video_id: str) -> List[Dict[str, Any]]:
+    def list_chunk_analysis(self, video_id: str) -> list[dict[str, Any]]:
         resp = self._client.table("chunk_analysis").select("*").eq("video_id", video_id).execute()
         return resp.data or []
 
@@ -113,7 +112,7 @@ class SupabaseDB:
         video_id: str,
         published_at: datetime | None = None,
         ticker: str,
-        aggregated_summary: Dict[str, Any],
+        aggregated_summary: dict[str, Any],
     ) -> int:
         """Upsert and return summary_id."""
 
@@ -167,7 +166,7 @@ class SupabaseDB:
         *,
         summary_id: int,
         model: str,
-        embedding: List[float],
+        embedding: list[float],
         dimension: int,
     ) -> None:
         if len(embedding) != dimension:
@@ -189,13 +188,13 @@ class SupabaseDB:
         published_at: datetime | None = None,
         summary_markdown: str,
         overall_explanation: str = "",
-        movers: List[Dict[str, Any]] | None = None,
-        risks: List[str] | None = None,
-        opportunities: List[str] | None = None,
-        key_points: List[str],
-        tickers: List[str],
+        movers: list[dict[str, Any]] | None = None,
+        risks: list[str] | None = None,
+        opportunities: list[str] | None = None,
+        key_points: list[str],
+        tickers: list[str],
         sentiment: str | None,
-        events: List[Dict[str, Any]] | None = None,
+        events: list[dict[str, Any]] | None = None,
         model: str,
         summarized_at: str | None = None,
     ) -> None:
@@ -254,9 +253,9 @@ class SupabaseDB:
         title: str,
         overall_summarize: str | None = None,
         summary_markdown: str,
-        movers: List[Dict[str, Any]],
-        risks: List[str],
-        opportunities: List[str],
+        movers: list[dict[str, Any]],
+        risks: list[str],
+        opportunities: list[str],
         model: str,
         generated_at: str | None = None,
     ) -> None:
@@ -296,7 +295,7 @@ class SupabaseDB:
         video_id: str,
         published_at: datetime | None = None,
         model: str,
-        embedding: List[float],
+        embedding: list[float],
         dimension: int,
     ) -> None:
         """Upsert embedding for overall per-video summary.

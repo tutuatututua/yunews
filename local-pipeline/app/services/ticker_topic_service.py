@@ -98,15 +98,14 @@ class TickerTopicService:
                     logger.warning("Ticker/topic output failed validation: %s", e)
 
         # Fallback: regex tickers with no keypoints
-        from app.models.schemas import TickerTopicPair
         return ExtractionResult(
             ticker_topic_pairs=[
-                TickerTopicPair(
-                    ticker=t,
-                    positive_keypoints=[],
-                    negative_keypoints=[],
-                    neutral_keypoints=[]
-                )
+                {
+                    "ticker": t,
+                    "positive_keypoints": [],
+                    "negative_keypoints": [],
+                    "neutral_keypoints": [],
+                }
                 for t in sorted(regex_tickers)
             ],
             tickers=sorted(regex_tickers),  # legacy field
@@ -122,8 +121,6 @@ class TickerTopicService:
         - negative_keypoints: bearish claims (max 4 per ticker)
         - neutral_keypoints: neutral/factual claims (max 4 per ticker)
         """
-        from app.models.schemas import TickerTopicPair
-
         raw_pairs = payload.get("ticker_topic_pairs") if isinstance(payload, dict) else None
         
         normalized_pairs: List[dict] = []
@@ -153,23 +150,28 @@ class TickerTopicService:
                 positive_keypoints: List[str] = []
                 negative_keypoints: List[str] = []
                 neutral_keypoints: List[str] = []
-                
-                for kp_type, kp_list in [("positive_keypoints", positive_keypoints),
-                                          ("negative_keypoints", negative_keypoints),
-                                          ("neutral_keypoints", neutral_keypoints)]:
-                    raw_kps = pair.get(kp_type, [])
-                    if isinstance(raw_kps, list):
-                        for kp in raw_kps[:4]:
-                            kp_str = str(kp).strip()
-                            if kp_str:
-                                kp_list.append(kp_str)
-                
-                normalized_pairs.append({
+
+                for key_name, out_list in (
+                    ("positive_keypoints", positive_keypoints),
+                    ("negative_keypoints", negative_keypoints),
+                    ("neutral_keypoints", neutral_keypoints),
+                ):
+                    raw_kps = pair.get(key_name, [])
+                    if not isinstance(raw_kps, list):
+                        continue
+                    for kp in raw_kps[:4]:
+                        kp_str = str(kp).strip()
+                        if kp_str:
+                            out_list.append(kp_str)
+
+                normalized_pairs.append(
+                    {
                     "ticker": ticker,
                     "positive_keypoints": positive_keypoints,
                     "negative_keypoints": negative_keypoints,
                     "neutral_keypoints": neutral_keypoints,
-                })
+                    }
+                )
         
         # Merge in any regex-detected tickers not in LLM output
         for ticker in regex_tickers:

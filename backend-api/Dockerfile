@@ -17,4 +17,4 @@ COPY app /app/app
 EXPOSE 8080
 
 # Many platforms (Cloud Run, Render, etc.) inject the desired listening port via $PORT.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "if [ \"${USE_GUNICORN:-0}\" = \"1\" ]; then gunicorn -c gunicorn_conf.py app.main:app; else uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}; fi"]

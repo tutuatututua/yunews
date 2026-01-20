@@ -1,7 +1,8 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Bell, Home, Image, Menu, Search, Settings, Video, X } from 'lucide-react'
+import { Bell, Home, Image, Menu, Search, Video, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { TimeZoneMenu } from '../ui/TimeZoneMenu'
 import styles from './AppShell.module.css'
 
 function navLinkClassName({ isActive }: { isActive: boolean }) {
@@ -125,9 +126,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <button className={styles.iconButton}>
               <Bell size={18} />
             </button>
-            <button className={styles.iconButton}>
-              <Settings size={18} />
-            </button>
+            <TimeZoneMenu />
           </div>
         </header>
 

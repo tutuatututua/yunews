@@ -4,6 +4,7 @@ import Markdown from '../components/Markdown'
 import { ErrorCallout, EmptyState } from '../components/ui/Callout'
 import { LoadingLine } from '../components/ui/Loading'
 import { cn } from '../lib/cn'
+import { getUiErrorInfo } from '../lib/errors'
 import { formatDateTime, parseDays } from '../lib/format'
 import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
 import { useLatestDailySummary, useTopMovers, useVideoInfographic, useVideos } from '../services/queries'
@@ -60,7 +61,7 @@ export default function HomePage() {
   const intlTimeZone = resolveTimeZoneForIntl(timeZone)
   const effectiveShiftMinutes = resolveTimeShiftMinutes(timeZone, timeShiftMinutes)
 
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const [dismissedError, setDismissedError] = useState<string | null>(null)
   const [entityFilter, setEntityFilter] = useState('')
 
@@ -70,6 +71,18 @@ export default function HomePage() {
     const parsed = n ? Number(n) : NaN
     return Number.isFinite(parsed) ? Math.max(10, Math.min(250, Math.floor(parsed))) : 100
   }, [params])
+
+  const onChangeDays: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
+    const next = new URLSearchParams(params)
+    next.set('days', e.target.value)
+    setParams(next)
+  }
+
+  const onChangeLimit: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
+    const next = new URLSearchParams(params)
+    next.set('limit', e.target.value)
+    setParams(next)
+  }
 
   const dailyQuery = useLatestDailySummary()
   const anchorDate = dailyQuery.data?.market_date
@@ -90,21 +103,83 @@ export default function HomePage() {
     return set.size
   }, [videosQuery.data])
 
-  const combinedError =
-    (dailyQuery.error as any)?.message ||
-    (videosQuery.error as any)?.message ||
-    (infographicQuery.error as any)?.message ||
-    (moversQuery.error as any)?.message ||
+  const errorInfo =
+    getUiErrorInfo(dailyQuery.error) ||
+    getUiErrorInfo(videosQuery.error) ||
+    getUiErrorInfo(infographicQuery.error) ||
+    getUiErrorInfo(moversQuery.error) ||
     null
 
-  const visibleError = combinedError && combinedError !== dismissedError ? combinedError : null
+  const visibleError = errorInfo?.message && errorInfo.message !== dismissedError ? errorInfo : null
 
   return (
     <div className={styles.page}>
-      {visibleError && <ErrorCallout message={visibleError} onDismiss={() => setDismissedError(visibleError)} />}
+      {visibleError && (
+        <ErrorCallout
+          message={visibleError.message}
+          requestId={visibleError.requestId}
+          onDismiss={() => setDismissedError(visibleError.message)}
+        />
+      )}
 
       <div className={styles.dashboard}>
         <div className={styles.mainCol}>
+          <section className={cn(ui.card, styles.welcomeCard)} aria-label="Dashboard controls">
+            <div className={styles.welcomeTop}>
+              <div>
+                <div className={styles.kicker}>yuNews</div>
+                <div className={styles.welcomeTitle}>Market narrative, distilled</div>
+                <div className={styles.welcomeBody}>
+                  A daily brief plus the underlying videos and tickers—optimized for quick scanning, and deeper drill-down when you need it.
+                </div>
+              </div>
+
+              <div className={styles.quickActions} aria-label="Quick actions">
+                <label className={styles.toolbarField}>
+                  <span className={styles.fieldLabel}>Window</span>
+                  <select
+                    className={cn(styles.select, styles.toolbarSelect)}
+                    value={String(days)}
+                    onChange={onChangeDays}
+                    aria-label="Select day window"
+                  >
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
+                  </select>
+                </label>
+
+                <label className={styles.toolbarField}>
+                  <span className={styles.fieldLabel}>Feed size</span>
+                  <select
+                    className={cn(styles.select, styles.toolbarSelect)}
+                    value={String(limit)}
+                    onChange={onChangeLimit}
+                    aria-label="Select max videos"
+                  >
+                    <option value="50">50 videos</option>
+                    <option value="100">100 videos</option>
+                    <option value="150">150 videos</option>
+                    <option value="250">250 videos</option>
+                  </select>
+                </label>
+
+                <Link
+                  className={cn(ui.button, ui.primary)}
+                  to={`/ticker` + (days ? `?days=${encodeURIComponent(String(days))}` : '')}
+                >
+                  Explore ticker
+                </Link>
+                <Link
+                  className={cn(ui.button, ui.ghost)}
+                  to={`/videos` + (days ? `?days=${encodeURIComponent(String(days))}` : '')}
+                >
+                  Browse videos
+                </Link>
+              </div>
+            </div>
+          </section>
+
           <section className={ui.card} aria-label="Daily market summary">
           <div className={ui.cardHeader}>
             <h2>Market brief</h2>

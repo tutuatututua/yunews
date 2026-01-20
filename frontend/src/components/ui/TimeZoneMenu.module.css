@@ -1,0 +1,329 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  cursor: pointer;
+  color: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 80ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.trigger:hover {
+  border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.trigger:active {
+  transform: translateY(1px);
+}
+
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.triggerLabel {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 860px) {
+  .triggerLabel {
+    display: none;
+  }
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(460px, calc(100vw - 24px));
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+  backdrop-filter: blur(12px);
+  z-index: 80;
+  animation: pop 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.close:hover {
+  border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
+}
+
+.close:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.previewRow {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--primary) 10%, transparent),
+      color-mix(in srgb, #22c55e 8%, transparent)
+    ),
+    var(--surface);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.previewLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.previewValue {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.previewRight {
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 220px;
+  text-align: right;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.quickGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .quickGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.quick {
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  cursor: pointer;
+  font-weight: 750;
+  font-size: 12px;
+}
+
+.quick:hover {
+  border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
+}
+
+.quickActive {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+}
+
+.offsetCard {
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  padding: 12px;
+}
+
+.offsetTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.offsetTitle {
+  font-weight: 850;
+}
+
+.offsetHint {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.offsetValue {
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.range {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.offsetActions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.smallButton {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.smallButton:hover {
+  border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
+}
+
+.smallButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.searchRow {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+}
+
+.searchIcon {
+  color: var(--muted);
+}
+
+.searchInput {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+}
+
+.searchHint {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.results {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  max-height: 260px;
+  overflow: auto;
+}
+
+.result {
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.result:hover {
+  background: color-mix(in srgb, var(--surface) 65%, transparent);
+}
+
+.resultActive {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.footerButton {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.footerButton:hover {
+  border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
+}
+
+.footerButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}

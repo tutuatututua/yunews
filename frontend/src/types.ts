@@ -12,6 +12,8 @@ export type DailySummary = {
   generated_at: string
 }
 
+export type VideoMover = { symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }
+
 export type TopMover = {
   symbol: string
   direction: 'bullish' | 'bearish' | 'mixed'
@@ -41,6 +43,7 @@ export type VideoDetail = {
     id: string
     summary_markdown: string
     overall_explanation: string
+    movers: VideoMover[]
     risks?: string[]
     opportunities?: string[]
     key_points: string[]

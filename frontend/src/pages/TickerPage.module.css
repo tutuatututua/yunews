@@ -1,3 +1,9 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .pageHeader {
   display: flex;
   align-items: flex-start;
@@ -11,6 +17,18 @@
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.headerField {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.headerLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .headerSelect {
@@ -34,6 +52,31 @@
 
 .filtersCard {
   padding: 14px;
+}
+
+.filtersTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.filtersChip {
+  white-space: nowrap;
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 900px) {
+  .filtersGrid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
 }
 
 .detailWrap {
@@ -75,6 +118,46 @@
   background: color-mix(in srgb, var(--surface) 82%, transparent);
 }
 
+.detailRowGrid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.detailThumbWrap {
+  width: 120px;
+}
+
+.detailThumb {
+  width: 120px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  display: block;
+}
+
+.detailThumbPlaceholder {
+  width: 120px;
+  height: 68px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.detailRowMain {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.detailRowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .detailKeypoint {
   font-weight: 650;
 }
@@ -97,7 +180,6 @@
 }
 
 .filterRow {
-  margin-top: 12px;
   display: grid;
   gap: 8px;
 }
@@ -115,4 +197,38 @@
   grid-template-columns: 1fr;
   gap: 10px;
   align-items: center;
+}
+
+@media (max-width: 640px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerRight {
+    justify-content: flex-start;
+  }
+
+  .headerField {
+    width: 100%;
+  }
+
+  .headerSelect {
+    width: 100%;
+  }
+
+  .detailRowGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailThumbWrap {
+    width: 100%;
+  }
+
+  .detailThumb,
+  .detailThumbPlaceholder {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
 }

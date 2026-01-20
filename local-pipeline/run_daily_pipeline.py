@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -19,57 +18,45 @@ from app.services.youtube_service import YouTubeSearchQuery, YouTubeService
 logger = logging.getLogger(__name__)
 
 
-def _aggregate_keypoints(keypoints_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _add_unique_strings(target: list[str], items: Any, *, max_items: int) -> None:
+    """Append unique, non-empty strings from items into target up to max_items."""
+
+    if not isinstance(items, list):
+        return
+
+    for x in items:
+        if len(target) >= max_items:
+            return
+        sx = str(x).strip()
+        if not sx:
+            continue
+        if sx not in target:
+            target.append(sx)
+
+
+def _aggregate_keypoints(keypoints_list: list[dict[str, Any]]) -> dict[str, Any]:
     """Aggregate keypoints from multiple chunks into a single structure."""
-    positive = []
-    negative = []
-    neutral = []
-    
+
+    positive: list[str] = []
+    negative: list[str] = []
+    neutral: list[str] = []
+
     for kp_dict in keypoints_list:
         if not isinstance(kp_dict, dict):
             continue
-        
-        # Add unique keypoints to each category
-        for kp in kp_dict.get("positive", []):
-            if kp and kp not in positive:
-                positive.append(kp)
-        for kp in kp_dict.get("negative", []):
-            if kp and kp not in negative:
-                negative.append(kp)
-        for kp in kp_dict.get("neutral", []):
-            if kp and kp not in neutral:
-                neutral.append(kp)
-    
+
+        _add_unique_strings(positive, kp_dict.get("positive", []), max_items=10)
+        _add_unique_strings(negative, kp_dict.get("negative", []), max_items=10)
+        _add_unique_strings(neutral, kp_dict.get("neutral", []), max_items=10)
+
     return {
-        "positive": positive[:10],  # Limit to top 10 per category
-        "negative": negative[:10],
-        "neutral": neutral[:10],
+        "positive": positive,
+        "negative": negative,
+        "neutral": neutral,
     }
 
 
-def _summary_to_embedding_text(ticker: str, summary: Dict[str, Any]) -> str:
-    parts: List[str] = [f"Ticker: {ticker}"]
-    
-    # Handle both old (bull_case, bear_case, risks) and new (positive, negative, neutral) formats
-    if "positive" in summary or "negative" in summary or "neutral" in summary:
-        # New keypoints format
-        for key in ["positive", "negative", "neutral"]:
-            items = summary.get(key) or []
-            if items:
-                joined = "\n".join(f"- {x}" for x in items)
-                parts.append(f"{key}_keypoints:\n{joined}")
-    else:
-        # Old summary format (backward compatibility)
-        for key in ["bull_case", "bear_case", "risks"]:
-            items = summary.get(key) or []
-            if items:
-                joined = "\n".join(f"- {x}" for x in items)
-                parts.append(f"{key}:\n{joined}")
-    
-    return "\n\n".join(parts)
-
-
-def _derive_video_summary(*, video_id: str, summary_rows: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+def _derive_video_summary(*, video_id: str, summary_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Create a lightweight per-video summary from aggregated (ticker) rows."""
 
     rows = [r for r in (summary_rows or []) if isinstance(r, dict)]
@@ -78,22 +65,10 @@ def _derive_video_summary(*, video_id: str, summary_rows: List[Dict[str, Any]]) 
 
     tickers = sorted({(r.get("ticker") or "").strip().upper() for r in rows if r.get("ticker")})
 
-    key_points: List[str] = []
-    opportunities: List[str] = []
-    risks: List[str] = []
-    md_lines: List[str] = []
-
-    def _add_unique(target: List[str], items: Any, max_items: int) -> None:
-        if not isinstance(items, list):
-            return
-        for x in items:
-            if len(target) >= max_items:
-                return
-            sx = str(x).strip()
-            if not sx:
-                continue
-            if sx not in target:
-                target.append(sx)
+    key_points: list[str] = []
+    opportunities: list[str] = []
+    risks: list[str] = []
+    md_lines: list[str] = []
 
     for r in rows:
         ticker = (r.get("ticker") or "").strip().upper()
@@ -120,12 +95,12 @@ def _derive_video_summary(*, video_id: str, summary_rows: List[Dict[str, Any]]) 
         md_lines.append("")
 
         if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            _add_unique(opportunities, summary_obj.get("positive") or [], max_items=12)
-            _add_unique(risks, summary_obj.get("negative") or [], max_items=12)
+            _add_unique_strings(opportunities, summary_obj.get("positive") or [], max_items=12)
+            _add_unique_strings(risks, summary_obj.get("negative") or [], max_items=12)
         else:
-            _add_unique(opportunities, summary_obj.get("bull_case") or [], max_items=12)
-            _add_unique(risks, summary_obj.get("risks") or [], max_items=12)
-            _add_unique(risks, summary_obj.get("bear_case") or [], max_items=12)
+            _add_unique_strings(opportunities, summary_obj.get("bull_case") or [], max_items=12)
+            _add_unique_strings(risks, summary_obj.get("risks") or [], max_items=12)
+            _add_unique_strings(risks, summary_obj.get("bear_case") or [], max_items=12)
 
     return {
         "video_id": video_id,
@@ -141,29 +116,17 @@ def _derive_video_summary(*, video_id: str, summary_rows: List[Dict[str, Any]]) 
     }
 
 
-def _derive_daily_summary(*, market_date: date, rows: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+def _derive_daily_summary(*, market_date: date, rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Create a daily market summary derived from aggregated (video,ticker) summaries."""
 
     if not rows:
         return None
 
-    ticker_counts: Dict[str, int] = {}
-    opportunities: List[str] = []
-    risks: List[str] = []
+    ticker_counts: dict[str, int] = {}
+    opportunities: list[str] = []
+    risks: list[str] = []
 
-    md_lines: List[str] = [f"# Market Summary — {market_date.isoformat()}", ""]
-
-    def _add_unique(target: List[str], items: Any, max_items: int) -> None:
-        if not isinstance(items, list):
-            return
-        for x in items:
-            if len(target) >= max_items:
-                return
-            sx = str(x).strip()
-            if not sx:
-                continue
-            if sx not in target:
-                target.append(sx)
+    md_lines: list[str] = [f"# Market Summary — {market_date.isoformat()}", ""]
 
     for r in rows:
         if not isinstance(r, dict):
@@ -196,12 +159,12 @@ def _derive_daily_summary(*, market_date: date, rows: List[Dict[str, Any]]) -> D
         md_lines.append("")
 
         if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            _add_unique(opportunities, summary_obj.get("positive") or [], max_items=12)
-            _add_unique(risks, summary_obj.get("negative") or [], max_items=12)
+            _add_unique_strings(opportunities, summary_obj.get("positive") or [], max_items=12)
+            _add_unique_strings(risks, summary_obj.get("negative") or [], max_items=12)
         else:
-            _add_unique(opportunities, summary_obj.get("bull_case") or [], max_items=12)
-            _add_unique(risks, summary_obj.get("risks") or [], max_items=12)
-            _add_unique(risks, summary_obj.get("bear_case") or [], max_items=12)
+            _add_unique_strings(opportunities, summary_obj.get("bull_case") or [], max_items=12)
+            _add_unique_strings(risks, summary_obj.get("risks") or [], max_items=12)
+            _add_unique_strings(risks, summary_obj.get("bear_case") or [], max_items=12)
 
     movers = [
         {
@@ -264,7 +227,7 @@ def main() -> None:
         max_videos=settings.discovery_max_videos,
         language=settings.discovery_language,
     )
-    print([video.video_id for video in videos])
+    logger.info("Discovered video_ids=%s", [video.video_id for video in videos])
 
     run_started = datetime.now(timezone.utc)
     processed = 0
@@ -280,7 +243,7 @@ def main() -> None:
             continue
 
         logger.info("Processing video_id=%s title=%s", video.video_id, video.title)
-        
+
         # 3) Transcript fetching
         entries = transcript.fetch_transcript(video.video_id, languages=["en"])
         if not entries:
@@ -289,62 +252,57 @@ def main() -> None:
             db.mark_video_processed(video.video_id)
             no_transcript += 1
             continue
-        
+
         # 4) Time-based chunking
         chunks = chunker.chunk_by_time(video.video_id, entries)
         db.upsert_transcript_chunks(chunks)
 
         # 5) Extract tickers from EACH chunk with categorized keypoints
         total_extractions = 0
-        for c in chunks:
-
-            chunk_extraction = extractor.extract(c.chunk_text)
+        for chunk in chunks:
+            chunk_extraction = extractor.extract(chunk.chunk_text)
             if not chunk_extraction.ticker_topic_pairs:
-                logger.debug("No tickers in chunk %d for video_id=%s", c.chunk_index, video.video_id)
+                logger.debug("No tickers in chunk %d for video_id=%s", chunk.chunk_index, video.video_id)
                 continue
-            
+
             # Filter out invalid pairs
-            valid_pairs = [
-                pair
-                for pair in chunk_extraction.ticker_topic_pairs
-                if pair.ticker
-            ]
-            
+            valid_pairs = [pair for pair in chunk_extraction.ticker_topic_pairs if pair.ticker]
+
             if not valid_pairs:
                 continue
-            
+
             logger.debug(
                 "Chunk %d: extracted %d tickers with keypoints",
-                c.chunk_index,
+                chunk.chunk_index,
                 len(valid_pairs)
             )
-            
+
             # 6) Store one analysis row per (chunk, ticker) with keypoints
             for pair in valid_pairs:
                 ticker = pair.ticker
-                
+
                 # Build keypoints structure
                 keypoints = {
                     "positive": pair.positive_keypoints,
                     "negative": pair.negative_keypoints,
                     "neutral": pair.neutral_keypoints,
                 }
-                
+
                 total_extractions += 1
-                
+
                 db.upsert_chunk_analysis(
                     video_id=video.video_id,
-                    chunk_index=c.chunk_index,
+                    chunk_index=chunk.chunk_index,
                     ticker=ticker,
                     chunk_summary=keypoints,
                 )
-        
+
         if total_extractions == 0:
             logger.info("No tickers extracted from any chunk for video_id=%s, skipping", video.video_id)
             db.mark_video_processed(video.video_id)
             processed += 1
             continue
-        
+
         logger.info(
             "Extracted %d total tickers across all chunks for video_id=%s",
             total_extractions,
@@ -355,7 +313,7 @@ def main() -> None:
         analysis_rows = db.list_chunk_analysis(video.video_id)
 
         # Group by ticker
-        grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for row in analysis_rows:
             ticker_value = row.get("ticker")
             keypoints = row.get("chunk_summary") or {}
@@ -378,11 +336,11 @@ def main() -> None:
         # 8) Aggregate keypoints and create embeddings
         dimension = embedder.embedding_dimension()
 
-        aggregated_items_for_video: List[Dict[str, Any]] = []
+        aggregated_items_for_video: list[dict[str, Any]] = []
 
         # Aggregate ONCE per video (LLM), producing per-ticker aggregates.
         # This is much cheaper than calling the LLM once per ticker.
-        aggregated_by_ticker: Dict[str, Dict[str, Any]] = {}
+        aggregated_by_ticker: dict[str, dict[str, Any]] = {}
         try:
             agg_map = summarizer.aggregate_video_tickers(grouped_chunk_summaries=grouped)
             aggregated_by_ticker = {t: a.model_dump() for t, a in (agg_map or {}).items()}
@@ -404,7 +362,7 @@ def main() -> None:
                 }
             )
 
-            summary_id = db.upsert_aggregated_summary(
+            db.upsert_aggregated_summary(
                 video_id=video.video_id,
                 published_at=video.published_at,
                 ticker=ticker_u,
@@ -423,7 +381,11 @@ def main() -> None:
             if overall.summary_markdown.strip():
                 summary_markdown = overall.summary_markdown
                 key_points = overall.key_points
-                derived_tickers = [str(x.get("ticker")).strip().upper() for x in (aggregated_items_for_video or []) if isinstance(x, dict) and x.get("ticker")]
+                derived_tickers = [
+                    str(x.get("ticker")).strip().upper()
+                    for x in (aggregated_items_for_video or [])
+                    if isinstance(x, dict) and x.get("ticker")
+                ]
                 tickers = sorted({t.strip().upper() for t in (overall.tickers or derived_tickers) if t and t.strip()})
                 sentiment = overall.sentiment
                 events = [e.model_dump() for e in (overall.events or [])]
@@ -453,7 +415,8 @@ def main() -> None:
                             f"Channel: {video.channel}",
                             f"Published at: {video.published_at}",
                             f"overall_explanation: {overall.overall_explanation}",
-                            "Opportunities:\n" + "\n".join(f"- {x}" for x in (overall.opportunities or []) if str(x).strip()),
+                            "Opportunities:\n"
+                            + "\n".join(f"- {x}" for x in (overall.opportunities or []) if str(x).strip()),
                             "Risks:\n" + "\n".join(f"- {x}" for x in (overall.risks or []) if str(x).strip()),
                             "Events:\n"
                             + "\n".join(
@@ -478,7 +441,7 @@ def main() -> None:
                     logger.exception("Failed to embed/store video summary embedding")
             else:
                 # Fallback to derived-from-summaries (keeps UI populated even if LLM fails).
-                print("Falling back to derived video summary")
+                logger.info("Falling back to derived video summary video_id=%s", video.video_id)
                 sr2 = (
                     db.client.table("summaries")
                     .select("ticker,summary,created_at")
@@ -538,14 +501,12 @@ def main() -> None:
             .execute()
         )
         raw_items = [r for r in (vs_resp.data or []) if isinstance(r, dict)]
-        video_ids: List[str] = [str(r.get("video_id")) for r in raw_items if r.get("video_id")]
+        video_ids: list[str] = [str(r.get("video_id")) for r in raw_items if r.get("video_id")]
         if raw_items:
 
             # Keep the daily prompt inputs small: only pass the fields the prompt expects.
-            video_items: List[Dict[str, Any]] = []
+            video_items: list[dict[str, Any]] = []
             for r in raw_items:
-                vid = r.get("video_id")
-                vid_str = str(vid) if vid else ""
                 tickers_raw = r.get("tickers") or []
                 tickers_market_only = [
                     str(t).strip().upper()
@@ -598,7 +559,7 @@ def main() -> None:
                         generated_at=ds["generated_at"],
                     )
     except Exception:
-        logger.exception("Failed to store daily summary", Exception)
+        logger.exception("Failed to store daily summary")
 
     logger.info(
         "Done. discovered=%s processed=%s skipped=%s no_transcript=%s",

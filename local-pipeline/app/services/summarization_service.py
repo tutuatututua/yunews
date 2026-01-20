@@ -12,7 +12,7 @@ from pydantic import SecretStr
 from pydantic import ValidationError
 
 from app.core.logging import log_llm_prompt_stats
-from app.models.schemas import AggregatedSummary, ChunkSummary, DailyOverallSummary, VideoOverallSummary
+from app.models.schemas import AggregatedSummary, DailyOverallSummary, VideoOverallSummary
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +132,7 @@ class SummarizationService:
                     "items_count": len(chunk_summaries or []),
                 },
             )
-            msg = self._llm.invoke(
-                prompt
-            )
+            msg = self._llm.invoke(prompt)
             parsed = self._safe_json(str(msg.content))
             if parsed:
                 return AggregatedSummary.model_validate(parsed)
@@ -252,9 +250,7 @@ class SummarizationService:
                     "items_count": len(aggregated_items or []),
                 },
             )
-            msg = self._llm.invoke(
-                prompt
-            )
+            msg = self._llm.invoke(prompt)
             parsed = self._safe_json(str(msg.content))
             if parsed:
                 video = VideoOverallSummary.model_validate(parsed)

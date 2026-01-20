@@ -76,9 +76,34 @@
 
 .quickActions {
   display: inline-flex;
-  align-items: center;
+  align-items: end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.toolbarField {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  width: auto;
+  min-width: 160px;
+}
+
+.toolbarSelect {
+  width: auto;
+  min-width: 160px;
+}
+
+@media (max-width: 720px) {
+  .toolbarField {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .toolbarSelect {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .windowChip {

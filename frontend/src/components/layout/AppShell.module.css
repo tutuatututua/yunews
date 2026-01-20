@@ -107,7 +107,9 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   backdrop-filter: blur(10px);
+  z-index: 30;
 }
 
 .topbarLeft {
@@ -141,7 +143,15 @@
 
 /* Content */
 .container {
-  padding: 20px;
+  width: min(1160px, 100%);
+  margin: 0 auto;
+  padding: 22px 22px 28px;
+}
+
+@media (max-width: 540px) {
+  .container {
+    padding: 16px 14px 22px;
+  }
 }
 
 /* ===== MOBILE ===== */

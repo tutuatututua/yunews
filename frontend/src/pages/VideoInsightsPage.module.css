@@ -11,6 +11,25 @@
   gap: 12px;
 }
 
+@media (max-width: 640px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .titleRow {
+    flex-wrap: wrap;
+  }
+
+  .sentimentChip {
+    margin-left: 0;
+  }
+}
+
 .headerActions {
   display: inline-flex;
   align-items: end;
@@ -61,10 +80,10 @@
 
 .videoRowExpanded {
   background: color-mix(in srgb, var(--primary) 6%, transparent);
-  margin: 0 -12px;
-  padding-left: 12px;
-  padding-right: 12px;
-  border-radius: 14px;
+  margin: 0 -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+  border-radius: 16px;
 }
 
 .videoTop {
@@ -231,5 +250,93 @@
   font-size: 13px;
   line-height: 1.45;
   color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  white-space: pre-wrap;
+}
+
+.moversSection {
+  margin: 14px 0 10px;
+}
+
+.moversHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.moversCountChip {
+  color: var(--muted);
+}
+
+.moversEmpty {
+  padding: 6px 0;
+}
+
+.moversList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .moversList {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.moverItem {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  padding: 10px;
+}
+
+.moverTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.moverSymbolChip {
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--border) 50%, var(--primary));
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.moverSymbolChip:hover {
+  text-decoration: underline;
+}
+
+.moverDirChip {
+  font-weight: 700;
+}
+
+.moverDirUp {
+  color: var(--sent-pos);
+  border-color: color-mix(in srgb, var(--sent-pos) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-pos) 10%, var(--surface));
+}
+
+.moverDirDown {
+  color: var(--sent-neg);
+  border-color: color-mix(in srgb, var(--sent-neg) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-neg) 10%, var(--surface));
+}
+
+.moverDirMixed {
+  color: var(--sent-neu);
+  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
+  background: color-mix(in srgb, var(--sent-neu) 10%, var(--surface));
+}
+
+.moverReason {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--text) 86%, var(--muted));
   white-space: pre-wrap;
 }

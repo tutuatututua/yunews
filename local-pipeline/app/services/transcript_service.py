@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import List, Optional
 import random
+import time
+from typing import Optional
+
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     CouldNotRetrieveTranscript,
@@ -19,31 +20,37 @@ logger = logging.getLogger(__name__)
 class TranscriptService:
     """Fetch transcripts with timestamps via youtube-transcript-api."""
 
-    def fetch_transcript(self, video_id: str, *, languages: Optional[List[str]] = None) -> List[TranscriptEntry]:
+    _MIN_SLEEP_SECONDS = 1.5
+    _MAX_SLEEP_SECONDS = 2.5
+
+    def fetch_transcript(self, video_id: str, *, languages: Optional[list[str]] = None) -> list[TranscriptEntry]:
         languages = languages or ["en"]
 
         # Simple throttling to reduce chances of YouTube blocking your IP.
         # (Keep values fixed per your request; adjust here if needed.)
-        time.sleep(random.uniform(1.5, 2.5))
+        time.sleep(random.uniform(self._MIN_SLEEP_SECONDS, self._MAX_SLEEP_SECONDS))
 
-        transcript = None
         try:
             # NOTE: youtube-transcript-api can return an iterable that performs
             # network work lazily; eagerly materialize it so errors are caught here.
             transcript = list(YouTubeTranscriptApi().fetch(video_id, languages=languages))
         except (NoTranscriptFound, TranscriptsDisabled) as exc:
             logger.info("No transcript for video_id=%s: %s", video_id, exc)
+            transcript = None
         except CouldNotRetrieveTranscript as exc:
             logger.warning("Could not retrieve transcript for video_id=%s: %s", video_id, exc)
+            transcript = None
         except Exception as exc:
             logger.warning("Error fetching transcript for video_id=%s: %s", video_id, exc)
-        time.sleep(random.uniform(1.5, 2.5))
+            transcript = None
+
+        time.sleep(random.uniform(self._MIN_SLEEP_SECONDS, self._MAX_SLEEP_SECONDS))
 
 
         if transcript is None:
             return []
 
-        entries: List[TranscriptEntry] = []
+        entries: list[TranscriptEntry] = []
         for row in transcript:
             try:
                 start = getattr(row, "start", None)

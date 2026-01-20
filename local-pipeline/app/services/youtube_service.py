@@ -37,6 +37,15 @@ class YouTubeService:
         r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
     )
 
+    @staticmethod
+    def _to_int(value: object) -> Optional[int]:
+        if value is None:
+            return None
+        try:
+            return int(str(value))
+        except Exception:
+            return None
+
     def __init__(self, api_key: str, session: Optional[requests.Session] = None) -> None:
         self._api_key = api_key
         self._session = session or requests.Session()
@@ -238,23 +247,15 @@ class YouTubeService:
                     or ((thumbnails.get("default") or {}).get("url"))
                 )
 
-                def _to_int(x: object) -> Optional[int]:
-                    if x is None:
-                        return None
-                    try:
-                        return int(str(x))
-                    except Exception:
-                        return None
-
                 out[video_id] = {
                     "duration_seconds": duration_seconds,
                     "channel_id": snippet.get("channelId"),
                     "channel_title": snippet.get("channelTitle"),
                     "video_url": f"https://www.youtube.com/watch?v={video_id}",
                     "thumbnail_url": thumb_url,
-                    "view_count": _to_int(statistics.get("viewCount")),
-                    "like_count": _to_int(statistics.get("likeCount")),
-                    "comment_count": _to_int(statistics.get("commentCount")),
+                    "view_count": self._to_int(statistics.get("viewCount")),
+                    "like_count": self._to_int(statistics.get("likeCount")),
+                    "comment_count": self._to_int(statistics.get("commentCount")),
                     "tags": snippet.get("tags") if isinstance(snippet.get("tags"), list) else None,
                     "category_id": snippet.get("categoryId"),
                     "default_language": snippet.get("defaultLanguage"),
@@ -294,17 +295,9 @@ class YouTubeService:
                     continue
                 statistics = item.get("statistics") or {}
 
-                def _to_int(x: object) -> Optional[int]:
-                    if x is None:
-                        return None
-                    try:
-                        return int(str(x))
-                    except Exception:
-                        return None
-
                 out[channel_id] = {
-                    "subscriber_count": _to_int(statistics.get("subscriberCount")),
-                    "video_count": _to_int(statistics.get("videoCount")),
+                    "subscriber_count": self._to_int(statistics.get("subscriberCount")),
+                    "video_count": self._to_int(statistics.get("videoCount")),
                 }
 
         return out

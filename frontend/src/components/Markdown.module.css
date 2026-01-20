@@ -1,25 +1,139 @@
 .markdown {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.65;
   color: var(--text);
+  max-width: 78ch;
+}
+
+@media (max-width: 540px) {
+  .markdown {
+    font-size: 13px;
+    max-width: none;
+  }
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
 }
 
 .markdown p {
-  margin: 8px 0;
+  margin: 10px 0;
 }
 
 .markdown h1,
 .markdown h2,
 .markdown h3 {
-  margin: 14px 0 8px;
+  margin: 18px 0 10px;
   line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.markdown h1 {
+  font-size: 18px;
+}
+
+.markdown h2 {
+  font-size: 16px;
+}
+
+.markdown h3 {
+  font-size: 14px;
+}
+
+.markdown h4 {
+  margin: 16px 0 10px;
+  line-height: 1.25;
+  font-size: 13.5px;
   letter-spacing: -0.01em;
 }
 
 .markdown ul,
 .markdown ol {
-  margin: 8px 0;
+  margin: 10px 0;
   padding-left: 18px;
+}
+
+.markdown li {
+  margin: 6px 0;
+}
+
+.markdown li > p {
+  margin: 6px 0;
+}
+
+.markdown a {
+  color: color-mix(in srgb, var(--primary) 92%, var(--text));
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  text-decoration-color: color-mix(in srgb, var(--primary) 85%, transparent);
+}
+
+.markdown hr {
+  height: 1px;
+  border: 0;
+  background: var(--border-2);
+  margin: 14px 0;
+}
+
+.markdown blockquote {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--text) 86%, var(--muted));
+}
+
+.markdown blockquote > :first-child {
+  margin-top: 0;
+}
+
+.markdown blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-2);
+}
+
+.markdown table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 12px 0;
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.markdown th,
+.markdown td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-2);
+  font-size: 12.5px;
+}
+
+.markdown th {
+  font-weight: 800;
+  color: color-mix(in srgb, var(--text) 92%, var(--muted));
+  background: color-mix(in srgb, var(--surface) 70%, var(--surface-2));
+}
+
+.markdown tr:last-child td {
+  border-bottom: 0;
 }
 
 .markdown code {
@@ -29,4 +143,22 @@
   border: 1px solid var(--border-2);
   padding: 1px 6px;
   border-radius: 8px;
+}
+
+.markdown pre {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-2);
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  overflow: auto;
+}
+
+.markdown pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 12px;
+  line-height: 1.55;
 }

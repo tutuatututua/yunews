@@ -4,6 +4,7 @@ import Markdown from '../components/Markdown'
 import { EmptyState, ErrorCallout } from '../components/ui/Callout'
 import { LoadingLine } from '../components/ui/Loading'
 import { cn } from '../lib/cn'
+import { getUiErrorInfo } from '../lib/errors'
 import { formatCompactNumber, formatDateTime, parseDays } from '../lib/format'
 import { safeExternalHref } from '../lib/safeUrl'
 import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
@@ -12,7 +13,7 @@ import type { VideoInfographicItem, VideoListItem } from '../types'
 import { ui, util } from '../styles'
 import styles from './VideoInsightsPage.module.css'
 
-type Sentiment = 'positive' | 'negative' | 'neutral'
+type Sentiment = 'bullish' | 'bearish' | 'mixed'
 
 type SentimentCounts = { positive: number; negative: number; neutral: number }
 
@@ -22,18 +23,34 @@ type VideoEdgeSummary = {
   overall: Sentiment
 }
 
+type MoverDirection = 'up' | 'down' | 'mixed'
+
+function normalizeMoverDirection(input: unknown): MoverDirection | null {
+  const s = String(input || '').trim().toLowerCase()
+  if (s === 'up' || s === 'bullish' || s === 'positive') return 'up'
+  if (s === 'down' || s === 'bearish' || s === 'negative') return 'down'
+  if (s === 'mixed' || s === 'neutral') return 'mixed'
+  return null
+}
+
+function moverDirectionLabel(d: MoverDirection): string {
+  if (d === 'up') return 'Up'
+  if (d === 'down') return 'Down'
+  return 'Mixed'
+}
+
 function sentimentPillLabel(s: Sentiment): string {
-  if (s === 'positive') return 'Bullish'
-  if (s === 'negative') return 'Bearish'
-  return 'Neutral'
+  if (s === 'bullish') return 'Bullish'
+  if (s === 'bearish') return 'Bearish'
+  return 'Mixed'
 }
 
 function normalizeSentiment(input: string | null | undefined): Sentiment | null {
   const s = String(input || '').trim().toLowerCase()
   if (!s) return null
-  if (s === 'positive' || s === 'bullish') return 'positive'
-  if (s === 'negative' || s === 'bearish') return 'negative'
-  if (s === 'neutral') return 'neutral'
+  if (s === 'bullish' || s === 'positive') return 'bullish'
+  if (s === 'bearish' || s === 'negative') return 'bearish'
+  if (s === 'mixed' || s === 'neutral') return 'mixed'
   return null
 }
 
@@ -56,21 +73,16 @@ function summarizeVideoEdges(items: VideoInfographicItem[] | undefined): Map<str
 
     const overall: Sentiment =
       counts.positive === counts.negative
-        ? 'neutral'
+        ? 'mixed'
         : counts.positive > counts.negative
-          ? 'positive'
-          : 'negative'
+          ? 'bullish'
+          : 'bearish'
 
     byVideoId.set(item.video_id, { tickers: Array.from(tickers).sort(), counts, overall })
   }
   return byVideoId
 }
 
-function sentimentLabel(s: Sentiment): string {
-  if (s === 'positive') return 'Positive'
-  if (s === 'negative') return 'Negative'
-  return 'Neutral'
-}
 
 export default function VideoInsightsPage() {
   const { timeZone, timeShiftMinutes } = useTimeZone()
@@ -104,11 +116,11 @@ export default function VideoInsightsPage() {
     setParams(next)
   }
 
-  const combinedError =
-    (dailyQuery.error as any)?.message ||
-    (videosQuery.error as any)?.message ||
-    (infographicQuery.error as any)?.message ||
-    (detailQuery.error as any)?.message ||
+  const errorInfo =
+    getUiErrorInfo(dailyQuery.error) ||
+    getUiErrorInfo(videosQuery.error) ||
+    getUiErrorInfo(infographicQuery.error) ||
+    getUiErrorInfo(detailQuery.error) ||
     null
 
   return (
@@ -130,10 +142,14 @@ export default function VideoInsightsPage() {
               <option value="30">Last 30 days</option>
             </select>
           </label>  
+
+          <Link className={cn(ui.button, ui.ghost)} to={`/ticker?days=${encodeURIComponent(String(days))}`}>
+            Ticker view
+          </Link>
         </div>
       </div>
 
-      {combinedError && <ErrorCallout message={combinedError} />}
+      {errorInfo && <ErrorCallout message={errorInfo.message} requestId={errorInfo.requestId} />}
 
       {!canQueryWindow && <LoadingLine label="Preparing your feed…" />}
       {canQueryWindow && videosQuery.isLoading && <LoadingLine label="Loading videos…" />}
@@ -176,9 +192,9 @@ export default function VideoInsightsPage() {
                         className={cn(
                           ui.chip,
                           styles.sentimentChip,
-                          rowSentiment === 'positive' && styles.sentimentPos,
-                          rowSentiment === 'negative' && styles.sentimentNeg,
-                          rowSentiment === 'neutral' && styles.sentimentNeu,
+                          rowSentiment === 'bullish' && styles.sentimentPos,
+                          rowSentiment === 'bearish' && styles.sentimentNeg,
+                          rowSentiment === 'mixed' && styles.sentimentNeu,
                         )}
                         title="Sentiment derived from stored video summary (fallback: infographic edges)"
                       >
@@ -253,6 +269,65 @@ export default function VideoInsightsPage() {
                             <div className={styles.overallText}>
                               {detailQuery.data.summary.overall_explanation?.trim() || '—'}
                             </div>
+                          </div>
+
+                          <div className={styles.moversSection} aria-label="Top movers in this video">
+                            <div className={styles.moversHeader}>
+                              <div className={styles.metaLabel}>Top movers</div>
+                              <span className={cn(ui.chip, styles.moversCountChip)} title="Key tickers driving this video (from stored video summary)">
+                                {detailQuery.data.summary.movers?.length ?? 0}
+                              </span>
+                            </div>
+
+                            {detailQuery.data.summary.movers?.length ? (
+                              <div className={styles.moversList}>
+                                {detailQuery.data.summary.movers.slice(0, 8).map((mv, idx) => {
+                                  const sym = String(mv?.symbol || '').trim().toUpperCase()
+                                  const dir = normalizeMoverDirection(mv?.direction) || 'mixed'
+                                  const reason = String(mv?.reason || '').trim()
+                                  const tickerHref = `/ticker?days=${encodeURIComponent(String(days))}&symbol=${encodeURIComponent(sym)}`
+
+                                  return (
+                                    <div key={`${sym || 'mover'}-${idx}`} className={styles.moverItem}>
+                                      <div className={styles.moverTopRow}>
+                                        {sym ? (
+                                          <Link className={cn(ui.chip, styles.moverSymbolChip)} to={tickerHref} title={`Open ${sym} in ticker view`}>
+                                            {sym}
+                                          </Link>
+                                        ) : (
+                                          <span className={cn(ui.chip, styles.moverSymbolChip)} aria-label="Unknown symbol">
+                                            —
+                                          </span>
+                                        )}
+
+                                        <span
+                                          className={cn(
+                                            ui.chip,
+                                            styles.moverDirChip,
+                                            dir === 'up' && styles.moverDirUp,
+                                            dir === 'down' && styles.moverDirDown,
+                                            dir === 'mixed' && styles.moverDirMixed,
+                                          )}
+                                          title="Direction as described by the summarizer"
+                                        >
+                                          {moverDirectionLabel(dir)}
+                                        </span>
+                                      </div>
+
+                                      {reason ? (
+                                        <div className={styles.moverReason}>{reason}</div>
+                                      ) : (
+                                        <div className={cn(util.muted, util.small)}>No rationale stored.</div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <div className={cn(util.muted, util.small, styles.moversEmpty)}>
+                                No movers were extracted for this video.
+                              </div>
+                            )}
                           </div>
 
                           <Markdown markdown={detailQuery.data.summary.summary_markdown} />
