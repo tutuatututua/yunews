@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import json
 from typing import Literal
 
 from pydantic import AliasChoices, Field
@@ -60,13 +61,25 @@ class Settings(BaseSettings):
     def _split_csv_or_passthrough(cls, v):
         if v is None:
             return []
+        if isinstance(v, (list, tuple, set)):
+            return [str(x).strip() for x in v if str(x).strip()]
         if isinstance(v, str):
             raw = v.strip()
             if not raw:
                 return []
-            # If user passed JSON-ish, let pydantic handle it elsewhere.
+            # Accept JSON arrays (preferred) like: ["https://example.com", "https://www.example.com"]
             if raw.startswith("[") and raw.endswith("]"):
-                return v
+                try:
+                    parsed = json.loads(raw)
+                except Exception:
+                    # Fall back to a best-effort CSV parse.
+                    return [x.strip() for x in raw.strip("[]").split(",") if x.strip()]
+
+                if isinstance(parsed, list):
+                    return [str(x).strip() for x in parsed if str(x).strip()]
+                if isinstance(parsed, str) and parsed.strip():
+                    return [parsed.strip()]
+                return []
             return [x.strip() for x in raw.split(",") if x.strip()]
         return v
 
