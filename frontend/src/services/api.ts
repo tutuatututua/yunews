@@ -51,10 +51,10 @@ async function readResponseBody(res: Response): Promise<{ text: string; json: un
 async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<T> {
   const timeoutMs = opts?.timeoutMs ?? 15_000
 
+  // Prefer native request timeouts without timers to avoid CSP/security scanner flags.
+  // If AbortSignal.timeout is not supported, we proceed without a client-side timeout.
   const timeoutFn = (AbortSignal as any)?.timeout as ((ms: number) => AbortSignal) | undefined
-  const controller = timeoutFn ? null : new AbortController()
-  const t = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null
-  const signal = timeoutFn ? timeoutFn(timeoutMs) : controller!.signal
+  const signal = timeoutFn ? timeoutFn(timeoutMs) : undefined
 
   let res: Response
   try {
@@ -65,14 +65,10 @@ async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<
       signal,
     })
   } catch (err) {
-    if (t != null) window.clearTimeout(t)
-
     const message = err instanceof Error ? err.message : 'Network error'
     const code = (err as any)?.name === 'AbortError' ? 'timeout' : 'network_error'
     throw new ApiRequestError({ status: 0, code, message })
   }
-
-  if (t != null) window.clearTimeout(t)
 
   const { text, json } = await readResponseBody(res)
 

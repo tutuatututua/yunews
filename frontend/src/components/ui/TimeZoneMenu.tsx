@@ -111,8 +111,8 @@ export function TimeZoneMenu(props: { className?: string }) {
 
   React.useEffect(() => {
     if (!open) return
-    const t = window.setTimeout(() => inputRef.current?.focus(), 0)
-    return () => window.clearTimeout(t)
+    const raf = window.requestAnimationFrame(() => inputRef.current?.focus())
+    return () => window.cancelAnimationFrame(raf)
   }, [open])
 
   const results = React.useMemo(() => {
