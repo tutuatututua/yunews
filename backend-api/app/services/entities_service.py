@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.core.supabase import get_supabase_client
+from app.core.supabase import execute, get_supabase_client
 from app.core.time import market_day_bounds, market_today
 
 
@@ -52,14 +52,14 @@ def top_movers(*, date_, days: int, limit: int) -> list[dict[str, Any]]:
     start, _ = market_day_bounds(start_d)
     _, end = market_day_bounds(end_d)
 
-    v_resp = (
+    v_resp = execute(
         supa.table("videos")
         .select("video_id")
         .gte("published_at", start)
         .lte("published_at", end)
         .order("published_at", desc=True)
-        .limit(4000)
-        .execute()
+        .limit(4000),
+        context="entities:top_movers:videos",
     )
     video_ids = [str(r.get("video_id")) for r in (v_resp.data or []) if isinstance(r, dict) and r.get("video_id")]
     if not video_ids:
@@ -67,23 +67,23 @@ def top_movers(*, date_, days: int, limit: int) -> list[dict[str, Any]]:
 
     rows: list[dict[str, Any]] = []
     for group in chunked(video_ids, 400):
-        s_resp = (
+        s_resp = execute(
             supa.table("summaries")
             .select("video_id,ticker,summary")
             .in_("video_id", group)
-            .limit(5000)
-            .execute()
+            .limit(5000),
+            context="entities:top_movers:summaries",
         )
         rows.extend([r for r in (s_resp.data or []) if isinstance(r, dict)])
 
     if not rows:
         for group in chunked(video_ids, 400):
-            ca_resp = (
+            ca_resp = execute(
                 supa.table("chunk_analysis")
                 .select("video_id,chunk_index,ticker,chunk_summary")
                 .in_("video_id", group)
-                .limit(5000)
-                .execute()
+                .limit(5000),
+                context="entities:top_movers:chunk_analysis_fallback",
             )
             for r in (ca_resp.data or []):
                 if not isinstance(r, dict):
@@ -159,13 +159,13 @@ def chunks_for_entity(*, symbol: str, days: int, limit: int) -> list[dict[str, A
     start = start_utc.isoformat()
     end = now_utc.isoformat()
 
-    v_resp = (
+    v_resp = execute(
         supa.table("videos")
         .select("video_id,published_at,video_url,channel,title")
         .gte("published_at", start)
         .lte("published_at", end)
-        .limit(4000)
-        .execute()
+        .limit(4000),
+        context="entities:chunks_for_entity:videos",
     )
     vids = v_resp.data or []
     allowed_video_ids = [str(v["video_id"]) for v in vids if isinstance(v, dict) and v.get("video_id")]
@@ -186,7 +186,7 @@ def chunks_for_entity(*, symbol: str, days: int, limit: int) -> list[dict[str, A
     )
     q = q.in_("video_id", allowed_video_ids)
 
-    ca_resp = q.execute()
+    ca_resp = execute(q, context="entities:chunks_for_entity:chunk_analysis")
     ca_rows = [r for r in (ca_resp.data or []) if isinstance(r, dict)]
     if not ca_rows:
         return []

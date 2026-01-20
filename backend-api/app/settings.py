@@ -27,6 +27,27 @@ class Settings(BaseSettings):
         )
     )
 
+    # Optional: service role key for server-side trusted deployments.
+    # Keep disabled by default; enable explicitly via SUPABASE_USE_SERVICE_ROLE.
+    supabase_service_role_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "SUPABASE_SERVICE_KEY",
+            "supabase_service_role_key",
+        ),
+    )
+
+    # When true and a service role key is provided, the backend will use it for Supabase.
+    # This is useful for local/dev setups where RLS/policies haven't been configured yet.
+    supabase_use_service_role: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SUPABASE_USE_SERVICE_ROLE",
+            "supabase_use_service_role",
+        ),
+    )
+
     environment: Literal["development", "production", "test"] = Field(
         default="development",
         validation_alias=AliasChoices("ENV", "ENVIRONMENT", "environment"),
