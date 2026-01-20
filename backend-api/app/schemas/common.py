@@ -3,12 +3,11 @@ from __future__ import annotations
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
-from pydantic.generics import GenericModel
 
 T = TypeVar("T")
 
 
-class ApiResponse(GenericModel, Generic[T]):
+class ApiResponse(BaseModel, Generic[T]):
     """Standard success envelope.
 
     We keep the existing `{ data: ... }` contract consumed by the frontend.

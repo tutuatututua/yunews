@@ -18,28 +18,15 @@ class Settings(BaseSettings):
     supabase_url: str = Field(validation_alias=AliasChoices("SUPABASE_URL", "supabase_url"))
 
     # Supabase keys:
-    # - `SUPABASE_ANON_KEY` is safe to share with the frontend (still needs RLS policies).
     # - `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and MUST stay server-side.
     #
-    # Backend behavior: prefer service role when present (helps when you enable RLS but
-    # haven't authored policies yet), otherwise fall back to anon key.
+    # Backend behavior: require service role key.
     supabase_service_role_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
             "SUPABASE_SERVICE_ROLE_KEY",
             "SUPABASE_SERVICE_KEY",
             "supabase_service_role_key",
-        ),
-    )
-
-    supabase_anon_key: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices(
-            "SUPABASE_ANON_KEY",
-            # Back-compat for older env names
-            "SUPABASE_KEY",
-            "supabase_key",
-            "supabase_anon_key",
         ),
     )
 
@@ -74,23 +61,18 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_supabase_keys(self) -> "Settings":
-        if self.supabase_service_role_key or self.supabase_anon_key:
+        if self.supabase_service_role_key:
             return self
         raise ValueError(
-            "Missing Supabase credentials: set SUPABASE_SERVICE_ROLE_KEY (recommended for backend when RLS is enabled) "
-            "or SUPABASE_ANON_KEY"
+            "Missing Supabase credentials: set SUPABASE_SERVICE_ROLE_KEY"
         )
 
     @computed_field
     @property
     def supabase_key(self) -> str:
-        key = self.supabase_service_role_key or self.supabase_anon_key
-        if not key:
-            raise ValueError(
-                "Missing Supabase credentials: set SUPABASE_SERVICE_ROLE_KEY (recommended for backend) "
-                "or SUPABASE_ANON_KEY"
-            )
-        return key
+        if not self.supabase_service_role_key:
+            raise ValueError("Missing Supabase credentials: set SUPABASE_SERVICE_ROLE_KEY")
+        return self.supabase_service_role_key
 
     @field_validator("cors_allow_origins", "cors_allow_methods", "cors_allow_headers", "trusted_hosts", mode="before")
     @classmethod
