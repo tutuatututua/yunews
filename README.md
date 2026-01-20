@@ -19,8 +19,9 @@
        - Use the **anon public JWT key** from Supabase (it typically starts with `eyJ...`).
        - A `sb_publishable_...` key will usually fail for the backend API with "Invalid API key".
 
-2. Frontend API base URL (build-time, for Docker/Vite):
-   - Create a root `.env` next to `docker-compose.yml` (tip: start from `.env.example`).
+2. Frontend API base URL:
+   - For Vite dev (`npm run dev`): create `frontend/.env` (tip: start from `frontend/.env.example`).
+   - For Docker builds: create a root `.env` next to `docker-compose.yml` (tip: start from `.env.example`).
    - Set `VITE_BACKEND_BASE_URL` to the backend URL that the *browser* can reach.
      - Local dev: `http://localhost:8080`
      - EC2 (recommended): `/api` (serve frontend + API from the same host via reverse proxy)
