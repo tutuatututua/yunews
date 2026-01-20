@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import * as d3 from 'd3'
+import { drag } from 'd3-drag'
+import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force'
+import { select } from 'd3-selection'
 import type { VideoInfographicItem } from '../../types'
 import { cn } from '../../lib/cn'
 import { util } from '../../styles'
@@ -229,25 +231,23 @@ export default function VideoTickerInfographicForce(props: {
     const W = viz.width
     const H = viz.height
 
-    const svg = d3.select(svgRef.current)
+    const svg = select(svgRef.current)
     svg.selectAll('*').remove()
 
     const linkG = svg.append('g').attr('opacity', 0.6)
     const nodeG = svg.append('g')
 
-    const sim = d3
-      .forceSimulation(nodes as any)
+    const sim = forceSimulation(nodes as any)
       .force(
         'link',
-        d3
-          .forceLink(links as any)
+        forceLink(links as any)
           .id((d: any) => d.id)
           .distance(viz.linkDistance)
           .strength(0.7),
       )
-      .force('charge', d3.forceManyBody().strength(viz.chargeStrength))
-      .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collision', d3.forceCollide().radius((d: any) => radius(d) + viz.collisionPadding).strength(0.9))
+      .force('charge', forceManyBody().strength(viz.chargeStrength))
+      .force('center', forceCenter(W / 2, H / 2))
+      .force('collision', forceCollide().radius((d: any) => radius(d) + viz.collisionPadding).strength(0.9))
 
     const linkEls = linkG
       .selectAll('line')
@@ -268,7 +268,7 @@ export default function VideoTickerInfographicForce(props: {
         if (d.type === 'video') return (d as VideoNode).videoTitle || 'Open video insight'
         return `Ticker ${d.label}`
       })
-      .call(d3.drag<any, any>()
+      .call(drag<any, any>()
         .on('start', dragStart)
         .on('drag', dragged)
         .on('end', dragEnd),
