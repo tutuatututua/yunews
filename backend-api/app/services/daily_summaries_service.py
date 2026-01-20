@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any
 
-from app.core.supabase import execute, get_supabase_client
+from app.core.supabase import get_supabase_client
 from app.core.time import MARKET_TZ, parse_iso_datetime
 
 
@@ -36,15 +36,14 @@ def get_daily_summary(market_date: date) -> dict[str, Any] | None:
     # Backward compatibility: `overall_summarize` may not exist in older schemas.
     try:
         supa = get_supabase_client()
-        resp = execute(
+        resp = (
             supa.table("daily_summaries")
             .select(
                 "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,model,generated_at"
             )
             .eq("market_date", market_date.isoformat())
             .limit(1)
-            ,
-            context="daily_summaries:get_daily_summary",
+            .execute()
         )
         row = resp.data[0] if resp.data else None
         return shape_daily_summary_row(row, market_date)
@@ -55,14 +54,14 @@ def get_daily_summary(market_date: date) -> dict[str, Any] | None:
 
 def get_latest_daily_summary() -> dict[str, Any] | None:
     supa = get_supabase_client()
-    resp = execute(
+    resp = (
         supa.table("daily_summaries")
         .select(
             "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,model,generated_at"
         )
         .order("market_date", desc=True)
-        .limit(1),
-        context="daily_summaries:get_latest_daily_summary",
+        .limit(1)
+        .execute()
     )
 
     row = resp.data[0] if resp.data else None
@@ -78,13 +77,13 @@ def get_latest_daily_summary() -> dict[str, Any] | None:
 
 def list_daily_summaries(*, limit: int) -> list[dict[str, Any]]:
     # Get recent market dates from videos; for each date, prefer stored daily summary.
-    v_resp = execute(
+    v_resp = (
         get_supabase_client()
         .table("videos")
         .select("published_at")
         .order("published_at", desc=True)
-        .limit(2000),
-        context="daily_summaries:list_daily_summaries:videos",
+        .limit(2000)
+        .execute()
     )
 
     seen: set[str] = set()

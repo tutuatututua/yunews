@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from app.core.supabase import execute, get_supabase_client
+from app.core.supabase import get_supabase_client
 from app.core.time import market_day_bounds, market_today
 
 
@@ -82,7 +82,7 @@ def list_videos(*, date_: date | None, days: int | None, limit: int) -> list[dic
         _, end = market_day_bounds(end_d)
         q = q.gte("published_at", start).lte("published_at", end)
 
-    resp = execute(q, context="videos:list_videos")
+    resp = q.execute()
     data = resp.data or []
 
     for row in data:
@@ -115,14 +115,14 @@ def video_infographic(*, date_: date | None, days: int, limit: int) -> list[dict
     start, _ = market_day_bounds(start_d)
     _, end = market_day_bounds(end_d)
 
-    v_resp = execute(
+    v_resp = (
         supa.table("videos")
         .select("video_id,title,channel,published_at,video_url,thumbnail_url")
         .gte("published_at", start)
         .lte("published_at", end)
         .order("published_at", desc=True)
-        .limit(limit),
-        context="videos:video_infographic:videos",
+        .limit(limit)
+        .execute()
     )
 
     videos = [r for r in (v_resp.data or []) if isinstance(r, dict) and r.get("video_id")]
@@ -133,12 +133,12 @@ def video_infographic(*, date_: date | None, days: int, limit: int) -> list[dict
 
     edges_by_video: dict[str, list[dict]] = {vid: [] for vid in video_ids}
     try:
-        s_resp = execute(
+        s_resp = (
             supa.table("summaries")
             .select("video_id,ticker,summary")
             .in_("video_id", video_ids)
-            .limit(5000),
-            context="videos:video_infographic:summaries",
+            .limit(5000)
+            .execute()
         )
 
         acc: dict[str, dict[str, dict]] = {vid: {} for vid in video_ids}
@@ -217,12 +217,12 @@ def video_infographic(*, date_: date | None, days: int, limit: int) -> list[dict
 
     if not any(edges_by_video.get(vid) for vid in edges_by_video):
         try:
-            vs_resp = execute(
+            vs_resp = (
                 supa.table("video_summaries")
                 .select("video_id,tickers")
                 .in_("video_id", video_ids)
-                .limit(2000),
-                context="videos:video_infographic:video_summaries_fallback",
+                .limit(2000)
+                .execute()
             )
             for row in (vs_resp.data or []):
                 if not isinstance(row, dict) or not row.get("video_id"):
@@ -273,10 +273,7 @@ def video_infographic(*, date_: date | None, days: int, limit: int) -> list[dict
 
 def get_video_detail(video_id: str) -> dict[str, Any] | None:
     supa = get_supabase_client()
-    v_resp = execute(
-        supa.table("videos").select("*").eq("video_id", video_id).limit(1),
-        context="videos:get_video_detail:videos",
-    )
+    v_resp = supa.table("videos").select("*").eq("video_id", video_id).limit(1).execute()
     video = v_resp.data[0] if v_resp.data else None
     if not video:
         return None
@@ -284,13 +281,13 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
     if "id" not in video:
         video["id"] = video.get("video_id")
 
-    tr_resp = execute(
+    tr_resp = (
         supa.table("transcript_chunks")
         .select("chunk_index,chunk_text")
         .eq("video_id", video_id)
         .order("chunk_index", desc=False)
-        .limit(500),
-        context="videos:get_video_detail:transcript_chunks",
+        .limit(500)
+        .execute()
     )
     chunks = tr_resp.data or []
     transcript_text = "\n\n".join((c.get("chunk_text") or "").strip() for c in chunks if isinstance(c, dict))
@@ -307,24 +304,24 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
     summary = None
     try:
         try:
-            vs_resp = execute(
+            vs_resp = (
                 supa.table("video_summaries")
                 .select(
                     "summary_markdown,overall_explanation,movers,risks,opportunities,key_points,tickers,sentiment,events,model,summarized_at"
                 )
                 .eq("video_id", video_id)
-                .limit(1),
-                context="videos:get_video_detail:video_summaries",
+                .limit(1)
+                .execute()
             )
         except Exception:
-            vs_resp = execute(
+            vs_resp = (
                 supa.table("video_summaries")
                 .select(
                     "summary_markdown,overall_explanation,risks,opportunities,key_points,tickers,sentiment,model,summarized_at"
                 )
                 .eq("video_id", video_id)
-                .limit(1),
-                context="videos:get_video_detail:video_summaries_legacy",
+                .limit(1)
+                .execute()
             )
 
         vs = vs_resp.data[0] if vs_resp.data else None
@@ -347,13 +344,13 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
         summary = None
 
     if summary is None:
-        s_resp = execute(
+        s_resp = (
             supa.table("summaries")
             .select("ticker,summary,created_at")
             .eq("video_id", video_id)
             .order("created_at", desc=True)
-            .limit(200),
-            context="videos:get_video_detail:summaries_fallback",
+            .limit(200)
+            .execute()
         )
 
         rows = s_resp.data or []

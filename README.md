@@ -15,9 +15,12 @@
    - Create/fill `backend-api/.env` (tip: start from `backend-api/.env.example`)
    - Fill:
      - `SUPABASE_URL`
-     - `SUPABASE_ANON_KEY` (recommended)
-       - Use the **anon public JWT key** from Supabase (it typically starts with `eyJ...`).
-       - A `sb_publishable_...` key will usually fail for the backend API with "Invalid API key".
+     - One of:
+       - `SUPABASE_SERVICE_ROLE_KEY` (recommended for this backend when RLS is enabled)
+         - Server-side only; bypasses RLS.
+       - `SUPABASE_ANON_KEY` (only if you have RLS policies for the tables this API reads/writes)
+         - Use the **anon public JWT key** from Supabase (it typically starts with `eyJ...`).
+         - A `sb_publishable_...` key will usually fail for the backend API with "Invalid API key".
 
 2. Frontend API base URL:
    - For Vite dev (`npm run dev`): create `frontend/.env` (tip: start from `frontend/.env.example`).

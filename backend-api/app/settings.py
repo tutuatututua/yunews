@@ -4,7 +4,7 @@ from functools import lru_cache
 import json
 from typing import Annotated, Literal
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, computed_field, model_validator
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -17,18 +17,12 @@ class Settings(BaseSettings):
     # Keep secrets/config out of source control: prefer env vars or docker-compose env.
     supabase_url: str = Field(validation_alias=AliasChoices("SUPABASE_URL", "supabase_url"))
 
-    # For the backend API, prefer the ANON key + RLS policies.
-    # The SERVICE ROLE key bypasses RLS and should only be used server-side when necessary.
-    supabase_key: str = Field(
-        validation_alias=AliasChoices(
-            "SUPABASE_ANON_KEY",
-            "SUPABASE_KEY",
-            "supabase_key",
-        )
-    )
-
-    # Optional: service role key for server-side trusted deployments.
-    # Keep disabled by default; enable explicitly via SUPABASE_USE_SERVICE_ROLE.
+    # Supabase keys:
+    # - `SUPABASE_ANON_KEY` is safe to share with the frontend (still needs RLS policies).
+    # - `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and MUST stay server-side.
+    #
+    # Backend behavior: prefer service role when present (helps when you enable RLS but
+    # haven't authored policies yet), otherwise fall back to anon key.
     supabase_service_role_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
@@ -38,13 +32,14 @@ class Settings(BaseSettings):
         ),
     )
 
-    # When true and a service role key is provided, the backend will use it for Supabase.
-    # This is useful for local/dev setups where RLS/policies haven't been configured yet.
-    supabase_use_service_role: bool = Field(
-        default=False,
+    supabase_anon_key: str | None = Field(
+        default=None,
         validation_alias=AliasChoices(
-            "SUPABASE_USE_SERVICE_ROLE",
-            "supabase_use_service_role",
+            "SUPABASE_ANON_KEY",
+            # Back-compat for older env names
+            "SUPABASE_KEY",
+            "supabase_key",
+            "supabase_anon_key",
         ),
     )
 
@@ -76,6 +71,26 @@ class Settings(BaseSettings):
     )
 
     backend_port: int = Field(default=8080, validation_alias=AliasChoices("PORT", "BACKEND_PORT", "backend_port"))
+
+    @model_validator(mode="after")
+    def _validate_supabase_keys(self) -> "Settings":
+        if self.supabase_service_role_key or self.supabase_anon_key:
+            return self
+        raise ValueError(
+            "Missing Supabase credentials: set SUPABASE_SERVICE_ROLE_KEY (recommended for backend when RLS is enabled) "
+            "or SUPABASE_ANON_KEY"
+        )
+
+    @computed_field
+    @property
+    def supabase_key(self) -> str:
+        key = self.supabase_service_role_key or self.supabase_anon_key
+        if not key:
+            raise ValueError(
+                "Missing Supabase credentials: set SUPABASE_SERVICE_ROLE_KEY (recommended for backend) "
+                "or SUPABASE_ANON_KEY"
+            )
+        return key
 
     @field_validator("cors_allow_origins", "cors_allow_methods", "cors_allow_headers", "trusted_hosts", mode="before")
     @classmethod
@@ -122,7 +137,8 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()
+    # BaseSettings loads required fields from environment/.env at runtime.
+    return Settings()  # type: ignore[call-arg]
 
 
 settings = get_settings()
