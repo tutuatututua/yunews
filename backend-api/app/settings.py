@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from functools import lru_cache
 import json
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AliasChoices, Field
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -35,21 +35,21 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", validation_alias=AliasChoices("LOG_LEVEL", "log_level"))
 
     # CORS: set explicitly in production. Accepts either JSON array (preferred) or comma-separated string.
-    cors_allow_origins: list[str] = Field(
+    cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
         validation_alias=AliasChoices("CORS_ALLOW_ORIGINS", "cors_allow_origins"),
     )
-    cors_allow_methods: list[str] = Field(
+    cors_allow_methods: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["GET", "OPTIONS"],
         validation_alias=AliasChoices("CORS_ALLOW_METHODS", "cors_allow_methods"),
     )
-    cors_allow_headers: list[str] = Field(
+    cors_allow_headers: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["*"],
         validation_alias=AliasChoices("CORS_ALLOW_HEADERS", "cors_allow_headers"),
     )
 
     # Optional hardening; when set, rejects requests with unknown Host headers.
-    trusted_hosts: list[str] = Field(
+    trusted_hosts: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
         validation_alias=AliasChoices("TRUSTED_HOSTS", "trusted_hosts"),
     )
