@@ -34,21 +34,24 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("SUPABASE_SERVICE_KEY", "SUPABASE_SERVICE_ROLE_KEY"),
     )
-    supabase_anon_key: str | None = Field(default=None, alias="SUPABASE_ANON_KEY")
 
     @model_validator(mode="after")
     def _validate_supabase_keys(self) -> "Settings":
-        if self.supabase_service_key or self.supabase_anon_key:
-            return self
-
-        raise ValueError(
-            "Missing Supabase credentials: set SUPABASE_SERVICE_KEY (or SUPABASE_SERVICE_ROLE_KEY) "
-            "or SUPABASE_ANON_KEY in local-pipeline/.env"
-        )
+        if not (self.supabase_service_key and self.supabase_service_key.strip()):
+            raise ValueError(
+                "Missing Supabase service key. Set SUPABASE_SERVICE_ROLE_KEY (preferred) or SUPABASE_SERVICE_KEY."
+            )
+        return self
 
     @property
     def supabase_key(self) -> str:
-        return (self.supabase_service_key or self.supabase_anon_key)  # type: ignore[return-value]
+        """Compatibility alias used by other components (e.g., backend-api).
+
+        For local pipeline runs we always use the service role key.
+        """
+
+        # Validator ensures this is present.
+        return str(self.supabase_service_key)
 
     # LLM config
     openai_chat_model: str = Field(

@@ -55,7 +55,7 @@ export default function TickerPage() {
   const onChangeDays: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
     const next = new URLSearchParams(params)
     next.set('days', e.target.value)
-    setParams(next)
+    setParams(next, { replace: true })
   }
 
   const dailyQuery = useLatestDailySummary()
@@ -96,14 +96,6 @@ export default function TickerPage() {
       setSelectedVideoId(null)
     }
   }, [symbolFromUrl, selectedTicker])
-
-  useEffect(() => {
-    const next = new URLSearchParams(params)
-    if (selectedTicker) next.set('symbol', selectedTicker)
-    else next.delete('symbol')
-
-    if (next.toString() !== params.toString()) setParams(next)
-  }, [selectedTicker, params, setParams])
 
   const publishedRefDay = useMemo(() => {
     const lo = publishedMinDay ?? dateBounds.minDay
@@ -339,10 +331,18 @@ export default function TickerPage() {
             onSelectTicker={(sym) => {
               setSelectedTicker(sym)
               setSelectedVideoId(null)
+
+              const next = new URLSearchParams(params)
+              next.set('symbol', sym)
+              if (next.toString() !== params.toString()) setParams(next, { replace: true })
             }}
             onSelectVideo={(videoId) => {
               setSelectedVideoId(videoId)
               setSelectedTicker(null)
+
+              const next = new URLSearchParams(params)
+              next.delete('symbol')
+              if (next.toString() !== params.toString()) setParams(next, { replace: true })
             }}
           />
         </Suspense>
@@ -359,6 +359,10 @@ export default function TickerPage() {
                 onClick={() => {
                   setSelectedTicker(null)
                   setSelectedVideoId(null)
+
+                  const next = new URLSearchParams(params)
+                  next.delete('symbol')
+                  if (next.toString() !== params.toString()) setParams(next, { replace: true })
                 }}
               >
                 Clear
