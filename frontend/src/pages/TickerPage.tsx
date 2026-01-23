@@ -485,10 +485,12 @@ export default function TickerPage() {
   const uniqueChannels = useMemo(() => buildUniqueChannels(filteredItems), [filteredItems])
   const uniqueTickers = useMemo(() => buildUniqueTickers(filteredItems), [filteredItems])
 
-  const errorInfo = getUiErrorInfo(dailyQuery.error) || getUiErrorInfo(infographicQuery.error)
-
   const entityChunksQuery = useEntityChunks(selectedTicker, { days, limit: 120 }, !!selectedTicker)
   const videoDetailQuery = useVideoDetail(selectedVideoId)
+
+  const errorInfo = getUiErrorInfo(dailyQuery.error) || getUiErrorInfo(infographicQuery.error)
+  const entityChunksErrorInfo = getUiErrorInfo(entityChunksQuery.error)
+  const videoDetailErrorInfo = getUiErrorInfo(videoDetailQuery.error)
 
   const selectedVideoInfographic = useMemo(() => {
     if (!selectedVideoId) return null
@@ -709,6 +711,10 @@ export default function TickerPage() {
 
             {selectedTicker && (
               <>
+                {entityChunksErrorInfo && (
+                  <ErrorCallout message={entityChunksErrorInfo.message} requestId={entityChunksErrorInfo.requestId} />
+                )}
+
                 {entityChunksQuery.isLoading && <LoadingLine label={`Loading ${selectedTicker} keypoints…`} />}
 
                 {!entityChunksQuery.isLoading && (
@@ -937,6 +943,10 @@ export default function TickerPage() {
 
             {selectedVideoId && (
               <>
+                {videoDetailErrorInfo && (
+                  <ErrorCallout message={videoDetailErrorInfo.message} requestId={videoDetailErrorInfo.requestId} />
+                )}
+
                 {videoDetailQuery.isLoading && <LoadingLine label="Loading video insight…" />}
 
                 {!videoDetailQuery.isLoading && videoDetailQuery.data?.summary && (
