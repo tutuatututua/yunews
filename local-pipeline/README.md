@@ -11,6 +11,11 @@ This folder is a **batch job** that is meant to run to completion (daily/cron), 
 docker compose --profile pipeline run --rm local-pipeline
 ```
 
+## DB schema changes
+
+If your Supabase schema was created before a change landed, apply any incremental SQL in:
+- `local-pipeline/app/db/migrations/`
+
 ## Production (AWS ECS)
 
 Deploy this as:

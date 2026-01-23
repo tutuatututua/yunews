@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from datetime import date
-import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from app.core.errors import NotFoundError
 from app.schemas.common import ApiResponse
 from app.schemas.videos import VideoDetailData, VideoInfographicItem, VideoListItem
 from app.services.videos_service import get_video_detail, list_videos as svc_list_videos
 from app.services.videos_service import video_infographic as svc_video_infographic
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -21,11 +19,7 @@ def list_videos(
     days: int | None = Query(default=None, ge=1, le=30),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> dict:
-    try:
-        return {"data": svc_list_videos(date_=date_, days=days, limit=limit)}
-    except Exception:
-        logger.exception("Failed to list videos")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    return {"data": svc_list_videos(date_=date_, days=days, limit=limit)}
 
 
 @router.get("/infographic", response_model=ApiResponse[list[VideoInfographicItem]])
@@ -39,17 +33,12 @@ def infographic(
     Used by the frontend to draw a video/ticker network infographic.
     """
 
-    try:
-        return {"data": svc_video_infographic(date_=date_, days=days, limit=limit)}
-    except Exception:
-        logger.exception("Failed to build infographic")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    return {"data": svc_video_infographic(date_=date_, days=days, limit=limit)}
 
 
-@router.get("/{video_id}", response_model=ApiResponse[VideoDetailData | None])
+@router.get("/{video_id}", response_model=ApiResponse[VideoDetailData])
 def get_video(video_id: str) -> dict:
-    try:
-        return {"data": get_video_detail(video_id)}
-    except Exception:
-        logger.exception("Failed to fetch video_id=%s", video_id)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    detail = get_video_detail(video_id)
+    if detail is None:
+        raise NotFoundError("Video not found")
+    return {"data": detail}

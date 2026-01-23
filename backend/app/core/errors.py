@@ -37,3 +37,25 @@ class UpstreamError(AppError):
         details: Any | None = None,
     ):
         super().__init__(status_code=status_code, code=code, message=message, details=details)
+
+
+class UnauthorizedError(AppError):
+    def __init__(
+        self,
+        message: str = "Unauthorized",
+        *,
+        code: str = "unauthorized",
+        details: Any | None = None,
+    ):
+        super().__init__(status_code=401, code=code, message=message, details=details)
+
+
+class ForbiddenError(AppError):
+    def __init__(
+        self,
+        message: str = "Forbidden",
+        *,
+        code: str = "forbidden",
+        details: Any | None = None,
+    ):
+        super().__init__(status_code=403, code=code, message=message, details=details)

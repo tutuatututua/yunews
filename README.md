@@ -10,9 +10,12 @@
 1. Open Supabase SQL editor
 2. Run: `local-pipeline/app/db/schema.sql`
 
+If you already created the schema before 2026-01-23, also run:
+- `local-pipeline/app/db/migrations/2026-01-23_add_sentiment_and_drop_video_summaries_tickers.sql`
+
 ## 2) Configure environment
 1. Backend API env:
-   - Create/fill `backend-api/.env` (tip: start from `backend-api/.env.example`)
+   - Create/fill `backend/.env` (tip: start from `backend/.env.example`)
    - Fill:
      - `SUPABASE_URL`
      - `SUPABASE_SERVICE_ROLE_KEY`
@@ -37,33 +40,34 @@
 
 ## 3) Run cloud-safe API + frontend
 ```bash
-docker compose up --build backend-api frontend
+docker compose up --build backend frontend
 ```
 - Backend: http://localhost:8080
 - Frontend: http://localhost:5173
 
-## Deploy: EC2 (docker-compose + ECR images)
+## Deploy: EC2 (Docker Compose)
 
-If your EC2 instance does **not** have the repo source code (no `frontend/` folder), `docker build ... frontend` will fail with `path "frontend" not found`. In that setup, build images locally (or in CI), push to ECR, then **pull and run** on EC2.
+Two common approaches:
 
-1) Build + push the frontend image (local machine / CI)
-- Bake the API URL into the Vite build via a build-arg:
-  - `docker build -t yunews-frontend:latest -f frontend/Dockerfile frontend --build-arg VITE_BACKEND_BASE_URL=https://api.yourdomain.com`
-- Tag + push to ECR (example):
-  - `docker tag yunews-frontend:latest <account-id>.dkr.ecr.<region>.amazonaws.com/yunews-frontend:latest`
-  - `docker push <account-id>.dkr.ecr.<region>.amazonaws.com/yunews-frontend:latest`
+1) **Clone the repo on EC2** and run `docker compose up -d --build backend frontend`.
+   - Pros: simplest.
+   - Cons: builds on the server.
 
-2) On EC2, run using the ECR images
-- Copy [deploy/ec2/docker-compose.yml](deploy/ec2/docker-compose.yml) to your EC2 box (or use it in-place if you cloned the repo).
-- Create a `.env` next to the compose file (tip: start from [deploy/ec2/.env.example](deploy/ec2/.env.example)) and set `ECR_REGISTRY`, plus image tags and Supabase config.
-- Log in to ECR, pull, then start:
-  - `docker compose -f deploy/ec2/docker-compose.yml pull`
-  - `docker compose -f deploy/ec2/docker-compose.yml up -d`
+2) **Build images in CI/local, push to a registry (ECR), then pull on EC2**.
+   - Pros: faster deploys; no build toolchain on EC2.
+   - Cons: you need to edit `docker-compose.yml` to use `image:` instead of `build:`.
+
+If you take approach (2), build the frontend with the correct API base URL baked in:
+- `docker build -t yunews-frontend:latest -f frontend/Dockerfile frontend --build-arg VITE_BACKEND_BASE_URL=/api`
 
 ### Troubleshooting (Windows)
 - **Docker build fails with** `invalid file request ...` (common when the repo is inside OneDrive):
-  - Move the project folder outside OneDrive (recommended), or mark the folder as **Always keep on this device**.
-  - Then re-run `docker compose up --build backend-api frontend`.
+  - Root cause: Docker **BuildKit** rejects OneDrive “reparse point” files.
+  - Fix (recommended): move the repo outside OneDrive (e.g. `C:\dev\yunews`).
+  - Fix (workaround): disable BuildKit for the build/run (legacy builder):
+    - PowerShell (one-off):
+      - `$env:DOCKER_BUILDKIT="0"; $env:COMPOSE_DOCKER_CLI_BUILD="1"; docker compose up --build backend frontend`
+    - Or use: `./scripts/compose-legacy.ps1 up --build backend frontend`
 
 ## 4) Run local pipeline (LOCAL ONLY)
 ```bash

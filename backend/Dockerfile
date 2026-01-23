@@ -12,6 +12,7 @@ RUN apt-get update \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
+COPY gunicorn_conf.py /app/gunicorn_conf.py
 COPY app /app/app
 
 EXPOSE 8080

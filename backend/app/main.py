@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,10 +10,12 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.routes import daily_summaries, entities, health, videos
+from app.core.auth import require_api_key
 from app.core.errors import AppError
 from app.core.logging import configure_logging
 from app.core.request_id import RequestIdMiddleware
 from app.core.request_logging import RequestLoggingMiddleware
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.schemas.common import ApiError, ApiErrorResponse
 from app.settings import get_settings
 
@@ -27,6 +29,7 @@ app = FastAPI(title="yuNews Backend API", version="1.0.0")
 
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 if settings.trusted_hosts:
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
@@ -94,6 +97,8 @@ async def handle_unhandled_error(request, exc: Exception):
     return JSONResponse(status_code=500, content=payload)
 
 app.include_router(health.router)
-app.include_router(daily_summaries.router)
-app.include_router(videos.router)
-app.include_router(entities.router)
+
+_protected = [Depends(require_api_key)]
+app.include_router(daily_summaries.router, dependencies=_protected)
+app.include_router(videos.router, dependencies=_protected)
+app.include_router(entities.router, dependencies=_protected)

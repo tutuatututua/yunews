@@ -4,7 +4,7 @@ import json
 import logging
 import re
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
@@ -23,24 +23,6 @@ class SummarizationService:
     def __init__(self, *, openai_api_key: str, model: str, temperature: float) -> None:
         self._model = model
         self._llm = ChatOpenAI(api_key=SecretStr(openai_api_key), model=model, temperature=temperature)
-
-        self._agg_prompt = PromptTemplate(
-            input_variables=["ticker", "items"],
-            template=(
-                "Aggregate chunk keypoints for ONE ticker.\n"
-                "Return a SINGLE JSON object only (no markdown, no code fences, no extra text).\n"
-                "Use double quotes for all keys/strings; no trailing commas.\n"
-                "Rules: each field is an array of concise, de-duplicated bullets (max 10).\n"
-                "Do not mention other tickers unless it is essential context for this ticker (prefer omitting).\n"
-                "Do not invent facts; omit uncertainty.\n"
-                "All array items must be plain strings.\n"
-                "Always include all keys in the schema; use empty arrays when needed.\n\n"
-                "Ticker: {ticker}\n"
-                "Chunk summaries (JSON list of objects with keys: positive, negative, neutral):\n"
-                "{items}\n\n"
-                "Schema: {{\"positive\":[...],\"negative\":[...],\"neutral\":[...]}}"
-            ),
-        )
 
         self._agg_video_prompt = PromptTemplate(
             input_variables=["items"],
@@ -100,6 +82,9 @@ class SummarizationService:
                 "Only include bullets you are confident are supported by the inputs.\n"
                 "overall_summarize is plain text (max 5 sentences), a concise TL;DR for the day.\n"
                 "summary_markdown is markdown BUT must not contain curly braces.\n"
+                "sentiment is bullish|bearish|mixed|neutral or null.\n"
+                "sentiment_confidence is a number between 0 and 1, or null if unclear.\n"
+                "sentiment_reason is plain text (max 2 sentences) explaining the expected tone for the next market session, grounded in the inputs (no investment advice).\n"
                 "Deduplicate bullets; keep concise.\n\n"
                 "Title must be exactly: Market Summary — {market_date}\n"
                 "movers: ONLY include the MOST IMPORTANT movers; skip minor/unclear movers; if none are clearly supported, return an empty array.\n"
@@ -109,39 +94,9 @@ class SummarizationService:
                 "Market date (UTC): {market_date}\n"
                 "Video inputs (JSON list; keys: title,tickers,overall_explanation,key_points,risks,opportunities):\n"
                 "{items}\n\n"
-                "Schema: {{\"title\":...,\"overall_summarize\":...,\"summary_markdown\":...,\"movers\":[{{\"symbol\":...,\"direction\":...,\"reason\":...}}],\"risks\":[...],\"opportunities\":[...]}}"
+                "Schema: {{\"title\":...,\"overall_summarize\":...,\"summary_markdown\":...,\"movers\":[{{\"symbol\":...,\"direction\":...,\"reason\":...}}],\"risks\":[...],\"opportunities\":[...],\"sentiment\":null,\"sentiment_confidence\":null,\"sentiment_reason\":...}}"
             ),
         )
-
-    def aggregate(self, *, ticker: str, chunk_summaries: List[Dict[str, Any]]) -> AggregatedSummary:
-        try:
-            # Keep JSON valid; cap size by limiting number of items rather than truncating mid-JSON.
-            safe_items_json = self._json_dumps_with_char_limit(chunk_summaries or [], max_chars=20000)
-            prompt = self._agg_prompt.format(
-                ticker=ticker,
-                items=safe_items_json,
-            )
-            log_llm_prompt_stats(
-                logger,
-                model=self._model,
-                label="aggregate",
-                prompt=prompt,
-                extra={
-                    "ticker": ticker,
-                    "items_chars": len(safe_items_json),
-                    "items_count": len(chunk_summaries or []),
-                },
-            )
-            msg = self._llm.invoke(prompt)
-            parsed = self._safe_json(str(msg.content))
-            if parsed:
-                return AggregatedSummary.model_validate(parsed)
-        except ValidationError:
-            logger.warning("Aggregate summary JSON failed validation")
-        except Exception:
-            logger.exception("Aggregation failed")
-
-        return AggregatedSummary(positive=[], negative=[], neutral=[])
 
     def aggregate_video_tickers(
         self,

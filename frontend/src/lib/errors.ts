@@ -10,9 +10,8 @@ export function getUiErrorInfo(err: unknown): UiErrorInfo | null {
   if (!err) return null
 
   if (err instanceof ApiRequestError) {
-    const suffix = err.requestId ? ` (request id: ${err.requestId})` : ''
     return {
-      message: `${err.message}${suffix}`,
+      message: err.message,
       requestId: err.requestId,
       status: err.status,
     }

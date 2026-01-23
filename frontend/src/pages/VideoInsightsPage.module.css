@@ -340,3 +340,211 @@
   color: color-mix(in srgb, var(--text) 86%, var(--muted));
   white-space: pre-wrap;
 }
+
+.inlineTickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inlineTickerChip {
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--border) 50%, var(--primary));
+  font-weight: 800;
+}
+
+.inlineTickerChip:hover {
+  text-decoration: underline;
+}
+
+.section {
+  margin-top: 14px;
+}
+
+.sectionTitle {
+  font-weight: 800;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.keypointsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 720px) {
+  .keypointsList {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.keypointItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.keypointDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 4px;
+  flex: 0 0 auto;
+  background: var(--sent-neu);
+}
+
+.keypointDot_positive {
+  background: var(--sent-pos);
+}
+
+.keypointDot_negative {
+  background: var(--sent-neg);
+}
+
+.keypointDot_neutral {
+  background: var(--sent-neu);
+}
+
+.keypointText {
+  color: color-mix(in srgb, var(--text) 90%, var(--muted));
+}
+
+.eventsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eventRow {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  padding: 10px;
+}
+
+.eventWhen {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.eventWhat {
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.eventTickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.eventTickerChip {
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--border) 50%, var(--primary));
+}
+
+.eventTickerChip:hover {
+  text-decoration: underline;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .twoCol {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.bullets {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text) 90%, var(--muted));
+}
+
+.tickerDetailsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tickerDetailRow {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  padding: 10px;
+}
+
+.tickerDetailTop {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.tickerDetailChip {
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.tickerDetailChip_positive {
+  color: var(--sent-pos);
+  border-color: color-mix(in srgb, var(--sent-pos) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-pos) 10%, var(--surface));
+}
+
+.tickerDetailChip_negative {
+  color: var(--sent-neg);
+  border-color: color-mix(in srgb, var(--sent-neg) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-neg) 10%, var(--surface));
+}
+
+.tickerDetailChip_neutral {
+  color: var(--sent-neu);
+  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
+  background: color-mix(in srgb, var(--sent-neu) 10%, var(--surface));
+}
+
+.tickerDetailSentiment {
+  color: var(--muted);
+}
+
+.transcriptDetails {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  padding: 8px 10px;
+}
+
+.transcriptSummary {
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.transcriptText {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: color-mix(in srgb, var(--text) 90%, var(--muted));
+}

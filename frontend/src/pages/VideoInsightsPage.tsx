@@ -25,6 +25,8 @@ type VideoEdgeSummary = {
 
 type MoverDirection = 'up' | 'down' | 'mixed'
 
+type EdgeSentiment = 'positive' | 'negative' | 'neutral'
+
 function normalizeMoverDirection(input: unknown): MoverDirection | null {
   const s = String(input || '').trim().toLowerCase()
   if (s === 'up' || s === 'bullish' || s === 'positive') return 'up'
@@ -60,6 +62,75 @@ function videoHref(v: VideoListItem): string {
   return safeExternalHref('#')
 }
 
+function formatDurationSeconds(seconds: unknown): string {
+  const n = typeof seconds === 'number' ? seconds : Number(seconds)
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  const s = Math.floor(n)
+  const mm = Math.floor(s / 60)
+  const ss = s % 60
+  if (mm < 60) return `${mm}:${String(ss).padStart(2, '0')}`
+  const hh = Math.floor(mm / 60)
+  const rem = mm % 60
+  return `${hh}:${String(rem).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+}
+
+function normalizeKeypointText(value: string): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function buildKeypointSentimentIndex(
+  edges: Array<{ sentiment: EdgeSentiment; key_points: string[] }> | undefined,
+): Map<string, EdgeSentiment> {
+  const m = new Map<string, EdgeSentiment>()
+  for (const e of edges || []) {
+    const s = e?.sentiment
+    if (!(s === 'positive' || s === 'negative' || s === 'neutral')) continue
+    for (const kp of e?.key_points || []) {
+      const norm = normalizeKeypointText(String(kp || ''))
+      if (!norm) continue
+      if (!m.has(norm)) m.set(norm, s)
+    }
+  }
+  return m
+}
+
+function formatTickerSummaryMarkdown(summary: any): string {
+  if (!summary || typeof summary !== 'object') return ''
+
+  const asList = (v: any): string[] => (Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean) : [])
+
+  const positive = asList((summary as any).positive)
+  const negative = asList((summary as any).negative)
+  const neutral = asList((summary as any).neutral)
+
+  const bull = asList((summary as any).bull_case)
+  const bear = asList((summary as any).bear_case)
+  const risks = asList((summary as any).risks)
+
+  const lines: string[] = []
+  const addSection = (title: string, items: string[]) => {
+    if (!items.length) return
+    lines.push(`**${title}**`)
+    for (const item of items.slice(0, 12)) lines.push(`- ${item}`)
+    lines.push('')
+  }
+
+  if (positive.length || negative.length || neutral.length) {
+    addSection('Positive', positive)
+    addSection('Negative', negative)
+    addSection('Neutral', neutral)
+  } else {
+    addSection('Bull case', bull)
+    addSection('Bear case', bear)
+    addSection('Risks', risks)
+  }
+
+  return lines.join('\n').trim()
+}
+
 function summarizeVideoEdges(items: VideoInfographicItem[] | undefined): Map<string, VideoEdgeSummary> {
   const byVideoId = new Map<string, VideoEdgeSummary>()
   for (const item of items || []) {
@@ -90,7 +161,9 @@ export default function VideoInsightsPage() {
   const effectiveShiftMinutes = resolveTimeShiftMinutes(timeZone, timeShiftMinutes)
 
   const [params, setParams] = useSearchParams()
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  // Backend video detail route is keyed by `video_id`.
+  // Prefer `video_id` over `id` in case list rows include a separate DB id.
+  const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null)
 
   const days = useMemo(() => parseDays(params.get('days'), 7), [params])
   const limit = useMemo(() => {
@@ -107,8 +180,15 @@ export default function VideoInsightsPage() {
   const infographicQuery = useVideoInfographic(anchorDate, days, 250, canQueryWindow)
 
   const edgeSummaryByVideoId = useMemo(() => summarizeVideoEdges(infographicQuery.data), [infographicQuery.data])
+  const infographicByVideoId = useMemo(() => {
+    const m = new Map<string, VideoInfographicItem>()
+    for (const item of infographicQuery.data || []) {
+      if (item?.video_id) m.set(item.video_id, item)
+    }
+    return m
+  }, [infographicQuery.data])
 
-  const detailQuery = useVideoDetail(expandedId)
+  const detailQuery = useVideoDetail(expandedVideoId)
 
   const onChangeDays: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
     const next = new URLSearchParams(params)
@@ -160,14 +240,15 @@ export default function VideoInsightsPage() {
 
       <section className={ui.card} aria-label="Video feed">
         {(videosQuery.data || []).map((v) => {
-          const expanded = expandedId === v.id
+          const rowVideoId = v.video_id || v.id
+          const expanded = !!rowVideoId && expandedVideoId === rowVideoId
           const edgeSummary = v.video_id ? edgeSummaryByVideoId.get(v.video_id) : undefined
           const rowSentiment = normalizeSentiment(v.sentiment) || edgeSummary?.overall || null
 
-          const toggleExpanded = () => setExpandedId(expanded ? null : v.id)
+          const toggleExpanded = () => setExpandedVideoId(expanded ? null : (rowVideoId || null))
 
           return (
-            <div key={v.id} className={cn(styles.videoRow, expanded && styles.videoRowExpanded)}>
+            <div key={rowVideoId || v.id} className={cn(styles.videoRow, expanded && styles.videoRowExpanded)}>
               <div className={styles.videoTop}>
                 {v.thumbnail_url ? (
                   <img className={styles.thumb} src={v.thumbnail_url} alt="" loading="lazy" decoding="async" />
@@ -248,14 +329,64 @@ export default function VideoInsightsPage() {
                           </div>
 
                           <div className={cn(util.muted, util.small)}>
-                            Model {detailQuery.data.summary.model} • {formatDateTime(detailQuery.data.summary.summarized_at, { timeZone: intlTimeZone, shiftMinutes: effectiveShiftMinutes })}
+                            {(() => {
+                              const detailVideo = (detailQuery.data as any)?.video as any
+                              const publishedAt =
+                                (detailQuery.data.summary?.published_at as string | null | undefined) ||
+                                (detailVideo?.published_at as string | null | undefined) ||
+                                v.published_at
+
+                              const durationSeconds =
+                                (detailVideo?.duration_seconds as number | null | undefined) ??
+                                (v.duration_seconds as number | null | undefined)
+
+                              const views = (detailVideo?.view_count as number | null | undefined) ?? v.view_count
+                              const likes = (detailVideo?.like_count as number | null | undefined) ?? v.like_count
+                              const comments = (detailVideo?.comment_count as number | null | undefined) ?? v.comment_count
+
+                              return (
+                                <>
+                                  Model {detailQuery.data.summary.model || '—'} •{' '}
+                                  {formatDateTime(detailQuery.data.summary.summarized_at, { timeZone: intlTimeZone, shiftMinutes: effectiveShiftMinutes })}
+                                  {publishedAt ? (
+                                    <>
+                                      {' '}• Published{' '}
+                                      {formatDateTime(publishedAt, { timeZone: intlTimeZone, shiftMinutes: effectiveShiftMinutes })}
+                                    </>
+                                  ) : null}
+                                  {durationSeconds != null ? <> • Duration {formatDurationSeconds(durationSeconds)}</> : null}
+                                  {views != null ? <> • Views {formatCompactNumber(views)}</> : null}
+                                  {likes != null ? <> • Likes {formatCompactNumber(likes)}</> : null}
+                                  {comments != null ? <> • Comments {formatCompactNumber(comments)}</> : null}
+                                </>
+                              )
+                            })()}
                           </div>
 
                           <div className={styles.inlineMeta}>
                             <div className={styles.metaItem}>
                               <div className={styles.metaLabel}>Tickers</div>
                               <div className={util.small}>
-                                {detailQuery.data.summary.tickers?.length ? detailQuery.data.summary.tickers.join(', ') : '—'}
+                                {detailQuery.data.summary.tickers?.length ? (
+                                  <span className={styles.inlineTickers}>
+                                    {detailQuery.data.summary.tickers.slice(0, 16).map((symRaw, idx) => {
+                                      const sym = String(symRaw || '').trim().toUpperCase()
+                                      if (!sym) return null
+                                      return (
+                                        <Link
+                                          key={`${sym}-${idx}`}
+                                          className={cn(ui.chip, styles.inlineTickerChip)}
+                                          to={`/ticker?days=${encodeURIComponent(String(days))}&symbol=${encodeURIComponent(sym)}`}
+                                          title={`Open ${sym} in ticker view`}
+                                        >
+                                          {sym}
+                                        </Link>
+                                      )
+                                    })}
+                                  </span>
+                                ) : (
+                                  '—'
+                                )}
                               </div>
                             </div>
                             <div className={styles.metaItem}>
@@ -332,17 +463,129 @@ export default function VideoInsightsPage() {
 
                           <Markdown markdown={detailQuery.data.summary.summary_markdown} />
 
-                          {detailQuery.data.summary.key_points?.length ? (
-                            <>
-                              <div className={styles.metaLabel}>Key points</div>
-                              <ul className={util.bullets}>
-                                {detailQuery.data.summary.key_points.map((kp, idx) => (
-                                  <li key={idx} className={util.small}>
-                                    {kp}
-                                  </li>
-                                ))}
-                              </ul>
-                            </>
+                          {(() => {
+                            const rowVid = String(rowVideoId || '')
+                            const infoItem = rowVid ? infographicByVideoId.get(rowVid) : undefined
+                            const edges = (infoItem?.edges || []) as Array<{ ticker: string; sentiment: EdgeSentiment; key_points: string[] }>
+                            const kpIndex = buildKeypointSentimentIndex(edges)
+
+                            return detailQuery.data.summary.key_points?.length ? (
+                              <div className={styles.section}>
+                                <div className={styles.sectionTitle}>Key points</div>
+                                <ul className={styles.keypointsList}>
+                                  {detailQuery.data.summary.key_points.slice(0, 16).map((kp, idx) => {
+                                    const s = kpIndex.get(normalizeKeypointText(kp)) || 'neutral'
+                                    return (
+                                      <li key={idx} className={styles.keypointItem}>
+                                        <span className={cn(styles.keypointDot, styles[`keypointDot_${s}`])} title={`Sentiment: ${s}`} />
+                                        <span className={styles.keypointText}>{kp}</span>
+                                      </li>
+                                    )
+                                  })}
+                                </ul>
+                              </div>
+                            ) : null
+                          })()}
+
+                          {detailQuery.data.summary.events?.length ? (
+                            <div className={styles.section}>
+                              <div className={styles.sectionTitle}>Events</div>
+                              <div className={styles.eventsList}>
+                                {detailQuery.data.summary.events.slice(0, 10).map((ev, idx) => {
+                                  const whenParts: string[] = []
+                                  if (ev?.date) whenParts.push(String(ev.date))
+                                  if (ev?.timeframe) whenParts.push(String(ev.timeframe))
+                                  const when = whenParts.join(' • ')
+                                  const tickers = Array.isArray(ev?.tickers) ? ev.tickers : []
+                                  return (
+                                    <div key={idx} className={styles.eventRow}>
+                                      {when ? <div className={styles.eventWhen}>{when}</div> : null}
+                                      <div className={styles.eventWhat}>{String(ev?.description || '').trim() || '—'}</div>
+                                      {tickers.length ? (
+                                        <div className={styles.eventTickers}>
+                                          {tickers.slice(0, 8).map((t, j) => {
+                                            const sym = String(t || '').trim().toUpperCase()
+                                            if (!sym) return null
+                                            return (
+                                              <Link
+                                                key={`${sym}-${j}`}
+                                                className={cn(ui.chip, styles.eventTickerChip)}
+                                                to={`/ticker?days=${encodeURIComponent(String(days))}&symbol=${encodeURIComponent(sym)}`}
+                                              >
+                                                {sym}
+                                              </Link>
+                                            )
+                                          })}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {detailQuery.data.summary.opportunities?.length || detailQuery.data.summary.risks?.length ? (
+                            <div className={styles.twoCol}>
+                              {detailQuery.data.summary.opportunities?.length ? (
+                                <div className={styles.section}>
+                                  <div className={styles.sectionTitle}>Opportunities</div>
+                                  <ul className={styles.bullets}>
+                                    {detailQuery.data.summary.opportunities.slice(0, 10).map((t, idx) => (
+                                      <li key={idx}>{t}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {detailQuery.data.summary.risks?.length ? (
+                                <div className={styles.section}>
+                                  <div className={styles.sectionTitle}>Risks</div>
+                                  <ul className={styles.bullets}>
+                                    {detailQuery.data.summary.risks.slice(0, 10).map((t, idx) => (
+                                      <li key={idx}>{t}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {detailQuery.data.ticker_details?.length ? (
+                            <div className={styles.section}>
+                              <div className={styles.sectionTitle}>Ticker details</div>
+                              <div className={styles.tickerDetailsList}>
+                                {detailQuery.data.ticker_details.slice(0, 25).map((td, idx) => {
+                                  const sym = String(td?.ticker || '').trim().toUpperCase()
+                                  if (!sym) return null
+                                  const sentiment = String((td as any)?.sentiment || 'neutral') as EdgeSentiment
+                                  const md = formatTickerSummaryMarkdown((td as any)?.summary)
+                                  return (
+                                    <div key={`${sym}-${idx}`} className={styles.tickerDetailRow}>
+                                      <div className={styles.tickerDetailTop}>
+                                        <Link
+                                          className={cn(ui.chip, styles.tickerDetailChip, styles[`tickerDetailChip_${sentiment}`])}
+                                          to={`/ticker?days=${encodeURIComponent(String(days))}&symbol=${encodeURIComponent(sym)}`}
+                                        >
+                                          {sym}
+                                        </Link>
+                                        <span className={cn(ui.chip, styles.tickerDetailSentiment)}>{sentiment}</span>
+                                      </div>
+                                      {md ? <Markdown markdown={md} /> : <div className={cn(util.muted, util.small)}>No summary stored.</div>}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {detailQuery.data.transcript?.transcript_text?.trim() ? (
+                            <div className={styles.section}>
+                              <div className={styles.sectionTitle}>Transcript</div>
+                              <details className={styles.transcriptDetails}>
+                                <summary className={styles.transcriptSummary}>Show transcript</summary>
+                                <pre className={styles.transcriptText}>{detailQuery.data.transcript.transcript_text}</pre>
+                              </details>
+                            </div>
                           ) : null}
                         </>
                       ) : (

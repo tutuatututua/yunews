@@ -35,9 +35,10 @@ class SupabaseDB:
         return rows[0].get("summarized_at") is not None
 
     def upsert_video(self, video: VideoMetadata) -> None:
+        title = video.title.replace("&#39;", "'")
         payload = {
             "video_id": video.video_id,
-            "title": video.title,
+            "title": title,
             "channel": video.channel,
             "published_at": video.published_at.isoformat(),
             "description": video.description,
@@ -192,7 +193,6 @@ class SupabaseDB:
         risks: list[str] | None = None,
         opportunities: list[str] | None = None,
         key_points: list[str],
-        tickers: list[str],
         sentiment: str | None,
         events: list[dict[str, Any]] | None = None,
         model: str,
@@ -208,7 +208,6 @@ class SupabaseDB:
             "risks": risks or [],
             "opportunities": opportunities or [],
             "key_points": key_points,
-            "tickers": tickers,
             "sentiment": sentiment,
             "events": events or [],
             "model": model,
@@ -256,6 +255,9 @@ class SupabaseDB:
         movers: list[dict[str, Any]],
         risks: list[str],
         opportunities: list[str],
+        sentiment: str | None = None,
+        sentiment_confidence: float | None = None,
+        sentiment_reason: str | None = None,
         model: str,
         generated_at: str | None = None,
     ) -> None:
@@ -267,12 +269,24 @@ class SupabaseDB:
             "movers": movers,
             "risks": risks,
             "opportunities": opportunities,
+            "sentiment": sentiment,
+            "sentiment_confidence": sentiment_confidence,
+            "sentiment_reason": sentiment_reason or "",
             "model": model,
             "generated_at": generated_at or datetime.now(timezone.utc).isoformat(),
         }
         # Backward compatibility: older schemas may not have newer columns.
         # Some clients only report one missing column per failure, so retry until stable.
-        candidate_cols = ("overall_summarize", "movers", "risks", "opportunities", "generated_at")
+        candidate_cols = (
+            "overall_summarize",
+            "movers",
+            "risks",
+            "opportunities",
+            "sentiment",
+            "sentiment_confidence",
+            "sentiment_reason",
+            "generated_at",
+        )
         while True:
             try:
                 self._client.table("daily_summaries").upsert(payload, on_conflict="market_date").execute()

@@ -125,6 +125,73 @@
   padding-bottom: 2px;
 }
 
+.headerChips {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sentimentChip {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.sentimentPos {
+  background: color-mix(in srgb, #22c55e 14%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 26%, var(--border-2));
+}
+
+.sentimentNeg {
+  background: color-mix(in srgb, #ef4444 14%, var(--surface-2));
+  border-color: color-mix(in srgb, #ef4444 26%, var(--border-2));
+}
+
+.sentimentNeu {
+  background: color-mix(in srgb, var(--muted) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--muted) 18%, var(--border-2));
+}
+
+.reasonLine {
+  margin-top: 6px;
+  max-width: 860px;
+}
+
+.outlookRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.outlookLabel {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.outlookChip {
+  white-space: nowrap;
+}
+
+.outlookPos {
+  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 26%, var(--border-2));
+}
+
+.outlookNeg {
+  background: color-mix(in srgb, #ef4444 16%, var(--surface-2));
+  border-color: color-mix(in srgb, #ef4444 26%, var(--border-2));
+}
+
+.outlookNeu {
+  background: color-mix(in srgb, var(--muted) 12%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--muted) 18%, var(--border-2));
+}
+
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -274,8 +341,41 @@
   background: color-mix(in srgb, var(--surface-2) 85%, transparent);
 }
 
+.moverRowUp {
+  border-color: color-mix(in srgb, var(--sent-pos) 35%, var(--border-2));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-pos) 10%, transparent),
+      transparent 55%
+    ),
+    color-mix(in srgb, var(--surface-2) 85%, transparent);
+}
+
+.moverRowDown {
+  border-color: color-mix(in srgb, var(--sent-neg) 35%, var(--border-2));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-neg) 10%, transparent),
+      transparent 55%
+    ),
+    color-mix(in srgb, var(--surface-2) 85%, transparent);
+}
+
+.moverRowMixed {
+  border-color: color-mix(in srgb, var(--sent-neu) 30%, var(--border-2));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-neu) 10%, transparent),
+      transparent 55%
+    ),
+    color-mix(in srgb, var(--surface-2) 85%, transparent);
+}
+
 .moverLeft {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .moverSymbol {
@@ -283,11 +383,24 @@
   letter-spacing: 0.02em;
 }
 
-.moverStats {
+.moverRowUp .moverSymbol {
+  color: var(--sent-pos);
+}
+
+.moverRowDown .moverSymbol {
+  color: var(--sent-neg);
+}
+
+.moverRowMixed .moverSymbol {
+  color: var(--sent-neu);
+}
+
+.moverRight {
+  flex: 0 0 auto;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .moverPct {
@@ -332,35 +445,6 @@
   color: var(--sent-neu);
 }
 
-.moverDir {
-  font-weight: 800;
-  font-size: 12px;
-  text-transform: uppercase;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-  color: var(--muted);
-  flex: 0 0 auto;
-}
-
-.moverUp {
-  color: var(--sent-pos);
-  border-color: color-mix(in srgb, var(--sent-pos) 40%, var(--border));
-  background: color-mix(in srgb, var(--sent-pos) 10%, var(--surface));
-}
-
-.moverDown {
-  color: var(--sent-neg);
-  border-color: color-mix(in srgb, var(--sent-neg) 40%, var(--border));
-  background: color-mix(in srgb, var(--sent-neg) 10%, var(--surface));
-}
-
-.moverMixed {
-  color: var(--sent-neu);
-  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
-  background: color-mix(in srgb, var(--sent-neu) 10%, var(--surface));
-}
 
 .previewList {
   display: flex;

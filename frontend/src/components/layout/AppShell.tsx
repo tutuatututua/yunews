@@ -49,6 +49,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     else setCollapsed((v) => !v)
   }
 
+  React.useEffect(() => {
+    if (!mobileOpen) return
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [mobileOpen])
+
   return (
     <div
       className={cn(
@@ -68,6 +79,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           className={styles.iconButton}
           aria-label="Toggle sidebar"
           onClick={toggleSidebar}
+          type="button"
         >
           {isMobile ? (
             mobileOpen ? <X size={18} /> : <Menu size={18} />
@@ -96,8 +108,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile backdrop */}
       {mobileOpen && (
-        <div
+        <button
+          type="button"
           className={styles.backdrop}
+          aria-label="Close sidebar"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -111,6 +125,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 className={styles.iconButton}
                 aria-label={mobileOpen ? 'Close sidebar' : 'Open sidebar'}
                 onClick={() => setMobileOpen((v) => !v)}
+                type="button"
               >
                 {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
@@ -120,10 +135,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className={styles.topbarRight}>
-            <button className={styles.iconButton}>
+            <button className={styles.iconButton} type="button" aria-label="Search (coming soon)" disabled>
               <Search size={18} />
             </button>
-            <button className={styles.iconButton}>
+            <button className={styles.iconButton} type="button" aria-label="Notifications (coming soon)" disabled>
               <Bell size={18} />
             </button>
             <TimeZoneMenu />

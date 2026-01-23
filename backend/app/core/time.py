@@ -21,11 +21,15 @@ def market_day_bounds(day: date) -> tuple[str, str]:
     return start_local.astimezone(timezone.utc).isoformat(), end_local.astimezone(timezone.utc).isoformat()
 
 
-def parse_iso_datetime(value: Any) -> datetime | None:
-    """Parse common ISO-ish datetime values coming from Supabase JSON."""
+def parse_iso_datetime(value: Any) -> datetime:
+    """Parse common ISO-ish datetime values coming from Supabase JSON.
+
+    Raises:
+        ValueError: when the input cannot be parsed.
+    """
 
     if not value:
-        return None
+        raise ValueError("Missing datetime value")
 
     text = str(value)
     # Supabase commonly returns ISO strings with a trailing 'Z'.
@@ -35,7 +39,7 @@ def parse_iso_datetime(value: Any) -> datetime | None:
     try:
         dt = datetime.fromisoformat(text)
     except ValueError:
-        return None
+        raise ValueError(f"Invalid datetime value: {value!r}")
 
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)

@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     # Keep secrets/config out of source control: prefer env vars or docker-compose env.
     supabase_url: str = Field(validation_alias=AliasChoices("SUPABASE_URL", "supabase_url"))
 
+    # Optional API key auth for public deployments.
+    # If set, clients must send `X-API-Key: <key>` or `Authorization: Bearer <key>`.
+    api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("API_KEY", "BACKEND_API_KEY", "api_key"),
+    )
+
     # Supabase keys:
     # - `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and MUST stay server-side.
     #
@@ -30,13 +37,9 @@ class Settings(BaseSettings):
         ),
     )
 
-    environment: Literal["development", "production", "test"] = Field(
-        default="development",
-        validation_alias=AliasChoices("ENV", "ENVIRONMENT", "environment"),
-    )
 
     log_level: str = Field(default="INFO", validation_alias=AliasChoices("LOG_LEVEL", "log_level"))
-
+    
     # CORS: set explicitly in production. Accepts either JSON array (preferred) or comma-separated string.
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
@@ -56,6 +59,9 @@ class Settings(BaseSettings):
         default_factory=list,
         validation_alias=AliasChoices("TRUSTED_HOSTS", "trusted_hosts"),
     )
+
+    # Only enable when the API is served over HTTPS (directly or via a reverse proxy).
+    enable_hsts: bool = Field(default=False, validation_alias=AliasChoices("ENABLE_HSTS", "enable_hsts"))
 
     backend_port: int = Field(default=8080, validation_alias=AliasChoices("PORT", "BACKEND_PORT", "backend_port"))
 
@@ -90,8 +96,9 @@ class Settings(BaseSettings):
                 try:
                     parsed = json.loads(raw)
                 except Exception:
-                    # Fall back to a best-effort CSV parse.
-                    return [x.strip() for x in raw.strip("[]").split(",") if x.strip()]
+                    raise ValueError(
+                        "Invalid JSON array for setting; expected e.g. ['https://example.com']"
+                    )
 
                 if isinstance(parsed, list):
                     return [str(x).strip() for x in parsed if str(x).strip()]
@@ -105,15 +112,6 @@ class Settings(BaseSettings):
     def effective_cors_allow_origins(self) -> list[str]:
         if self.cors_allow_origins:
             return self.cors_allow_origins
-
-        # Dev-friendly defaults only.
-        if self.environment != "production":
-            return [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-            ]
-
-        # In production, require explicit allowlist.
         return []
 
 

@@ -9,11 +9,15 @@ services:
     restart: "no"
     command: ["python", "run_daily_pipeline.py"]
 
-  backend-api:
+  backend:
     build:
-      context: ./backend-api
+      context: ./backend
     env_file:
-      - ./backend-api/.env
+      - ./backend/.env
+    environment:
+      # Allow the local frontend dev origin to call the API.
+      # You can override this in ./backend/.env via CORS_ALLOW_ORIGINS.
+      - CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
     ports:
       - "8080:8080"
 
@@ -25,4 +29,4 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - backend-api
+      - backend

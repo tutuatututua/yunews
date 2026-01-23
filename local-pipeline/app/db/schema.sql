@@ -102,7 +102,6 @@ create table if not exists public.video_summaries (
   risks text[] not null default '{}',
   opportunities text[] not null default '{}',
   key_points text[] not null default '{}',
-  tickers text[] not null default '{}',
   sentiment text null,
   events jsonb not null default '[]'::jsonb,
   model text not null,
@@ -130,6 +129,9 @@ create table if not exists public.daily_summaries (
   movers jsonb not null default '[]'::jsonb,
   risks text[] not null default '{}',
   opportunities text[] not null default '{}',
+  sentiment text null,
+  sentiment_confidence double precision null,
+  sentiment_reason text not null default '',
   model text not null,
   generated_at timestamptz not null
 );

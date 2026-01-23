@@ -61,11 +61,11 @@ export function useVideoDetail(selectedId: string | null) {
 
 export function useEntityChunks(
   symbol: string | null,
-  opts?: { days?: number; limit?: number; date?: string },
+  opts?: { days?: number; limit?: number },
   enabled: boolean = true,
 ) {
   return useQuery({
-    queryKey: ['entityChunks', symbol ?? null, opts?.days ?? null, opts?.limit ?? null, opts?.date ?? null],
+    queryKey: ['entityChunks', symbol ?? null, opts?.days ?? null, opts?.limit ?? null],
     queryFn: () => (symbol ? fetchEntityChunks(symbol, opts) : Promise.resolve([] as EntityChunkRow[])),
     enabled: !!symbol && enabled,
     refetchOnWindowFocus: true,

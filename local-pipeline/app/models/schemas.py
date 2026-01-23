@@ -149,3 +149,7 @@ class DailyOverallSummary(BaseModel):
     movers: list[DailyMover] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     opportunities: list[str] = Field(default_factory=list)
+    # Overall market tone for the next session, grounded in the input videos.
+    sentiment: Optional[str] = None
+    sentiment_confidence: Optional[float] = None
+    sentiment_reason: str = ""

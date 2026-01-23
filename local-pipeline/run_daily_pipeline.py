@@ -183,6 +183,9 @@ def _derive_daily_summary(*, market_date: date, rows: list[dict[str, Any]]) -> d
         "movers": movers,
         "risks": risks,
         "opportunities": opportunities,
+        "sentiment": None,
+        "sentiment_confidence": None,
+        "sentiment_reason": "",
         "model": "derived-from-summaries",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -235,8 +238,6 @@ def main() -> None:
     no_transcript = 0
 
     for video in videos:
-        db.upsert_video(video)
-
         if db.is_video_processed(video.video_id):
             logger.info("Skip already processed video_id=%s", video.video_id)
             skipped += 1
@@ -252,6 +253,10 @@ def main() -> None:
             db.mark_video_processed(video.video_id)
             no_transcript += 1
             continue
+
+        # Only persist the video if we're actually going to process it.
+        # This avoids inserting non-English/unsupported videos that lack an English transcript.
+        db.upsert_video(video)
 
         # 4) Time-based chunking
         chunks = chunker.chunk_by_time(video.video_id, entries)
@@ -401,7 +406,6 @@ def main() -> None:
                     risks=overall.risks,
                     opportunities=overall.opportunities,
                     key_points=key_points,
-                    tickers=tickers,
                     sentiment=sentiment,
                     events=events,
                     model=f"llm:{settings.openai_chat_model}",
@@ -462,7 +466,6 @@ def main() -> None:
                         risks=vs.get("risks") or [],
                         opportunities=vs.get("opportunities") or [],
                         key_points=vs["key_points"],
-                        tickers=vs["tickers"],
                         sentiment=vs["sentiment"],
                         events=vs.get("events") or [],
                         model=vs["model"],
@@ -492,7 +495,7 @@ def main() -> None:
         vs_resp = (
             db.client.table("video_summaries")
             .select(
-                "video_id,video_titles,published_at,overall_explanation,risks,opportunities,key_points,tickers,summarized_at"
+                "video_id,video_titles,published_at,overall_explanation,risks,opportunities,key_points,summarized_at"
             )
             .gte("summarized_at", start)
             .lte("summarized_at", end)
@@ -504,15 +507,30 @@ def main() -> None:
         video_ids: list[str] = [str(r.get("video_id")) for r in raw_items if r.get("video_id")]
         if raw_items:
 
+            market_video_ids: set[str] = set()
+            if video_ids:
+                try:
+                    m_resp = (
+                        db.client.table("summaries")
+                        .select("video_id")
+                        .in_("video_id", video_ids)
+                        .eq("ticker", "MARKET")
+                        .limit(5000)
+                        .execute()
+                    )
+                    market_video_ids = {
+                        str(r.get("video_id"))
+                        for r in (m_resp.data or [])
+                        if isinstance(r, dict) and r.get("video_id")
+                    }
+                except Exception:
+                    market_video_ids = set()
+
             # Keep the daily prompt inputs small: only pass the fields the prompt expects.
             video_items: list[dict[str, Any]] = []
             for r in raw_items:
-                tickers_raw = r.get("tickers") or []
-                tickers_market_only = [
-                    str(t).strip().upper()
-                    for t in tickers_raw
-                    if str(t).strip().upper() == "MARKET"
-                ]
+                vid = str(r.get("video_id") or "")
+                tickers_market_only = ["MARKET"] if vid and vid in market_video_ids else []
                 video_items.append(
                     {
                         "title": r.get("video_titles") or "",
@@ -535,6 +553,9 @@ def main() -> None:
                     movers=[m.model_dump() for m in daily.movers],
                     risks=daily.risks,
                     opportunities=daily.opportunities,
+                    sentiment=getattr(daily, "sentiment", None),
+                    sentiment_confidence=getattr(daily, "sentiment_confidence", None),
+                    sentiment_reason=getattr(daily, "sentiment_reason", "") or "",
                     model=f"llm:{settings.openai_chat_model}",
                 )
             else:
@@ -555,6 +576,9 @@ def main() -> None:
                         movers=ds["movers"],
                         risks=ds["risks"],
                         opportunities=ds["opportunities"],
+                        sentiment=ds.get("sentiment"),
+                        sentiment_confidence=ds.get("sentiment_confidence"),
+                        sentiment_reason=ds.get("sentiment_reason") or "",
                         model=ds["model"],
                         generated_at=ds["generated_at"],
                     )

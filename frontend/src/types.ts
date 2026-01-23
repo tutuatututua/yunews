@@ -7,6 +7,9 @@ export type DailySummary = {
   movers: Array<{ symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }>
   risks: string[]
   opportunities: string[]
+  sentiment?: string | null
+  sentiment_confidence?: number | null
+  sentiment_reason?: string
   per_entity_summaries?: Array<{ symbol: string; summary_markdown: string; key_claims: string[] }>
   model: string
   generated_at: string
@@ -52,7 +55,19 @@ export type VideoDetail = {
     events?: Array<{ date: string | null; timeframe: string | null; description: string; tickers: string[] }>
     model: string
     summarized_at: string
+
+    // From `video_summaries` table (when present)
+    video_titles?: string | null
+    published_at?: string | null
   } | null
+
+  // Per-ticker details sourced from normalized `summaries` rows
+  ticker_details?: Array<{
+    ticker: string
+    summary: any
+    sentiment: 'positive' | 'negative' | 'neutral'
+    key_points: string[]
+  }>
 }
 
 export type VideoInfographicItem = {
@@ -61,7 +76,7 @@ export type VideoInfographicItem = {
   title: string
   channel: string | null
   published_at: string
-  video_url: string
+  video_url: string | null
   thumbnail_url: string | null
   edges: Array<{ ticker: string; sentiment: 'positive' | 'negative' | 'neutral'; key_points: string[] }>
 }
@@ -74,11 +89,14 @@ export type VideoNested = {
 }
 
 export type EntityChunkRow = {
-  chunk_id: string
   entities?: Array<{ type: string; symbol?: string }>
   computed_at?: string
   market_date?: string | null
-  keypoint?: string | null
+  keypoints_by_sentiment?: {
+    positive?: string[]
+    negative?: string[]
+    neutral?: string[]
+  } | null
   videos?: {
     video_url?: string | null
     video_id?: string

@@ -71,6 +71,7 @@ async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<
   }
 
   const { text, json } = await readResponseBody(res)
+  const headerRequestId = res.headers.get('x-request-id') || undefined
 
   if (!res.ok) {
     const env = (json && typeof json === 'object' ? (json as BackendErrorEnvelope) : null) || null
@@ -80,7 +81,7 @@ async function getJson<T>(path: string, opts?: { timeoutMs?: number }): Promise<
       status: res.status,
       code,
       message,
-      requestId: env?.error?.request_id,
+      requestId: env?.error?.request_id || headerRequestId,
       details: env?.error?.details,
     })
   }
@@ -131,12 +132,10 @@ export async function fetchVideoDetail(id: string): Promise<VideoDetail | null> 
 
 export async function fetchEntityChunks(
   symbol: string,
-  opts?: { days?: number; limit?: number; date?: string },
+  opts?: { days?: number; limit?: number },
 ): Promise<EntityChunkRow[]> {
   const qs = new URLSearchParams()
-  // Backend supports `days`; keep `date` as a no-op passthrough for older code.
   if (opts?.days != null) qs.set('days', String(opts.days))
-  if (opts?.date) qs.set('date', opts.date)
   if (opts?.limit != null) qs.set('limit', String(opts.limit))
 
   const suffix = qs.toString() ? `?${qs.toString()}` : ''

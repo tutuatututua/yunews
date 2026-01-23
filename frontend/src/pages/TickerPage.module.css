@@ -50,6 +50,47 @@
   box-shadow: var(--ring);
 }
 
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .kpiGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .kpiGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.kpiCard {
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.kpiLabel {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.kpiValue {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
 .filtersCard {
   padding: 14px;
 }
@@ -112,36 +153,183 @@
 }
 
 .detailRow {
-  padding: 10px;
+  padding: 12px;
   border: 1px solid var(--border-2);
-  border-radius: 14px;
+  border-radius: 16px;
   background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border-2) 75%, transparent);
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.detailRowPositive {
+  border-color: color-mix(in srgb, var(--sent-pos) 35%, var(--border-2));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-pos) 10%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface) 82%, transparent);
+}
+
+.detailRowNegative {
+  border-color: color-mix(in srgb, var(--sent-neg) 35%, var(--border-2));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-neg) 10%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface) 82%, transparent);
+}
+
+.detailRowNeutral {
+  border-color: color-mix(in srgb, var(--sent-neu) 30%, var(--border-2));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-neu) 10%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface) 82%, transparent);
+}
+
+.detailRowInWindow {
+  border-right: 6px solid color-mix(in srgb, #ffffff 80%, var(--border-2));
+}
+
+.detailRow:hover {
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 26px color-mix(in srgb, #000000 22%, transparent),
+    0 1px 0 color-mix(in srgb, var(--border-2) 75%, transparent);
+}
+
+.detailRow:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  box-shadow:
+    var(--ring),
+    0 10px 26px color-mix(in srgb, #000000 18%, transparent),
+    0 1px 0 color-mix(in srgb, var(--border-2) 75%, transparent);
+}
+
+.detailRowPositive:hover {
+  border-color: color-mix(in srgb, var(--sent-pos) 45%, var(--border));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-pos) 14%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.detailRowNegative:hover {
+  border-color: color-mix(in srgb, var(--sent-neg) 45%, var(--border));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-neg) 14%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.detailRowNeutral:hover {
+  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
+  background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sent-neu) 14%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
 .detailRowGrid {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
+  grid-template-columns: 148px 1fr;
+  gap: 14px;
   align-items: start;
 }
 
 .detailThumbWrap {
-  width: 120px;
+  width: 148px;
+  min-width: 148px;
+}
+
+.detailThumbLink {
+  position: relative;
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.detailThumbLink::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, #000000 35%, transparent));
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+
+.detailThumbLink:hover::before,
+.detailThumbLink:focus-visible::before {
+  opacity: 1;
+}
+
+.detailThumbPlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000000 42%, transparent);
+  border: 1px solid color-mix(in srgb, #ffffff 24%, transparent);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  pointer-events: none;
+}
+
+.detailThumbPlay::after {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 11px solid color-mix(in srgb, #ffffff 92%, transparent);
+}
+
+.detailThumbLink:hover .detailThumbPlay,
+.detailThumbLink:focus-visible .detailThumbPlay {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.02);
 }
 
 .detailThumb {
-  width: 120px;
-  height: 68px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border-2);
   display: block;
 }
 
 .detailThumbPlaceholder {
-  width: 120px;
-  height: 68px;
-  border-radius: 10px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
   border: 1px solid var(--border-2);
   background: color-mix(in srgb, var(--surface) 72%, transparent);
 }
@@ -149,17 +337,448 @@
 .detailRowMain {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
-.detailRowMeta {
+.detailRowHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.detailRowHeaderLeft {
+  min-width: 0;
+}
+
+.detailRowTitle {
+  display: block;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.detailRowTitle:hover {
+  text-decoration: underline;
+}
+
+.detailRowSubline {
+  margin-top: 4px;
   display: flex;
+  gap: 8px;
   flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.detailRowBadges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.detailRowActions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.edgeChips {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.edgeChipsStart {
+  justify-content: flex-start;
+}
+
+.edgeChip {
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-2);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.edgeChipSelected {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.edgeChip_positive {
+  color: var(--sent-pos);
+  border-color: color-mix(in srgb, var(--sent-pos) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-pos) 10%, var(--surface));
+}
+
+.edgeChip_negative {
+  color: var(--sent-neg);
+  border-color: color-mix(in srgb, var(--sent-neg) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-neg) 10%, var(--surface));
+}
+
+.edgeChip_neutral {
+  color: var(--sent-neu);
+  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
+  background: color-mix(in srgb, var(--sent-neu) 10%, var(--surface));
+}
+
+.edgeChipMore {
+  color: var(--muted);
+}
+
+.videoDetailWrap {
+  display: grid;
   gap: 10px;
 }
 
-.detailKeypoint {
+.videoActions {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.videoMetaGrid {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-2);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.videoMetaBlock {
+  min-width: 0;
+}
+
+.videoMetaLabel {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.videoMetaValue {
+  margin-top: 4px;
+  font-size: 13px;
   font-weight: 650;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.videoTickers {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.videoSection {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.videoSectionTitle {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.videoTwoCol {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.videoMoverList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.moverChip {
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-2);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  white-space: nowrap;
+}
+
+.moverChipUp {
+  color: var(--sent-pos);
+  border-color: color-mix(in srgb, var(--sent-pos) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-pos) 10%, var(--surface));
+}
+
+.moverChipDown {
+  color: var(--sent-neg);
+  border-color: color-mix(in srgb, var(--sent-neg) 45%, var(--border));
+  background: color-mix(in srgb, var(--sent-neg) 10%, var(--surface));
+}
+
+.moverChipMixed {
+  color: var(--sent-neu);
+  border-color: color-mix(in srgb, var(--sent-neu) 40%, var(--border));
+  background: color-mix(in srgb, var(--sent-neu) 10%, var(--surface));
+}
+
+.videoEvents {
+  display: grid;
+  gap: 8px;
+}
+
+.videoEventRow {
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  display: grid;
+  gap: 6px;
+}
+
+.videoEventWhen {
+  font-size: 12px;
+  font-weight: 850;
+  color: var(--muted);
+}
+
+.videoEventWhat {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.videoEventTickers {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.videoBullets {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .videoMetaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .videoMetaValue {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
+  }
+}
+
+@media (min-width: 900px) {
+  .videoTwoCol {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.detailKeypointWrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 2px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-2) 70%, transparent);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+}
+
+.detailKeypointContent {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.detailKeypointText {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.detailKeypointsList {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.detailKeypointsItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.keypointDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.keypointDot_positive {
+  background: var(--sent-pos);
+}
+
+.keypointDot_negative {
+  background: var(--sent-neg);
+}
+
+.keypointDot_neutral {
+  background: var(--sent-neu);
+}
+
+.keypointText {
+  min-width: 0;
+}
+
+.keypointText_positive {
+  color: var(--sent-pos);
+}
+
+.keypointText_negative {
+  color: var(--sent-neg);
+}
+
+.keypointText_neutral {
+  color: var(--text);
+}
+
+.sentimentDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+.sentimentDot_positive {
+  background: var(--sent-pos);
+}
+
+.sentimentDot_negative {
+  background: var(--sent-neg);
+}
+
+.sentimentDot_neutral {
+  background: var(--sent-neu);
+}
+
+.sentimentLabel {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  flex: 0 0 auto;
+  margin-top: -1px;
+}
+
+.sentimentLabel_positive {
+  color: var(--sent-pos);
+}
+
+.sentimentLabel_negative {
+  color: var(--sent-neg);
+}
+
+.sentimentLabel_neutral {
+  color: var(--sent-neu);
+}
+
+.detailBadge {
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.detailRowMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.detailKeypoint {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-size: 16px;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.detailMetaItem {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: baseline;
+}
+
+.detailMetaLabel {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.detailMetaValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailMetaHint {
+  grid-column: 2;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
 .detailBullets {
@@ -223,6 +842,7 @@
 
   .detailThumbWrap {
     width: 100%;
+    min-width: 0;
   }
 
   .detailThumb,
@@ -230,5 +850,15 @@
     width: 100%;
     height: auto;
     aspect-ratio: 16 / 9;
+  }
+
+  .detailRowMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .detailMetaValue {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
   }
 }

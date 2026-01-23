@@ -22,9 +22,9 @@ def shape_daily_summary_row(row: dict[str, Any] | None, market_date: date) -> di
         "movers": row.get("movers") or [],
         "risks": row.get("risks") or [],
         "opportunities": row.get("opportunities") or [],
-        "per_entity_summaries": None,
-        "chunks_total": None,
-        "chunks_used": None,
+        "sentiment": row.get("sentiment"),
+        "sentiment_confidence": row.get("sentiment_confidence"),
+        "sentiment_reason": row.get("sentiment_reason") or "",
         "model": row.get("model") or "daily_summaries",
         "generated_at": row.get("generated_at") or datetime.now(timezone.utc).isoformat(),
     }
@@ -33,23 +33,18 @@ def shape_daily_summary_row(row: dict[str, Any] | None, market_date: date) -> di
 def get_daily_summary(market_date: date) -> dict[str, Any] | None:
     """Fetch from daily_summaries table if present; return API-shaped dict."""
 
-    # Backward compatibility: `overall_summarize` may not exist in older schemas.
-    try:
-        supa = get_supabase_client()
-        resp = (
-            supa.table("daily_summaries")
-            .select(
-                "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,model,generated_at"
-            )
-            .eq("market_date", market_date.isoformat())
-            .limit(1)
-            .execute()
+    supa = get_supabase_client()
+    resp = (
+        supa.table("daily_summaries")
+        .select(
+            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_confidence,sentiment_reason,model,generated_at"
         )
-        row = resp.data[0] if resp.data else None
-        return shape_daily_summary_row(row, market_date)
-    except Exception:
-        # Table may not exist in older deployments.
-        return None
+        .eq("market_date", market_date.isoformat())
+        .limit(1)
+        .execute()
+    )
+    row = resp.data[0] if resp.data else None
+    return shape_daily_summary_row(row, market_date)
 
 
 def get_latest_daily_summary() -> dict[str, Any] | None:
@@ -57,7 +52,7 @@ def get_latest_daily_summary() -> dict[str, Any] | None:
     resp = (
         supa.table("daily_summaries")
         .select(
-            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,model,generated_at"
+            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_confidence,sentiment_reason,model,generated_at"
         )
         .order("market_date", desc=True)
         .limit(1)
@@ -77,8 +72,10 @@ def get_latest_daily_summary() -> dict[str, Any] | None:
 
 def list_daily_summaries(*, limit: int) -> list[dict[str, Any]]:
     # Get recent market dates from videos; for each date, prefer stored daily summary.
+    supa = get_supabase_client()
+
     v_resp = (
-        get_supabase_client()
+        supa
         .table("videos")
         .select("published_at")
         .order("published_at", desc=True)
@@ -95,8 +92,6 @@ def list_daily_summaries(*, limit: int) -> list[dict[str, Any]]:
         if not pa:
             continue
         dt = parse_iso_datetime(pa)
-        if not dt:
-            continue
         d = dt.astimezone(MARKET_TZ).date().isoformat()
         if d in seen:
             continue
@@ -105,4 +100,32 @@ def list_daily_summaries(*, limit: int) -> list[dict[str, Any]]:
         if len(dates) >= limit:
             break
 
-    return [s for d in dates if (s := get_daily_summary(d)) is not None]
+    if not dates:
+        return []
+
+    date_keys = [d.isoformat() for d in dates]
+    s_resp = (
+        supa.table("daily_summaries")
+        .select(
+            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_confidence,sentiment_reason,model,generated_at"
+        )
+        .in_("market_date", date_keys)
+        .limit(len(date_keys))
+        .execute()
+    )
+
+    rows_by_date: dict[str, dict[str, Any]] = {}
+    for r in (s_resp.data or []):
+        if not isinstance(r, dict):
+            continue
+        md = r.get("market_date")
+        if not md:
+            continue
+        rows_by_date[str(md)] = r
+
+    out: list[dict[str, Any]] = []
+    for d in dates:
+        if shaped := shape_daily_summary_row(rows_by_date.get(d.isoformat()), d):
+            out.append(shaped)
+
+    return out
