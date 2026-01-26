@@ -101,7 +101,7 @@ export default function HomePage() {
 
   const moversMaxAgo = 7
   const moversDays = useMemo(() => {
-    const parsed = parseDays(params.get('moversDays'), 1)
+    const parsed = parseDays(params.get('moversDays'), 3)
     return Math.max(1, Math.min(moversMaxAgo + 1, parsed))
   }, [params])
 
@@ -160,7 +160,7 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, availableDates.join('|')])
 
-  // Movers are windowed independently from the daily summary; default to a single latest day.
+  // Movers are windowed independently from the daily summary; default to the last 3 days.
   const moversAnchorDate = selectedDate || undefined
   const infographicQuery = useVideoInfographic(moversAnchorDate, moversDays, 200, true)
   const moversQuery = useTopMovers(moversAnchorDate, moversDays, 8, true)
