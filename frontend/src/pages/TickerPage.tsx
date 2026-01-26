@@ -298,10 +298,10 @@ export default function TickerPage() {
 
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
       const today = Math.floor(Date.now() / 86_400_000)
-      return { minDay: today, maxDay: today }
+      return { minDay: today, maxDay: today, hasReal: false }
     }
 
-    return { minDay: min, maxDay: max }
+    return { minDay: min, maxDay: max, hasReal: true }
   }, [rawItems])
 
   const [publishedMinDay, setPublishedMinDay] = useState<number | null>(() => getIntParam('publishedMinDay'))
@@ -376,6 +376,8 @@ export default function TickerPage() {
   const defaultDateWindowDays = 3
 
   useEffect(() => {
+    // Avoid seeding defaults from fallback bounds while data is still loading.
+    if (!dateBounds.hasReal) return
     const windowDays = Math.max(1, Math.floor(defaultDateWindowDays))
     const defaultMinDay = Math.max(dateBounds.minDay, dateBounds.maxDay - (windowDays - 1))
     setPublishedMinDay((prev) => {
@@ -386,7 +388,7 @@ export default function TickerPage() {
       const next = prev == null ? dateBounds.maxDay : clamp(prev, dateBounds.minDay, dateBounds.maxDay)
       return next
     })
-  }, [dateBounds.minDay, dateBounds.maxDay])
+  }, [dateBounds.minDay, dateBounds.maxDay, dateBounds.hasReal])
 
   const dateFilteredItems = useMemo(() => {
     const lo = publishedMinDay ?? dateBounds.minDay
@@ -431,6 +433,7 @@ export default function TickerPage() {
 
   useEffect(() => {
     // Initialize / clamp mention range based on data (after date filtering).
+    if (infographicQuery.isLoading) return
     setMentionsMin((prev) => {
       const seed = prev == null ? mentionDefaultMin : prev
       return clamp(seed, mentionMinBound, maxMentionsObserved)
@@ -439,7 +442,7 @@ export default function TickerPage() {
       if (prev == null) return maxMentionsObserved
       return clamp(prev, mentionMinBound, maxMentionsObserved)
     })
-  }, [maxMentionsObserved, mentionMinBound, mentionDefaultMin])
+  }, [infographicQuery.isLoading, maxMentionsObserved, mentionMinBound, mentionDefaultMin])
 
   const filteredItems = useMemo(() => {
     const resolvedMentionsMin = mentionsMin ?? mentionDefaultMin
@@ -463,6 +466,8 @@ export default function TickerPage() {
 
   useEffect(() => {
     // Persist filters in URL so navigating away + back restores state.
+    if (infographicQuery.isLoading) return
+    if (!dateBounds.hasReal) return
     const next = new URLSearchParams(params)
 
     const defaultPublishedMaxDay = dateBounds.maxDay
@@ -490,6 +495,7 @@ export default function TickerPage() {
   }, [
     params,
     setParams,
+    infographicQuery.isLoading,
     publishedMinDay,
     publishedMaxDay,
     mentionsMin,
@@ -498,6 +504,7 @@ export default function TickerPage() {
     maxMentionsObserved,
     dateBounds.minDay,
     dateBounds.maxDay,
+    dateBounds.hasReal,
   ])
 
   const sentimentTotals = useMemo(() => buildSentimentTotals(filteredItems), [filteredItems])
