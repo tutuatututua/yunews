@@ -94,6 +94,27 @@
   min-width: 160px;
 }
 
+.sliderRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider {
+  width: 80px;
+  accent-color: var(--primary);
+}
+
+@media (max-width: 720px) {
+  .sliderRow {
+    width: 100%;
+  }
+
+  .slider {
+    width: 100%;
+  }
+}
+
 @media (max-width: 720px) {
   .toolbarField {
     width: 100%;
@@ -108,6 +129,10 @@
 
 .windowChip {
   white-space: nowrap;
+  display: inline-flex;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  min-width: 10ch;
 }
 
 .summaryBlock {
@@ -131,6 +156,35 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.dateControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dateLabel {
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--muted);
+}
+
+.dateInput {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-weight: 650;
+  font-size: 13px;
+  width: 168px;
+}
+
+.dateInput:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .sentimentChip {
@@ -318,6 +372,13 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+}
+
+.sideHeaderRight {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .sideActions {

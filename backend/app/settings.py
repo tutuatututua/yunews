@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 import json
-from typing import Annotated, Literal
+from typing import Annotated
 
-from pydantic import AliasChoices, Field, computed_field, model_validator
-from pydantic import field_validator
+from pydantic import AliasChoices, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -119,6 +118,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     # BaseSettings loads required fields from environment/.env at runtime.
     return Settings()  # type: ignore[call-arg]
-
-
-settings = get_settings()

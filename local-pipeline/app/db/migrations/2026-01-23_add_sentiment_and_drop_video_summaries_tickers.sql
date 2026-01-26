@@ -10,7 +10,7 @@ alter table if exists public.daily_summaries
   add column if not exists sentiment text null;
 
 alter table if exists public.daily_summaries
-  add column if not exists sentiment_confidence double precision null;
+  add column if not exists sentiment_score double precision null;
 
 alter table if exists public.daily_summaries
   add column if not exists sentiment_reason text not null default '';

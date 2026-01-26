@@ -1,5 +1,5 @@
-import React, { Suspense, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Markdown from '../components/Markdown'
 import { ErrorCallout, EmptyState } from '../components/ui/Callout'
 import { LoadingLine } from '../components/ui/Loading'
@@ -7,11 +7,9 @@ import { cn } from '../lib/cn'
 import { getUiErrorInfo } from '../lib/errors'
 import { formatDateTime, parseDays } from '../lib/format'
 import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
-import { useLatestDailySummary, useTopMovers, useVideoInfographic, useVideos } from '../services/queries'
+import { useDailySummariesList, useDailySummary, useTopMovers, useVideoInfographic } from '../services/queries'
 import { ui, util } from '../styles'
 import styles from './HomePage.module.css'
-
-const VideoTickerInfographic = React.lazy(() => import('../components/features/VideoTickerInfographic'))
 
 type Sentiment = 'positive' | 'negative' | 'neutral'
 
@@ -42,13 +40,18 @@ function dailyOutlookLabel(s: DailyOutlook): string {
   return 'Neutral'
 }
 
-function formatConfidencePct(input: unknown): string | null {
+function formatSentimentScore(input: unknown): string | null {
   const n = typeof input === 'number' ? input : Number(input)
   if (!Number.isFinite(n)) return null
-  // Support either [0,1] ratios or [0,100] percentages (older pipeline/data).
-  const ratio = n > 1 ? n / 100 : n
-  const clamped = Math.max(0, Math.min(1, ratio))
-  return `${Math.round(clamped * 100)}%`
+  // Support either [-1,1] score or [-100,100] percentage-style (older/alternate data).
+  const score = Math.abs(n) > 1 ? n / 100 : n
+  const clamped = Math.max(-1, Math.min(1, score))
+  const sign = clamped > 0 ? '+' : ''
+  return `${sign}${clamped.toFixed(2)}`
+}
+
+function isIsoDateOnly(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s)
 }
 
 function buildTickerStats(items: Array<{ edges: Array<{ ticker: string; sentiment: Sentiment }> }> | undefined): Map<string, TickerStats> {
@@ -71,6 +74,22 @@ function buildTickerStats(items: Array<{ edges: Array<{ ticker: string; sentimen
   return stats
 }
 
+function buildTickerVideoCounts(items: Array<{ edges: Array<{ ticker: string }>; video_id?: string }> | undefined): Map<string, number> {
+  const byTicker = new Map<string, number>()
+
+  for (const item of items || []) {
+    const uniqueTickersInVideo = new Set<string>()
+    for (const edge of item.edges || []) {
+      if (edge?.ticker) uniqueTickersInVideo.add(edge.ticker)
+    }
+    for (const ticker of uniqueTickersInVideo) {
+      byTicker.set(ticker, (byTicker.get(ticker) || 0) + 1)
+    }
+  }
+
+  return byTicker
+}
+
 export default function HomePage() {
   const { timeZone, timeShiftMinutes } = useTimeZone()
   const intlTimeZone = resolveTimeZoneForIntl(timeZone)
@@ -80,38 +99,88 @@ export default function HomePage() {
   const [dismissedError, setDismissedError] = useState<string | null>(null)
   const [entityFilter, setEntityFilter] = useState('')
 
-  const days = useMemo(() => parseDays(params.get('days'), 7), [params])
-  const limit = useMemo(() => {
-    const n = params.get('limit')
-    const parsed = n ? Number(n) : NaN
-    return Number.isFinite(parsed) ? Math.max(10, Math.min(250, Math.floor(parsed))) : 100
+  const moversMaxAgo = 7
+  const moversDays = useMemo(() => {
+    const parsed = parseDays(params.get('moversDays'), 1)
+    return Math.max(1, Math.min(moversMaxAgo + 1, parsed))
   }, [params])
 
-  const onChangeDays: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
+  const onChangeMoversDays: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const n = Number(e.target.value)
     const next = new URLSearchParams(params)
-    next.set('days', e.target.value)
+    if (Number.isFinite(n)) next.set('moversDays', String(Math.max(1, Math.min(moversMaxAgo + 1, Math.floor(n)))))
+    else next.delete('moversDays')
+    next.delete('moversMinAgo')
+    next.delete('moversMaxAgo')
     setParams(next)
   }
 
-  const onChangeLimit: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
+  const selectedDate = useMemo(() => {
+    const raw = (params.get('date') || '').trim()
+    if (!raw) return null
+    return isIsoDateOnly(raw) ? raw : null
+  }, [params])
+
+  const onChangeDate: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
     const next = new URLSearchParams(params)
-    next.set('limit', e.target.value)
+    const v = e.target.value
+    if (v && isIsoDateOnly(v)) next.set('date', v)
+    else next.delete('date')
     setParams(next)
   }
 
-  const dailyQuery = useLatestDailySummary()
-  const anchorDate = dailyQuery.data?.market_date
+  const onClickLatest = () => {
+    const next = new URLSearchParams(params)
+    next.delete('date')
+    setParams(next)
+  }
 
-  const canQueryWindow = !dailyQuery.isLoading
-  const videosQuery = useVideos(anchorDate, days, limit, canQueryWindow)
-  const infographicQuery = useVideoInfographic(anchorDate, days, 200, canQueryWindow)
-  const moversQuery = useTopMovers(anchorDate, days, 8, true)
+  const dailyQuery = useDailySummary(selectedDate)
+  const anchorDate = selectedDate || dailyQuery.data?.market_date
+
+  const availableDatesQuery = useDailySummariesList(180)
+  const availableDates = useMemo(() => {
+    const list = availableDatesQuery.data || []
+    const dates = list
+      .map((s) => String((s as any)?.market_date || '').trim())
+      .filter((d) => isIsoDateOnly(d))
+    // Ensure uniqueness while preserving order (already newest-first from backend).
+    return Array.from(new Set(dates))
+  }, [availableDatesQuery.data])
+
+  useEffect(() => {
+    // If someone pastes a date in the URL that doesn't exist, fall back to latest.
+    if (!selectedDate) return
+    if (!availableDates.length) return
+    if (availableDates.includes(selectedDate)) return
+
+    const next = new URLSearchParams(params)
+    next.delete('date')
+    setParams(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, availableDates.join('|')])
+
+  // Movers are windowed independently from the daily summary; default to a single latest day.
+  const moversAnchorDate = selectedDate || undefined
+  const infographicQuery = useVideoInfographic(moversAnchorDate, moversDays, 200, true)
+  const moversQuery = useTopMovers(moversAnchorDate, moversDays, 8, true)
 
   const tickerStats = useMemo(() => buildTickerStats(infographicQuery.data), [infographicQuery.data])
+  const tickerVideoCounts = useMemo(() => buildTickerVideoCounts(infographicQuery.data as any), [infographicQuery.data])
+
+  const moversSortedByMentions = useMemo(() => {
+    const items = moversQuery.data ? [...moversQuery.data] : []
+    items.sort((a, b) => {
+      const aTotal = tickerStats.get(a.symbol)?.total ?? 0
+      const bTotal = tickerStats.get(b.symbol)?.total ?? 0
+      if (bTotal !== aTotal) return bTotal - aTotal
+      return a.symbol.localeCompare(b.symbol)
+    })
+    return items
+  }, [moversQuery.data, tickerStats])
 
   const errorInfo =
     getUiErrorInfo(dailyQuery.error) ||
-    getUiErrorInfo(videosQuery.error) ||
     getUiErrorInfo(infographicQuery.error) ||
     getUiErrorInfo(moversQuery.error) ||
     null
@@ -130,57 +199,44 @@ export default function HomePage() {
 
       <div className={styles.dashboard}>
         <div className={styles.mainCol}>
-          <section className={cn(ui.card, styles.welcomeCard)} aria-label="Dashboard controls">
-            <div className={styles.welcomeTop}>
-              <div>
-                <div className={styles.kicker}>yuNews</div>
-                <div className={styles.welcomeTitle}>Market narrative, distilled</div>
-                <div className={styles.welcomeBody}>
-                  A daily brief plus the underlying videos and tickers—optimized for quick scanning, and deeper drill-down when you need it.
-                </div>
-              </div>
-
-              <div className={styles.quickActions} aria-label="Quick actions">
-                <label className={styles.toolbarField}>
-                  <span className={styles.fieldLabel}>Window</span>
-                  <select
-                    className={cn(styles.select, styles.toolbarSelect)}
-                    value={String(days)}
-                    onChange={onChangeDays}
-                    aria-label="Select day window"
-                  >
-                    <option value="7">Last 7 days</option>
-                    <option value="14">Last 14 days</option>
-                    <option value="30">Last 30 days</option>
-                  </select>
-                </label>
-
-                <Link
-                  className={cn(ui.button, ui.primary)}
-                  to={`/ticker` + (days ? `?days=${encodeURIComponent(String(days))}` : '')}
-                >
-                  Explore ticker
-                </Link>
-                <Link
-                  className={cn(ui.button, ui.ghost)}
-                  to={`/videos` + (days ? `?days=${encodeURIComponent(String(days))}` : '')}
-                >
-                  Browse videos
-                </Link>
-              </div>
-            </div>
-          </section>
-
           <section className={ui.card} aria-label="Daily market summary">
           <div className={ui.cardHeader}>
             <h2>Market brief</h2>
             <div className={styles.headerChips} aria-label="Market brief metadata">
+              <div className={styles.dateControls} aria-label="Select market date">
+                <label className={styles.dateLabel} htmlFor="marketDate">
+                  Market date
+                </label>
+                <select
+                  id="marketDate"
+                  className={styles.dateInput}
+                  value={selectedDate || ''}
+                  onChange={onChangeDate}
+                  aria-busy={availableDatesQuery.isLoading}
+                >
+                  <option value="">Latest</option>
+                  {availableDates.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className={cn(ui.button, ui.ghost)}
+                  onClick={onClickLatest}
+                  disabled={!selectedDate}
+                  title="Clear date to use latest"
+                >
+                  Latest
+                </button>
+              </div>
               <span className={ui.chip}>{anchorDate || 'Latest'}</span>
               {(() => {
                 const outlook = normalizeDailyOutlook(dailyQuery.data?.sentiment)
-                const conf = formatConfidencePct(dailyQuery.data?.sentiment_confidence)
+                const score = formatSentimentScore(dailyQuery.data?.sentiment_score)
                 const reason = String(dailyQuery.data?.sentiment_reason || '').trim()
-                if (!outlook && !conf) return null
+                if (!outlook && !score) return null
 
                 return (
                   <span
@@ -194,7 +250,7 @@ export default function HomePage() {
                     title={reason ? `Daily sentiment: ${reason}` : 'Daily sentiment (from daily_summaries)'}
                   >
                     {outlook ? dailyOutlookLabel(outlook) : 'Sentiment'}
-                    {conf ? ` • ${conf} conf` : ''}
+                    {score ? ` • ${score}` : ''}
                   </span>
                 )
               })()}
@@ -220,40 +276,6 @@ export default function HomePage() {
                     return <div className={cn(util.muted, util.small, styles.reasonLine)}>{reason}</div>
                   })()}
                 </div>
-
-                {(() => {
-                  const outlook = normalizeDailyOutlook(dailyQuery.data.sentiment)
-                  const conf = formatConfidencePct(dailyQuery.data.sentiment_confidence)
-                  const reason = String(dailyQuery.data.sentiment_reason || '').trim()
-                  if (!outlook && !conf && !reason) return null
-
-                  return (
-                    <div className={styles.outlookRow} aria-label="Next session outlook">
-                      <div className={styles.outlookLabel}>Next session outlook</div>
-                      {outlook ? (
-                        <span
-                          className={cn(
-                            ui.chip,
-                            styles.outlookChip,
-                            outlook === 'bullish' && styles.outlookPos,
-                            outlook === 'bearish' && styles.outlookNeg,
-                            (outlook === 'mixed' || outlook === 'neutral') && styles.outlookNeu,
-                          )}
-                          title="Derived from the daily summary inputs"
-                        >
-                          {dailyOutlookLabel(outlook)}
-                          {conf ? ` • ${conf} conf` : ''}
-                        </span>
-                      ) : conf ? (
-                        <span className={cn(ui.chip, styles.outlookChip)} title="Derived from the daily summary inputs">
-                          {conf} confidence
-                        </span>
-                      ) : null}
-
-                      {reason ? <div className={cn(util.small, util.muted)}>{reason}</div> : null}
-                    </div>
-                  )
-                })()}
               </header>
 
               <section className={styles.summaryBlock} aria-label="Daily summary">
@@ -369,15 +391,36 @@ export default function HomePage() {
           <section className={cn(ui.card, styles.sideCard)} aria-label="Top mentions">
             <div className={styles.sideHeader}>
               <h2>Top mentions</h2>
-              <span className={ui.chip}>{anchorDate || 'Latest'}</span>
+              <div className={styles.sideHeaderRight}>
+                <div className={styles.sliderRow} aria-label="Top mentions window">
+                  <input
+                    id="moversWindow"
+                    type="range"
+                    min={1}
+                    max={moversMaxAgo + 1}
+                    step={1}
+                    value={moversDays}
+                    onChange={onChangeMoversDays}
+                    className={styles.slider}
+                    aria-label="Top mentions window (days)"
+                  />
+                  <span
+                    className={cn(ui.chip, styles.windowChip)}
+                    title="How many days to include ending at the selected market date (or latest)"
+                  >
+                    {moversDays === 1 ? 'Latest day' : `Last ${moversDays} days`}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {moversQuery.isLoading && <LoadingLine label="Loading movers…" />}
 
             {!moversQuery.isLoading && moversQuery.data?.length ? (
               <div className={styles.moversList}>
-                {moversQuery.data.slice(0, 10).map((m, idx) => {
+                {moversSortedByMentions.slice(0, 10).map((m, idx) => {
                   const stats = tickerStats.get(m.symbol)
+                  const videoCount = tickerVideoCounts.get(m.symbol) || 0
                   const dirClass =
                     m.direction === 'bullish'
                       ? styles.moverRowUp

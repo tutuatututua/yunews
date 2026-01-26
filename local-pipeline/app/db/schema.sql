@@ -130,7 +130,7 @@ create table if not exists public.daily_summaries (
   risks text[] not null default '{}',
   opportunities text[] not null default '{}',
   sentiment text null,
-  sentiment_confidence double precision null,
+  sentiment_score double precision null,
   sentiment_reason text not null default '',
   model text not null,
   generated_at timestamptz not null

@@ -26,7 +26,7 @@ class DailySummary(BaseModel):
     risks: list[str] = Field(default_factory=list)
     opportunities: list[str] = Field(default_factory=list)
     sentiment: str | None = None
-    sentiment_confidence: float | None = None
+    sentiment_score: float | None = Field(default=None, ge=-1, le=1)
     sentiment_reason: str = ""
     model: str
     generated_at: datetime

@@ -8,8 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class VideoListItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    id: str | None = None
-    video_id: str | None = None
+    id: str
+    video_id: str
     title: str | None = None
     channel: str | None = None
     published_at: str | None = None

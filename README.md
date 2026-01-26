@@ -79,8 +79,12 @@ This runs the pipeline job once and exits.
 - `GET /health`
 - `GET /daily-summaries/latest`
 - `GET /daily-summaries?limit=30`
-- `GET /videos?date=YYYY-MM-DD&limit=50`
+- `GET /daily-summaries/{market_date}`
+- `GET /videos?date=YYYY-MM-DD&days=7&limit=50`
+- `GET /videos/infographic?date=YYYY-MM-DD&days=7&limit=200`
 - `GET /videos/{video_id}`
+- `GET /entities/top-movers?date=YYYY-MM-DD&days=7&limit=8`
+- `GET /entities/{symbol}/chunks?days=7&limit=100`
 
 ## Pipeline (LOCAL ONLY)
 - Runs as a batch job (CLI/cron style), not an HTTP API.

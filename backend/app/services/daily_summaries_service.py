@@ -23,7 +23,7 @@ def shape_daily_summary_row(row: dict[str, Any] | None, market_date: date) -> di
         "risks": row.get("risks") or [],
         "opportunities": row.get("opportunities") or [],
         "sentiment": row.get("sentiment"),
-        "sentiment_confidence": row.get("sentiment_confidence"),
+        "sentiment_score": row.get("sentiment_score"),
         "sentiment_reason": row.get("sentiment_reason") or "",
         "model": row.get("model") or "daily_summaries",
         "generated_at": row.get("generated_at") or datetime.now(timezone.utc).isoformat(),
@@ -37,7 +37,7 @@ def get_daily_summary(market_date: date) -> dict[str, Any] | None:
     resp = (
         supa.table("daily_summaries")
         .select(
-            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_confidence,sentiment_reason,model,generated_at"
+            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_score,sentiment_reason,model,generated_at"
         )
         .eq("market_date", market_date.isoformat())
         .limit(1)
@@ -52,7 +52,7 @@ def get_latest_daily_summary() -> dict[str, Any] | None:
     resp = (
         supa.table("daily_summaries")
         .select(
-            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_confidence,sentiment_reason,model,generated_at"
+            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_score,sentiment_reason,model,generated_at"
         )
         .order("market_date", desc=True)
         .limit(1)
@@ -107,7 +107,7 @@ def list_daily_summaries(*, limit: int) -> list[dict[str, Any]]:
     s_resp = (
         supa.table("daily_summaries")
         .select(
-            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_confidence,sentiment_reason,model,generated_at"
+            "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,sentiment,sentiment_score,sentiment_reason,model,generated_at"
         )
         .in_("market_date", date_keys)
         .limit(len(date_keys))

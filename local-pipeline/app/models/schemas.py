@@ -151,5 +151,5 @@ class DailyOverallSummary(BaseModel):
     opportunities: list[str] = Field(default_factory=list)
     # Overall market tone for the next session, grounded in the input videos.
     sentiment: Optional[str] = None
-    sentiment_confidence: Optional[float] = None
+    sentiment_score: Optional[float] = Field(default=None, ge=-1, le=1)
     sentiment_reason: str = ""

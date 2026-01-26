@@ -83,18 +83,18 @@ class SummarizationService:
                 "overall_summarize is plain text (max 5 sentences), a concise TL;DR for the day.\n"
                 "summary_markdown is markdown BUT must not contain curly braces.\n"
                 "sentiment is bullish|bearish|mixed|neutral or null.\n"
-                "sentiment_confidence is a number between 0 and 1, or null if unclear.\n"
+                "sentiment_score is a number between -1 and 1 (inclusive), where -1 is very bearish, 0 is neutral/mixed, and 1 is very bullish; or null if unclear.\n"
                 "sentiment_reason is plain text (max 2 sentences) explaining the expected tone for the next market session, grounded in the inputs (no investment advice).\n"
                 "Deduplicate bullets; keep concise.\n\n"
                 "Title must be exactly: Market Summary — {market_date}\n"
                 "movers: ONLY include the MOST IMPORTANT movers; skip minor/unclear movers; if none are clearly supported, return an empty array.\n"
                 "movers: each item is symbol + direction (up|down|mixed) + 1-sentence reason (max 5 items no hype).\n"
-                "risks/opportunities: max 12 bullets each.\n"
+                "risks/opportunities: max 10 bullets each.\n"
                 "Always include ALL keys in the schema; use empty string/list when needed.\n\n"
                 "Market date (UTC): {market_date}\n"
                 "Video inputs (JSON list; keys: title,tickers,overall_explanation,key_points,risks,opportunities):\n"
                 "{items}\n\n"
-                "Schema: {{\"title\":...,\"overall_summarize\":...,\"summary_markdown\":...,\"movers\":[{{\"symbol\":...,\"direction\":...,\"reason\":...}}],\"risks\":[...],\"opportunities\":[...],\"sentiment\":null,\"sentiment_confidence\":null,\"sentiment_reason\":...}}"
+                "Schema: {{\"title\":...,\"overall_summarize\":...,\"summary_markdown\":...,\"movers\":[{{\"symbol\":...,\"direction\":...,\"reason\":...}}],\"risks\":[...],\"opportunities\":[...],\"sentiment\":null,\"sentiment_score\":null,\"sentiment_reason\":...}}"
             ),
         )
 

@@ -8,7 +8,7 @@ export type DailySummary = {
   risks: string[]
   opportunities: string[]
   sentiment?: string | null
-  sentiment_confidence?: number | null
+  sentiment_score?: number | null
   sentiment_reason?: string
   per_entity_summaries?: Array<{ symbol: string; summary_markdown: string; key_claims: string[] }>
   model: string

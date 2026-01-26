@@ -99,6 +99,19 @@ export async function fetchLatestDailySummary(): Promise<DailySummary | null> {
   return r.data
 }
 
+export async function fetchDailySummary(marketDate: string): Promise<DailySummary | null> {
+  const safe = encodeURIComponent(marketDate)
+  const r = await getJson<{ data: DailySummary | null }>(`/daily-summaries/${safe}`)
+  return r.data
+}
+
+export async function fetchDailySummaries(limit: number = 120): Promise<DailySummary[]> {
+  const qs = new URLSearchParams()
+  qs.set('limit', String(limit))
+  const r = await getJson<{ data: DailySummary[] }>(`/daily-summaries?${qs.toString()}`)
+  return r.data
+}
+
 export async function fetchVideos(
   date?: string,
   opts?: { days?: number; limit?: number },

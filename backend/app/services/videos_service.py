@@ -85,6 +85,9 @@ def list_videos(*, date_: date | None, days: int | None, limit: int) -> list[dic
     resp = q.execute()
     data = resp.data or []
 
+    # Defensive: the UI keys list rows off `video_id`.
+    data = [r for r in data if isinstance(r, dict) and r.get("video_id")]
+
     for row in data:
         if isinstance(row, dict) and "id" not in row:
             row["id"] = row.get("video_id")
@@ -237,7 +240,16 @@ def video_infographic(*, date_: date | None, days: int, limit: int) -> list[dict
 
 def get_video_detail(video_id: str) -> dict[str, Any] | None:
     supa = get_supabase_client()
-    v_resp = supa.table("videos").select("*").eq("video_id", video_id).limit(1).execute()
+    # Return only the fields we actually use in the UI and API.
+    v_resp = (
+        supa.table("videos")
+        .select(
+            "video_id,title,channel,published_at,video_url,thumbnail_url,view_count,like_count,comment_count,duration_seconds"
+        )
+        .eq("video_id", video_id)
+        .limit(1)
+        .execute()
+    )
     video = v_resp.data[0] if v_resp.data else None
 
     if not isinstance(video, dict) or not video:
