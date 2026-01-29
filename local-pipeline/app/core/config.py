@@ -73,8 +73,20 @@ class Settings(BaseSettings):
 
     # YouTube discovery config
     discovery_lookback_hours: int = Field(default=36, alias="DISCOVERY_LOOKBACK_HOURS")
-    discovery_max_videos: int = Field(default=10, alias="DISCOVERY_MAX_VIDEOS")
-    discovery_language: str = Field(default="en", alias="DISCOVERY_LANGUAGE")
+    discovery_max_videos: int = Field(
+        default=10,
+        validation_alias=AliasChoices("DISCOVERY_MAX_VIDEOS", "PIPELINE_MAX_VIDEOS"),
+    )
+    discovery_language: str = Field(
+        default="en",
+        validation_alias=AliasChoices("DISCOVERY_LANGUAGE", "PIPELINE_LANGUAGE"),
+    )
+
+    # Backward-compatible pipeline config (local-pipeline/.env)
+    pipeline_search_query: str = Field(default="stock", alias="PIPELINE_SEARCH_QUERY")
+    pipeline_region_code: str = Field(default="US", alias="PIPELINE_REGION_CODE")
+    pipeline_min_duration_seconds: int = Field(default=2 * 60, alias="PIPELINE_MIN_DURATION_SECONDS")
+    pipeline_max_duration_seconds: int = Field(default=60 * 60, alias="PIPELINE_MAX_DURATION_SECONDS")
 
     # Chunking
     chunk_window_seconds: int = Field(default=300, alias="CHUNK_WINDOW_SECONDS")

@@ -57,11 +57,11 @@ class YouTubeService:
         lookback_hours: int,
         max_videos: int,
         language: str = "en",
+        region_code: str = "US",
+        min_duration_seconds: int = 2 * 60,
+        max_duration_seconds: int = 60 * 60,
     ) -> List[VideoMetadata]:
         published_after = (datetime.now(timezone.utc) - timedelta(hours=lookback_hours)).isoformat()
-
-        min_duration_seconds = 2 * 60
-        max_duration_seconds = 60 * 60
 
         collected: Dict[str, VideoMetadata] = {}
 
@@ -73,6 +73,7 @@ class YouTubeService:
                 query=q.query,
                 published_after=published_after,
                 language=language,
+                region_code=region_code,
                 max_results=max_videos,
             )
 
@@ -138,6 +139,7 @@ class YouTubeService:
         query: str,
         published_after: str,
         language: str,
+        region_code: str,
         max_results: int,
     ) -> List[VideoMetadata]:
         safe_max_results = min(max_results, 50)
@@ -149,7 +151,7 @@ class YouTubeService:
             "order": "relevance",
             "maxResults": str(safe_max_results),
             "safeSearch": "moderate",
-            "regionCode": "US",
+            "regionCode": region_code,
             "relevanceLanguage": language,
             "publishedAfter": published_after,
         }

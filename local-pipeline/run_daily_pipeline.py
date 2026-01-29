@@ -221,7 +221,9 @@ def main() -> None:
 
     # 1) Daily discovery
     queries = [
-        YouTubeSearchQuery("stock"),
+        YouTubeSearchQuery(q.strip())
+        for q in settings.pipeline_search_query.split(",")
+        if q.strip()
     ]
 
     videos = youtube.discover_daily_videos(
@@ -229,6 +231,9 @@ def main() -> None:
         lookback_hours=settings.discovery_lookback_hours,
         max_videos=settings.discovery_max_videos,
         language=settings.discovery_language,
+        region_code=settings.pipeline_region_code,
+        min_duration_seconds=settings.pipeline_min_duration_seconds,
+        max_duration_seconds=settings.pipeline_max_duration_seconds,
     )
     logger.info("Discovered video_ids=%s", [video.video_id for video in videos])
 
@@ -246,7 +251,7 @@ def main() -> None:
         logger.info("Processing video_id=%s title=%s", video.video_id, video.title)
 
         # 3) Transcript fetching
-        entries = transcript.fetch_transcript(video.video_id, languages=["en"])
+        entries = transcript.fetch_transcript(video.video_id, languages=[settings.discovery_language])
         if not entries:
             logger.info("Skipping video with missing transcript: %s", video.video_id)
             # Mark processed to remain idempotent and avoid daily re-tries.

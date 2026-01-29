@@ -7,6 +7,7 @@ import { TimeZoneProvider } from './app/timeZone'
 import HomePage from './pages/HomePage'
 import TickerPage from './pages/TickerPage'
 import VideoInsightsPage from './pages/VideoInsightsPage'
+import { Analytics } from "@vercel/analytics/next"
 
 function LegacyInfographicRedirect() {
   const location = useLocation()
