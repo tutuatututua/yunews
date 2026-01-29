@@ -20,7 +20,7 @@ RUN npm run build
 FROM nginx:1.27-alpine
 
 ENV PORT=80 \
-	API_UPSTREAM=http://backend-api:8080/
+	API_UPSTREAM=http://backend:8080/
 
 # Use the nginx official image's envsubst templating support.
 # Files placed in /etc/nginx/templates/*.template are rendered to /etc/nginx/conf.d/

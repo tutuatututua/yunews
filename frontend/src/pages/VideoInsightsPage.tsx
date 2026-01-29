@@ -321,6 +321,7 @@ export default function VideoInsightsPage() {
                               tickerDetails={detailQuery.data.ticker_details}
                               copiedHref={copiedHref}
                               copyHref={copyHref}
+                              variant="inline"
                               getMentionCount={getMentionCount}
                               showVideosLink={false}
                             />

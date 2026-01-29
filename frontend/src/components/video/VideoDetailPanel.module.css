@@ -97,6 +97,10 @@
   align-items: start;
 }
 
+.detailRowGridNoThumb {
+  grid-template-columns: 1fr;
+}
+
 .detailThumbWrap {
   width: 148px;
   min-width: 148px;

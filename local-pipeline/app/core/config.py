@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     @property
     def supabase_key(self) -> str:
-        """Compatibility alias used by other components (e.g., backend-api).
+        """Compatibility alias used by other components (e.g., backend).
 
         For local pipeline runs we always use the service role key.
         """

@@ -311,6 +311,7 @@ export default function TickerPage() {
 
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const [expandedDetailVideoId, setExpandedDetailVideoId] = useState<string | null>(null)
   const [copiedHref, setCopiedHref] = useState<string | null>(null)
 
   const copyHref = async (href: string) => {
@@ -349,11 +350,21 @@ export default function TickerPage() {
   }
 
   useEffect(() => {
-    if (symbolFromUrl && symbolFromUrl !== selectedTicker) {
+    // Keep URL-driven ticker selection in sync, but never override an explicit video selection.
+    // Without this guard, switching from a ticker node -> video node can briefly re-apply the
+    // previous `symbol` URL param before `setParams()` lands, clearing the video selection.
+    if (!symbolFromUrl) return
+    if (selectedVideoId) return
+    if (symbolFromUrl !== selectedTicker) {
       setSelectedTicker(symbolFromUrl)
       setSelectedVideoId(null)
     }
-  }, [symbolFromUrl, selectedTicker])
+  }, [symbolFromUrl, selectedTicker, selectedVideoId])
+
+  useEffect(() => {
+    // Reset any inline expanded row when switching tickers.
+    setExpandedDetailVideoId(null)
+  }, [selectedTicker])
 
   const publishedRefDay = useMemo(() => {
     const lo = publishedMinDay ?? dateBounds.minDay
@@ -515,6 +526,7 @@ export default function TickerPage() {
 
   const entityChunksQuery = useEntityChunks(selectedTicker, { days, limit: 120 }, !!selectedTicker)
   const videoDetailQuery = useVideoDetail(selectedVideoId)
+  const expandedDetailQuery = useVideoDetail(expandedDetailVideoId)
 
   const selectedVideoInfographic = useMemo(() => {
     if (!selectedVideoId) return null
@@ -799,12 +811,19 @@ export default function TickerPage() {
                           const perTickerStats = videoId ? perVideoTickerStats.get(videoId) : null
                           const edgeChips = buildInfographicEdgeChips(metaFromInfographic?.edges, perTickerStats)
 
+                          const expanded = !!videoId && expandedDetailVideoId === videoId
+                          const toggleExpanded = () => {
+                            if (!videoId) return
+                            setExpandedDetailVideoId(expanded ? null : videoId)
+                          }
+
                           return (
                             <div
                               key={key}
                               className={cn(
                                 styles.detailRow,
                                 rowClass,
+                                expanded && styles.detailRowExpanded,
                               )}
                               title={
                                 publishedIso
@@ -847,21 +866,15 @@ export default function TickerPage() {
                                 <div className={styles.detailRowMain}>
                                   <div className={styles.detailRowHeader}>
                                     <div className={styles.detailRowHeaderLeft}>
-                                      {url ? (
-                                        <a
-                                          className={styles.detailRowTitle}
-                                          href={url}
-                                          target="_blank"
-                                          rel="noreferrer noopener"
-                                          title={title}
-                                        >
-                                          {title}
-                                        </a>
-                                      ) : (
-                                        <div className={styles.detailRowTitle} title={title}>
-                                          {title}
-                                        </div>
-                                      )}
+                                      <button
+                                        type="button"
+                                        className={cn(styles.detailRowTitleButton, styles.detailRowTitle, expanded && styles.detailRowTitleExpanded)}
+                                        onClick={toggleExpanded}
+                                        aria-expanded={expanded}
+                                        title={expanded ? 'Hide details' : 'Show details'}
+                                      >
+                                        {title}
+                                      </button>
 
                                       <div className={styles.detailRowSubline}>
                                         {publishedIso ? <span>{publishedIso}</span> : <span>Unknown publish date</span>}
@@ -919,6 +932,37 @@ export default function TickerPage() {
                                       </ul>
                                     </div>
                                   </div>
+
+                                  {expanded && (
+                                    <div className={styles.detailRowExpandedBody} aria-live="polite">
+                                      {expandedDetailQuery.isLoading && <LoadingLine label="Loading video insight…" />}
+
+                                      {!expandedDetailQuery.isLoading && expandedDetailQuery.data?.summary && videoId && (
+                                        <VideoDetailPanel
+                                          videoId={videoId}
+                                          days={days}
+                                          summary={expandedDetailQuery.data.summary}
+                                          meta={metaFromInfographic || row.videos}
+                                          tickerDetails={expandedDetailQuery.data?.ticker_details}
+                                          copiedHref={copiedHref}
+                                          copyHref={copyHref}
+                                          variant="inline"
+                                          getMentionCount={(sym) => {
+                                            const per = perVideoTickerStats.get(videoId)
+                                            return per?.get(sym)?.mentions || 0
+                                          }}
+                                          onSelectTicker={(sym) => {
+                                            setSelectedTicker(sym)
+                                            setExpandedDetailVideoId(null)
+                                          }}
+                                        />
+                                      )}
+
+                                      {!expandedDetailQuery.isLoading && !expandedDetailQuery.data?.summary && (
+                                        <div className={cn(util.muted, util.small)}>No stored insight found for this video yet.</div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

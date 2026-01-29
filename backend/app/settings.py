@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Load from env vars in production/docker, but also support local dev via .env.
-    # Order matters: prefer backend-api/.env, then workspace-root/.env.
+    # Order matters: prefer backends/.env, then workspace-root/.env.
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
     # Keep secrets/config out of source control: prefer env vars or docker-compose env.

@@ -170,6 +170,14 @@
     box-shadow 120ms ease;
 }
 
+.detailRowExpanded {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+  box-shadow:
+    var(--ring),
+    0 10px 26px color-mix(in srgb, #000000 18%, transparent),
+    0 1px 0 color-mix(in srgb, var(--border-2) 75%, transparent);
+}
+
 .detailRowPositive {
   border-color: color-mix(in srgb, var(--sent-pos) 35%, var(--border-2));
   background: linear-gradient(
@@ -369,6 +377,33 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.detailRowTitleButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.detailRowTitleButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 8px;
+}
+
+.detailRowTitleExpanded {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: initial;
+  line-clamp: initial;
+  -webkit-box-orient: initial;
+}
+
+.detailRowExpandedBody {
+  margin-top: 10px;
 }
 
 .detailRowTitle:hover {

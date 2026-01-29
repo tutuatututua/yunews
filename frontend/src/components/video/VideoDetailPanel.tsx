@@ -137,10 +137,13 @@ export default function VideoDetailPanel(props: {
   getMentionCount?: (symbol: string) => number
   onSelectTicker?: (symbol: string) => void
   showVideosLink?: boolean
+  variant?: 'full' | 'inline'
 }) {
   const { videoId, days, summary, meta, tickerDetails, copiedHref, copyHref, getMentionCount, onSelectTicker } = props
 
   const showVideosLink = props.showVideosLink !== false
+  const variant = props.variant || 'full'
+  const isInline = variant === 'inline'
 
   const title = meta?.title || (summary as any)?.title || `Video ${videoId}`
   const channel = meta?.channel || null
@@ -182,40 +185,46 @@ export default function VideoDetailPanel(props: {
   return (
     <div className={styles.videoDetailWrap} aria-label="Video summary">
       <div className={cn(styles.detailRow, overallRowClass)}>
-        <div className={styles.detailRowGrid}>
-          <div className={styles.detailThumbWrap}>
-            {thumbnailUrl ? (
-              watchUrl ? (
-                <a className={styles.detailThumbLink} href={watchUrl} target="_blank" rel="noreferrer noopener" aria-label={`Open ${title}`}>
+        <div className={cn(styles.detailRowGrid, isInline && styles.detailRowGridNoThumb)}>
+          {!isInline ? (
+            <div className={styles.detailThumbWrap}>
+              {thumbnailUrl ? (
+                watchUrl ? (
+                  <a className={styles.detailThumbLink} href={watchUrl} target="_blank" rel="noreferrer noopener" aria-label={`Open ${title}`}>
+                    <img className={styles.detailThumb} src={safeExternalHref(thumbnailUrl)} alt="" loading="lazy" />
+                    <span className={styles.detailThumbPlay} aria-hidden="true" />
+                  </a>
+                ) : (
                   <img className={styles.detailThumb} src={safeExternalHref(thumbnailUrl)} alt="" loading="lazy" />
-                  <span className={styles.detailThumbPlay} aria-hidden="true" />
-                </a>
+                )
               ) : (
-                <img className={styles.detailThumb} src={safeExternalHref(thumbnailUrl)} alt="" loading="lazy" />
-              )
-            ) : (
-              <div className={styles.detailThumbPlaceholder} aria-hidden="true" />
-            )}
-          </div>
+                <div className={styles.detailThumbPlaceholder} aria-hidden="true" />
+              )}
+            </div>
+          ) : null}
 
           <div className={styles.detailRowMain}>
             <div className={styles.detailRowHeader}>
               <div className={styles.detailRowHeaderLeft}>
-                {watchUrl ? (
-                  <a className={styles.detailRowTitle} href={watchUrl} target="_blank" rel="noreferrer noopener" title={title}>
-                    {title}
-                  </a>
-                ) : (
-                  <div className={styles.detailRowTitle} title={title}>
-                    {title}
-                  </div>
-                )}
+                {!isInline ? (
+                  <>
+                    {watchUrl ? (
+                      <a className={styles.detailRowTitle} href={watchUrl} target="_blank" rel="noreferrer noopener" title={title}>
+                        {title}
+                      </a>
+                    ) : (
+                      <div className={styles.detailRowTitle} title={title}>
+                        {title}
+                      </div>
+                    )}
 
-                <div className={styles.detailRowSubline}>
-                  {publishedIso ? <span>{publishedIso}</span> : <span>Unknown publish date</span>}
-                  {channel ? <span aria-hidden="true">•</span> : null}
-                  {channel ? <span>{channel}</span> : null}
-                </div>
+                    <div className={styles.detailRowSubline}>
+                      {publishedIso ? <span>{publishedIso}</span> : <span>Unknown publish date</span>}
+                      {channel ? <span aria-hidden="true">•</span> : null}
+                      {channel ? <span>{channel}</span> : null}
+                    </div>
+                  </>
+                ) : null}
               </div>
 
               <div className={styles.detailRowBadges}>
