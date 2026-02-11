@@ -7,7 +7,7 @@ import { TimeZoneProvider } from './app/timeZone'
 import HomePage from './pages/HomePage'
 import TickerPage from './pages/TickerPage'
 import VideoInsightsPage from './pages/VideoInsightsPage'
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from '@vercel/analytics/react'
 
 function LegacyInfographicRedirect() {
   const location = useLocation()
@@ -28,6 +28,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AppShell>
+          <Analytics />
         </BrowserRouter>
       </TimeZoneProvider>
     </QueryClientProvider>
