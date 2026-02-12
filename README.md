@@ -13,6 +13,10 @@
 If you already created the schema before 2026-01-23, also run:
 - `local-pipeline/app/db/migrations/2026-01-23_add_sentiment_and_drop_video_summaries_tickers.sql`
 
+If you see `/chat` failing with `column d.company_name does not exist`, your Supabase RPC is outdated.
+Run:
+- `local-pipeline/app/db/migrations/2026-02-08_fix_match_rag_documents.sql`
+
 ## 2) Configure environment
 1. Backend API env:
    - Create/fill `backend/.env` (tip: start from `backend/.env.example`)
@@ -20,6 +24,13 @@ If you already created the schema before 2026-01-23, also run:
      - `SUPABASE_URL`
      - `SUPABASE_SERVICE_ROLE_KEY`
        - Server-side only; bypasses RLS.
+     - `OPENAI_API_KEY` (REQUIRED for chatbot)
+     - (optional) `OPENAI_CHAT_MODEL` (default: gpt-4.1-mini)
+    - (optional) `OPENAI_QUERY_PLANNER_MODEL` (defaults to `gpt-4.1-mini`)
+       - When true, the backend will rewrite/route queries to improve retrieval.
+       - The assistant answer still uses the user's original question.
+     - (optional) `OPENAI_QUERY_PLANNER_MODEL` (default: gpt-4.1-mini)
+     - (optional) `HF_TOKEN` (only needed if you hit Hugging Face rate limits)
 
 2. Frontend API base URL:
    - For Vite dev (`npm run dev`): create `frontend/.env` (tip: start from `frontend/.env.example`).
@@ -85,7 +96,16 @@ This runs the pipeline job once and exits.
 - `GET /videos/{video_id}`
 - `GET /entities/top-movers?date=YYYY-MM-DD&days=7&limit=8`
 - `GET /entities/{symbol}/chunks?days=7&limit=100`
+- `POST /chat` (or `POST /api/chat` when served behind the frontend nginx `/api` proxy)
 
 ## Pipeline (LOCAL ONLY)
 - Runs as a batch job (CLI/cron style), not an HTTP API.
 - Deploy on AWS as an ECS scheduled task (EventBridge Scheduler 4h/1d cadence).
+
+## Chatbot (RAG)
+- The local pipeline now writes semantic-search documents to `rag_documents`:
+  - `ticker_summary` (per video + ticker)
+  - `video_summary` (per video)
+  - `highlight` (per video, chunked key takeaways)
+- The backend `POST /chat` endpoint performs retrieval (top 5) + LLM generation and streams tokens (SSE).
+- If retrieval returns nothing relevant, the chatbot replies with “I don’t have that information.”

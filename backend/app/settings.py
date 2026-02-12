@@ -14,13 +14,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
     # Keep secrets/config out of source control: prefer env vars or docker-compose env.
-    supabase_url: str = Field(validation_alias=AliasChoices("SUPABASE_URL", "supabase_url"))
+    supabase_url: str = Field(validation_alias=AliasChoices("SUPABASE_URL"))
 
     # Optional API key auth for public deployments.
     # If set, clients must send `X-API-Key: <key>` or `Authorization: Bearer <key>`.
     api_key: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("API_KEY", "BACKEND_API_KEY", "api_key"),
+        validation_alias=AliasChoices("API_KEY", "BACKEND_API_KEY"),
     )
 
     # Supabase keys:
@@ -32,37 +32,77 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "SUPABASE_SERVICE_ROLE_KEY",
             "SUPABASE_SERVICE_KEY",
-            "supabase_service_role_key",
         ),
     )
 
 
-    log_level: str = Field(default="INFO", validation_alias=AliasChoices("LOG_LEVEL", "log_level"))
+    log_level: str = Field(default="INFO", validation_alias=AliasChoices("LOG_LEVEL"))
     
     # CORS: set explicitly in production. Accepts either JSON array (preferred) or comma-separated string.
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
-        validation_alias=AliasChoices("CORS_ALLOW_ORIGINS", "cors_allow_origins"),
+        validation_alias=AliasChoices("CORS_ALLOW_ORIGINS"),
     )
     cors_allow_methods: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["GET", "OPTIONS"],
-        validation_alias=AliasChoices("CORS_ALLOW_METHODS", "cors_allow_methods"),
+        default_factory=lambda: ["GET", "POST", "OPTIONS"],
+        validation_alias=AliasChoices("CORS_ALLOW_METHODS"),
     )
     cors_allow_headers: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["*"],
-        validation_alias=AliasChoices("CORS_ALLOW_HEADERS", "cors_allow_headers"),
+        validation_alias=AliasChoices("CORS_ALLOW_HEADERS"),
     )
 
     # Optional hardening; when set, rejects requests with unknown Host headers.
     trusted_hosts: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
-        validation_alias=AliasChoices("TRUSTED_HOSTS", "trusted_hosts"),
+        validation_alias=AliasChoices("TRUSTED_HOSTS"),
     )
 
     # Only enable when the API is served over HTTPS (directly or via a reverse proxy).
-    enable_hsts: bool = Field(default=False, validation_alias=AliasChoices("ENABLE_HSTS", "enable_hsts"))
+    enable_hsts: bool = Field(default=False, validation_alias=AliasChoices("ENABLE_HSTS"))
 
-    backend_port: int = Field(default=8080, validation_alias=AliasChoices("PORT", "BACKEND_PORT", "backend_port"))
+    backend_port: int = Field(default=8080, validation_alias=AliasChoices("PORT", "BACKEND_PORT"))
+
+    # Chatbot (RAG)
+    openai_api_key: str | None = Field(default=None, validation_alias=AliasChoices("OPENAI_API_KEY"))
+    openai_chat_model: str = Field(
+        default="gpt-4.1-mini",
+        validation_alias=AliasChoices("OPENAI_CHAT_MODEL", "OPENAI_MODEL"),
+    )
+
+    # Chat quota (best-effort, per-process) - limits approximate LLM tokens per client IP.
+    # Set to 0 to disable.
+    chat_tokens_per_ip_per_window: int = Field(
+        default=0,
+        validation_alias=AliasChoices(
+            "CHAT_TOKENS_PER_IP_PER_WINDOW",
+        ),
+    )
+    # Default: 24 hours.
+    chat_token_window_seconds: int = Field(
+        default=60 * 60 * 24,
+        validation_alias=AliasChoices(
+            "CHAT_TOKEN_WINDOW_SECONDS",
+        ),
+    )
+
+    # Query planner (rewrite/router) used ONLY for retrieval.
+    # Backend behavior: enabled whenever OPENAI_API_KEY is set.
+    openai_query_planner_model: str = Field(
+        default="gpt-4.1-mini",
+        validation_alias=AliasChoices("OPENAI_QUERY_PLANNER_MODEL"),
+    )
+
+    hf_token: str | None = Field(default=None, validation_alias=AliasChoices("HF_TOKEN", "HUGGINGFACE_TOKEN"))
+    hf_embedding_model: str = Field(
+        default="Qwen/Qwen3-Embedding-0.6B",
+        validation_alias=AliasChoices("HF_EMBEDDING_MODEL", "QWEN_EMBED_MODEL"),
+    )
+    embedding_device: str = Field(default="auto", validation_alias=AliasChoices("EMBEDDING_DEVICE"))
+    embedding_max_length: int = Field(
+        default=1024,
+        validation_alias=AliasChoices("EMBEDDING_MAX_LENGTH", "QWEN_EMBED_MAX_TOKENS"),
+    )
 
     @model_validator(mode="after")
     def _validate_supabase_keys(self) -> "Settings":

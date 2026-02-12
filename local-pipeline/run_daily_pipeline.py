@@ -5,6 +5,11 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+try:  # Python 3.9+
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None  # type: ignore[assignment]
+
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.supabase_client import SupabaseDB
@@ -16,6 +21,33 @@ from app.services.transcript_service import TranscriptService
 from app.services.youtube_service import YouTubeSearchQuery, YouTubeService
 
 logger = logging.getLogger(__name__)
+
+
+def _previous_et_day_window(*, now_utc: datetime) -> tuple[date, datetime, datetime]:
+    """Return (market_date, start_utc, end_utc) for the previous ET calendar day.
+
+    Example: if run at 00:00 ET, summarize the day that just ended.
+    This avoids partial-day rollups and handles DST via America/New_York.
+    """
+
+    if now_utc.tzinfo is None:
+        now_utc = now_utc.replace(tzinfo=timezone.utc)
+    else:
+        now_utc = now_utc.astimezone(timezone.utc)
+
+    if ZoneInfo is None:
+        # Fallback (no DST support): treat ET as UTC-5.
+        et = timezone(timedelta(hours=-5))
+    else:
+        et = ZoneInfo("America/New_York")
+
+    now_et = now_utc.astimezone(et)
+    end_et = now_et.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_et = end_et - timedelta(days=1)
+
+    start_utc = start_et.astimezone(timezone.utc)
+    end_utc = end_et.astimezone(timezone.utc)
+    return (start_et.date(), start_utc, end_utc)
 
 
 def _add_unique_strings(target: list[str], items: Any, *, max_items: int) -> None:
@@ -191,6 +223,61 @@ def _derive_daily_summary(*, market_date: date, rows: list[dict[str, Any]]) -> d
     }
 
 
+def _format_ticker_summary_text(*, ticker: str, summary_obj: dict[str, Any], video_title: str, published_at: datetime) -> str:
+    ticker_u = (ticker or '').strip().upper()
+    pos = summary_obj.get('positive') or []
+    neg = summary_obj.get('negative') or []
+    neu = summary_obj.get('neutral') or []
+
+    def _bullets(items: Any, *, max_items: int = 10) -> list[str]:
+        if not isinstance(items, list):
+            return []
+        out: list[str] = []
+        for x in items:
+            s = str(x).strip()
+            if not s:
+                continue
+            out.append(s)
+            if len(out) >= max_items:
+                break
+        return out
+
+    lines: list[str] = [
+        f"Ticker: {ticker_u}",
+        f"Video: {video_title}",
+        f"Date: {published_at.date().isoformat()}",
+        "",
+    ]
+
+    p = _bullets(pos)
+    n = _bullets(neg)
+    u = _bullets(neu)
+    if p:
+        lines.append("Positive:")
+        lines.extend(f"- {x}" for x in p)
+        lines.append("")
+    if n:
+        lines.append("Negative:")
+        lines.extend(f"- {x}" for x in n)
+        lines.append("")
+    if u:
+        lines.append("Neutral:")
+        lines.extend(f"- {x}" for x in u)
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _chunk_highlights(items: list[str], *, chunk_size: int = 4) -> list[list[str]]:
+    cleaned = [str(x).strip() for x in (items or []) if str(x).strip()]
+    if not cleaned:
+        return []
+    out: list[list[str]] = []
+    for i in range(0, len(cleaned), max(1, chunk_size)):
+        out.append(cleaned[i : i + chunk_size])
+    return out
+
+
 def main() -> None:
     configure_logging()
     settings = get_settings()
@@ -212,12 +299,14 @@ def main() -> None:
         temperature=settings.llm_temperature,
     )
 
-    embedder = EmbeddingService(
-        hf_token=settings.hf_api_key,
-        model_name=settings.hf_embedding_model,
-        device=settings.embedding_device,
-        max_length=settings.embedding_max_length,
-    )
+    embedder: EmbeddingService | None = None
+    if settings.pipeline_enable_embeddings:
+        embedder = EmbeddingService(
+            hf_token=(settings.hf_api_key or ""),
+            model_name=settings.hf_embedding_model,
+            device=settings.embedding_device,
+            max_length=settings.embedding_max_length,
+        )
 
     # 1) Daily discovery
     queries = [
@@ -255,20 +344,21 @@ def main() -> None:
         if not entries:
             logger.info("Skipping video with missing transcript: %s", video.video_id)
             # Mark processed to remain idempotent and avoid daily re-tries.
+            try:
+                # Persist required metadata so processed_at can be set safely.
+                db.upsert_video(video)
+            except Exception:
+                logger.exception("Failed to upsert video metadata before marking processed")
             db.mark_video_processed(video.video_id)
             no_transcript += 1
             continue
 
-        # Only persist the video if we're actually going to process it.
-        # This avoids inserting non-English/unsupported videos that lack an English transcript.
-        db.upsert_video(video)
-
-        # 4) Time-based chunking
+        # 4) Time-based chunking (in-memory). Only persist if we extract at least one ticker.
         chunks = chunker.chunk_by_time(video.video_id, entries)
-        db.upsert_transcript_chunks(chunks)
 
-        # 5) Extract tickers from EACH chunk with categorized keypoints
+        # 5) Extract tickers from EACH chunk with categorized keypoints (in-memory)
         total_extractions = 0
+        pending_chunk_analyses: list[tuple[int, str, dict[str, Any]]] = []
         for chunk in chunks:
             chunk_extraction = extractor.extract(chunk.chunk_text)
             if not chunk_extraction.ticker_topic_pairs:
@@ -276,39 +366,37 @@ def main() -> None:
                 continue
 
             # Filter out invalid pairs
-            valid_pairs = [pair for pair in chunk_extraction.ticker_topic_pairs if pair.ticker]
-
+            valid_pairs = [pair for pair in chunk_extraction.ticker_topic_pairs if (pair.ticker or "").strip()]
             if not valid_pairs:
                 continue
 
             logger.debug(
                 "Chunk %d: extracted %d tickers with keypoints",
                 chunk.chunk_index,
-                len(valid_pairs)
+                len(valid_pairs),
             )
 
-            # 6) Store one analysis row per (chunk, ticker) with keypoints
             for pair in valid_pairs:
-                ticker = pair.ticker
+                ticker_u = str(pair.ticker).strip().upper()
+                if not ticker_u:
+                    continue
 
-                # Build keypoints structure
                 keypoints = {
                     "positive": pair.positive_keypoints,
                     "negative": pair.negative_keypoints,
                     "neutral": pair.neutral_keypoints,
                 }
 
+                pending_chunk_analyses.append((chunk.chunk_index, ticker_u, keypoints))
                 total_extractions += 1
-
-                db.upsert_chunk_analysis(
-                    video_id=video.video_id,
-                    chunk_index=chunk.chunk_index,
-                    ticker=ticker,
-                    chunk_summary=keypoints,
-                )
 
         if total_extractions == 0:
             logger.info("No tickers extracted from any chunk for video_id=%s, skipping", video.video_id)
+            try:
+                # Persist required metadata so processed_at can be set safely.
+                db.upsert_video(video)
+            except Exception:
+                logger.exception("Failed to upsert video metadata before marking processed")
             db.mark_video_processed(video.video_id)
             processed += 1
             continue
@@ -319,23 +407,21 @@ def main() -> None:
             video.video_id
         )
 
+        # Persist only now that we know there is at least one ticker.
+        db.upsert_video(video)
+        db.upsert_transcript_chunks(chunks)
+        for chunk_index, ticker_u, keypoints in pending_chunk_analyses:
+            db.upsert_chunk_analysis(
+                video_id=video.video_id,
+                chunk_index=chunk_index,
+                ticker=ticker_u,
+                chunk_summary=keypoints,
+            )
+
         # 7) Aggregation: group chunk keypoints by (video_id, ticker)
-        analysis_rows = db.list_chunk_analysis(video.video_id)
-
-        # Group by ticker
         grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for row in analysis_rows:
-            ticker_value = row.get("ticker")
-            keypoints = row.get("chunk_summary") or {}
-
-            if ticker_value:
-                ticker = str(ticker_value).upper()
-                grouped[ticker].append(keypoints)
-            else:
-                logger.debug(
-                    "Skipping malformed chunk_analysis row: ticker=%s",
-                    ticker_value,
-                )
+        for _, ticker_u, keypoints in pending_chunk_analyses:
+            grouped[ticker_u].append(keypoints)
 
         if not grouped:
             logger.info("No ticker groups created for video_id=%s", video.video_id)
@@ -343,8 +429,10 @@ def main() -> None:
             processed += 1
             continue
 
-        # 8) Aggregate keypoints and create embeddings
-        dimension = embedder.embedding_dimension()
+        # 8) Aggregate keypoints and (optionally) create embeddings
+        dimension: int | None = None
+        if embedder is not None:
+            dimension = embedder.embedding_dimension()
 
         aggregated_items_for_video: list[dict[str, Any]] = []
 
@@ -378,6 +466,31 @@ def main() -> None:
                 ticker=ticker_u,
                 aggregated_summary=aggregated_keypoints,
             )
+
+            if embedder is not None and dimension is not None:
+                # RAG doc: per-ticker summary (most important)
+                try:
+                    ticker_text = _format_ticker_summary_text(
+                        ticker=ticker_u,
+                        summary_obj=aggregated_keypoints,
+                        video_title=video.title,
+                        published_at=video.published_at,
+                    )
+                    # Avoid embedding extremely short text.
+                    if len(ticker_text) >= 120:
+                        ticker_vec = embedder.embed_text(ticker_text)
+                        db.upsert_rag_document(
+                            source_key=f"ticker_summary:{video.video_id}:{ticker_u}",
+                            document_type="ticker_summary",
+                            ticker=ticker_u,
+                            video_id=video.video_id,
+                            summary_text=ticker_text,
+                            model=settings.hf_embedding_model,
+                            embedding=ticker_vec,
+                            dimension=dimension,
+                        )
+                except Exception:
+                    logger.exception("Failed to embed/store ticker RAG document")
 
         # 9) Store an overall per-video summary for the UI (optional table)
         try:
@@ -416,38 +529,111 @@ def main() -> None:
                     model=f"llm:{settings.openai_chat_model}",
                 )
 
-                # Embed the overall per-video summary (for semantic search over videos).
-                try:
-                    video_embed_text = "\n\n".join(
-                        [
-                            f"Title: {video.title}",
-                            f"Channel: {video.channel}",
-                            f"Published at: {video.published_at}",
-                            f"overall_explanation: {overall.overall_explanation}",
-                            "Opportunities:\n"
-                            + "\n".join(f"- {x}" for x in (overall.opportunities or []) if str(x).strip()),
-                            "Risks:\n" + "\n".join(f"- {x}" for x in (overall.risks or []) if str(x).strip()),
-                            "Events:\n"
-                            + "\n".join(
-                                f"- {e.description} ({e.date or e.timeframe or 'unspecified'})"
-                                for e in (overall.events or [])
-                                if getattr(e, "description", "") and str(getattr(e, "description", "")).strip()
-                            ),
-                            f"Tickers: {', '.join(tickers) if tickers else '(none)'}",
-                            "Key points:\n" + "\n".join(f"- {x}" for x in key_points if str(x).strip()),
-                            "Summary:\n" + summary_markdown,
-                        ]
-                    ).strip()
-                    video_vector = embedder.embed_text(video_embed_text)
-                    db.upsert_video_summary_embedding(
-                        video_id=video.video_id,
-                        published_at=video.published_at,
-                        model=settings.hf_embedding_model,
-                        embedding=video_vector,
-                        dimension=dimension,
-                    )
-                except Exception:
-                    logger.exception("Failed to embed/store video summary embedding")
+                if embedder is not None and dimension is not None:
+                    # RAG doc: overall per-video summary
+                    try:
+                        video_doc_text = "\n\n".join(
+                            [
+                                f"Video title: {video.title}",
+                                f"Channel: {video.channel}",
+                                f"Date: {video.published_at.date().isoformat()}",
+                                (overall.overall_explanation or '').strip(),
+                                "Key points:\n" + "\n".join(
+                                    f"- {x}" for x in (key_points or []) if str(x).strip()
+                                ),
+                                "Risks:\n" + "\n".join(
+                                    f"- {x}" for x in (overall.risks or []) if str(x).strip()
+                                ),
+                                "Opportunities:\n" + "\n".join(
+                                    f"- {x}" for x in (overall.opportunities or []) if str(x).strip()
+                                ),
+                                "Summary:\n" + (summary_markdown or '').strip(),
+                            ]
+                        ).strip()
+                        if len(video_doc_text) >= 200:
+                            video_doc_vec = embedder.embed_text(video_doc_text)
+                            db.upsert_rag_document(
+                                source_key=f"video_summary:{video.video_id}",
+                                document_type="video_summary",
+                                ticker=None,
+                                video_id=video.video_id,
+                                summary_text=video_doc_text,
+                                model=settings.hf_embedding_model,
+                                embedding=video_doc_vec,
+                                dimension=dimension,
+                            )
+                    except Exception:
+                        logger.exception("Failed to embed/store video_summary RAG document")
+
+                if embedder is not None and dimension is not None:
+                    # RAG docs: highlight chunks (short takeaways for ranking questions)
+                    try:
+                        highlight_chunks = _chunk_highlights(key_points or [], chunk_size=4)
+                        for idx, chunk in enumerate(highlight_chunks):
+                            if not chunk:
+                                continue
+                            hl_text = "\n".join(
+                                [
+                                    f"Highlights from: {video.title}",
+                                    f"Date: {video.published_at.date().isoformat()}",
+                                    "",
+                                    *[f"- {x}" for x in chunk],
+                                ]
+                            ).strip()
+                            if len(hl_text) < 120:
+                                continue
+                            hl_vec = embedder.embed_text(hl_text)
+                            db.upsert_rag_document(
+                                source_key=f"highlight:{video.video_id}:{idx}",
+                                document_type="highlight",
+                                ticker=None,
+                                video_id=video.video_id,
+                                summary_text=hl_text,
+                                model=settings.hf_embedding_model,
+                                embedding=hl_vec,
+                                dimension=dimension,
+                            )
+                    except Exception:
+                        logger.exception("Failed to embed/store highlight RAG documents")
+
+                if embedder is not None and dimension is not None:
+                    # Embed the overall per-video summary (for semantic search over videos).
+                    try:
+                        video_embed_text = "\n\n".join(
+                            [
+                                f"Title: {video.title}",
+                                f"Channel: {video.channel}",
+                                f"Published at: {video.published_at}",
+                                f"overall_explanation: {overall.overall_explanation}",
+                                "Opportunities:\n"
+                                + "\n".join(f"- {x}" for x in (overall.opportunities or []) if str(x).strip()),
+                                "Risks:\n" + "\n".join(
+                                    f"- {x}" for x in (overall.risks or []) if str(x).strip()
+                                ),
+                                "Events:\n"
+                                + "\n".join(
+                                    f"- {e.description} ({e.date or e.timeframe or 'unspecified'})"
+                                    for e in (overall.events or [])
+                                    if getattr(e, "description", "")
+                                    and str(getattr(e, "description", "")).strip()
+                                ),
+                                f"Tickers: {', '.join(tickers) if tickers else '(none)'}",
+                                "Key points:\n" + "\n".join(
+                                    f"- {x}" for x in key_points if str(x).strip()
+                                ),
+                                "Summary:\n" + summary_markdown,
+                            ]
+                        ).strip()
+                        video_vector = embedder.embed_text(video_embed_text)
+                        db.upsert_video_summary_embedding(
+                            video_id=video.video_id,
+                            published_at=video.published_at,
+                            model=settings.hf_embedding_model,
+                            embedding=video_vector,
+                            dimension=dimension,
+                        )
+                    except Exception:
+                        logger.exception("Failed to embed/store video summary embedding")
             else:
                 # Fallback to derived-from-summaries (keeps UI populated even if LLM fails).
                 logger.info("Falling back to derived video summary video_id=%s", video.video_id)
@@ -485,26 +671,22 @@ def main() -> None:
 
     # 10) Store an overall daily summary for the UI (optional table)
     try:
-        # Use a fixed EST day boundary (UTC-5) for the daily summary window.
-        # This avoids the UTC day rollover making the "daily" summary feel like the wrong day.
-        est = timezone(timedelta(hours=-5))
-        market_date = run_started.astimezone(est).date()
-
-        start_local = datetime(market_date.year, market_date.month, market_date.day, 0, 0, 0, tzinfo=est)
-        end_local = datetime(market_date.year, market_date.month, market_date.day, 23, 59, 59, tzinfo=est)
-        start = start_local.astimezone(timezone.utc).isoformat()
-        end = end_local.astimezone(timezone.utc).isoformat()
+        # Group videos by ET (America/New_York) day boundaries.
+        # When triggered at midnight ET, summarize the previous ET day.
+        market_date, start_utc, end_utc = _previous_et_day_window(now_utc=run_started)
+        start = start_utc.isoformat()
+        end = end_utc.isoformat()
 
         # Prefer LLM daily summary from per-video summaries (or fall back to derived from aggregated summaries).
-        # Run-based ("what we processed today"): filter by summarized_at within the EST day window.
+        # Date-based ("what was published that day"): filter by published_at within the ET day window.
         vs_resp = (
             db.client.table("video_summaries")
             .select(
                 "video_id,video_titles,published_at,overall_explanation,risks,opportunities,key_points,summarized_at"
             )
-            .gte("summarized_at", start)
-            .lte("summarized_at", end)
-            .order("summarized_at", desc=True)
+            .gte("published_at", start)
+            .lt("published_at", end)
+            .order("published_at", desc=True)
             .limit(1000)
             .execute()
         )

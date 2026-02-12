@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.routes import daily_summaries, entities, health, videos
+from app.routes import chat, daily_summaries, entities, health, videos
 from app.core.auth import require_api_key
 from app.core.errors import AppError
 from app.core.logging import configure_logging
@@ -102,3 +102,4 @@ _protected = [Depends(require_api_key)]
 app.include_router(daily_summaries.router, dependencies=_protected)
 app.include_router(videos.router, dependencies=_protected)
 app.include_router(entities.router, dependencies=_protected)
+app.include_router(chat.router, dependencies=_protected)

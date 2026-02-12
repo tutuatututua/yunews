@@ -4,3 +4,9 @@ uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pydantic-settings==2.7.0
 supabase==2.10.0
+openai==1.59.7
+sentence-transformers>=3.2.0
+numpy>=1.26,<2
+torch>=2.1
+transformers>=4.54,<5
+huggingface-hub>=0.30.0

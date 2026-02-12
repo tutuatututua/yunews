@@ -20,8 +20,6 @@ export function useLatestDailySummary() {
   return useQuery({
     queryKey: ['daily', 'latest'],
     queryFn: fetchLatestDailySummary,
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
   })
 }
 
@@ -39,8 +37,6 @@ export function useDailySummariesList(limit: number = 120) {
   return useQuery({
     queryKey: ['daily', 'list', limit],
     queryFn: () => fetchDailySummaries(limit),
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
   })
 }
 
@@ -67,8 +63,6 @@ export function useVideoInfographic(
     queryKey: ['infographic', anchorDate ?? null, days, limit],
     queryFn: () => fetchVideoInfographic(anchorDate, { days, limit }),
     enabled,
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
   })
 }
 
@@ -89,7 +83,6 @@ export function useEntityChunks(
     queryKey: ['entityChunks', symbol ?? null, opts?.days ?? null, opts?.limit ?? null],
     queryFn: () => (symbol ? fetchEntityChunks(symbol, opts) : Promise.resolve([] as EntityChunkRow[])),
     enabled: !!symbol && enabled,
-    refetchOnWindowFocus: true,
   })
 }
 
@@ -103,8 +96,6 @@ export function useTopMovers(
     queryKey: ['topMovers', anchorDate ?? null, days, limit],
     queryFn: () => fetchTopMovers({ date: anchorDate, days, limit }),
     enabled,
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
   })
 }
 

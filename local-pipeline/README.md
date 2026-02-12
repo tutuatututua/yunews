@@ -11,6 +11,42 @@ This folder is a **batch job** that is meant to run to completion (daily/cron), 
 docker compose --profile pipeline run --rm local-pipeline
 ```
 
+## Daily summary day boundary (ET)
+
+Daily summaries are grouped by **America/New_York (ET)** day boundaries.
+When the job runs at **midnight ET**, it generates the daily summary for the **previous ET day**.
+
+## Vercel (Cron)
+
+Vercel can run this pipeline via a Python Serverless Function + Vercel Cron.
+
+1) In Vercel, create a **new project** and set the **Root Directory** to `local-pipeline/`.
+2) Set environment variables in Vercel (Project → Settings → Environment Variables):
+	- `OPENAI_API_KEY`
+	- `YOUTUBE_API_KEY`
+	- `SUPABASE_URL`
+	- `SUPABASE_SERVICE_ROLE_KEY` (preferred) or `SUPABASE_SERVICE_KEY`
+	- `PIPELINE_ENABLE_EMBEDDINGS=0` (recommended for Vercel)
+	- Optional: `PIPELINE_CRON_KEY` (shared secret for the cron endpoint)
+
+The cron is configured in `local-pipeline/vercel.json` to call:
+- `GET /api/daily_pipeline` at `0 0 * * *` in `America/New_York`.
+
+Notes:
+- If `PIPELINE_CRON_KEY` is set, the endpoint requires `x-pipeline-key: <value>` (or `?key=<value>`).
+- Vercel Serverless Functions have runtime/time limits; heavy workloads may need ECS/Cloud Run.
+
+## Optional embeddings (local)
+
+Embeddings/RAG writes are optional. To enable them locally:
+
+```bash
+pip install -r requirements.txt -r requirements-embeddings.txt
+```
+
+and set:
+- `PIPELINE_ENABLE_EMBEDDINGS=1`
+
 ## DB schema changes
 
 If your Supabase schema was created before a change landed, apply any incremental SQL in:

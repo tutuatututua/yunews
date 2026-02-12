@@ -59,9 +59,25 @@ class SupabaseDB:
         self._client.table("videos").upsert(payload).execute()
 
     def mark_video_processed(self, video_id: str) -> None:
-        self._client.table("videos").update({"processed_at": datetime.now(timezone.utc).isoformat()}).eq(
-            "video_id", video_id
-        ).execute()
+        payload = {
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        # IMPORTANT: `videos` has NOT NULL constraints (title/channel/published_at/description).
+        # If we upsert only (video_id, processed_at) and the row doesn't exist, Postgres will
+        # attempt an INSERT and fail. So we update existing rows only.
+        resp = (
+            self._client.table("videos")
+            .update(payload)
+            .eq("video_id", video_id)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            logger.warning(
+                "Could not mark video processed because it is missing from videos table: video_id=%s",
+                video_id,
+            )
 
     def upsert_transcript_chunks(self, chunks: list[TranscriptChunk]) -> None:
         if not chunks:
@@ -244,6 +260,66 @@ class SupabaseDB:
                 self._client.table("video_summaries").upsert(payload, on_conflict="video_id").execute()
                 return
             raise
+
+    def upsert_rag_document(
+        self,
+        *,
+        source_key: str,
+        document_type: str,
+        summary_text: str,
+        model: str,
+        embedding: list[float],
+        dimension: int,
+        ticker: str | None = None,
+        video_id: str | None = None,
+    ) -> None:
+        if not (source_key or "").strip():
+            raise ValueError("source_key is required")
+        if not (document_type or "").strip():
+            raise ValueError("document_type is required")
+        if not (summary_text or "").strip():
+            raise ValueError("summary_text is required")
+        if len(embedding) != dimension:
+            raise ValueError(f"Embedding dimension mismatch: got {len(embedding)} expected {dimension}")
+
+        payload: dict[str, Any] = {
+            "source_key": source_key,
+            "document_type": document_type,
+            "ticker": (ticker or None),
+            "video_id": (video_id or None),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "summary_text": summary_text,
+            "model": model,
+            "dimension": int(dimension),
+            "embedding": embedding,
+        }
+
+        # Keep payload clean (avoid storing explicit NULL unless caller passes it).
+        for k in ("ticker", "video_id"):
+            if payload.get(k) is None:
+                payload.pop(k, None)
+
+        # Backward compatibility: schemas may be missing newer columns.
+        # Some clients only report one missing column per failure, so retry until stable.
+        candidate_cols = (
+            "ticker",
+            "video_id",
+            "created_at",
+        )
+        while True:
+            try:
+                self._client.table("rag_documents").upsert(payload, on_conflict="source_key").execute()
+                return
+            except Exception as exc:
+                msg = str(exc)
+                removed_any = False
+                for col in candidate_cols:
+                    if col in payload and col in msg and ("does not exist" in msg or "column" in msg):
+                        payload.pop(col, None)
+                        removed_any = True
+                if removed_any:
+                    continue
+                raise
 
     def upsert_daily_summary(
         self,

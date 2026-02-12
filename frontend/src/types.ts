@@ -105,3 +105,9 @@ export type EntityChunkRow = {
     published_at?: string
   } | null
 }
+
+export type QueryPlan = {
+  is_stock_related: boolean
+  rewritten_prompt: string
+  tickers: string[] | null
+}

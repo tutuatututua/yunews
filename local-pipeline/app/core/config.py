@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # APIs
     openai_api_key: str = Field(alias="OPENAI_API_KEY")
-    hf_api_key: str = Field(alias="HF_TOKEN")
+    hf_api_key: str | None = Field(default=None, alias="HF_TOKEN")
     youtube_api_key: str = Field(alias="YOUTUBE_API_KEY")
 
     # Supabase
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     # Embeddings config
     hf_embedding_model: str = Field(
-        default="Qwen/Qwen3-0.6B",
+        default="Qwen/Qwen3-Embedding-0.6B",
         validation_alias=AliasChoices("HF_EMBEDDING_MODEL", "QWEN_EMBED_MODEL"),
     )
     embedding_max_length: int = Field(
@@ -70,6 +70,9 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("EMBEDDING_MAX_LENGTH", "QWEN_EMBED_MAX_TOKENS"),
     )
     embedding_device: str = Field(default="auto", alias="EMBEDDING_DEVICE")
+
+    # Optional features (useful for serverless runtimes like Vercel)
+    pipeline_enable_embeddings: bool = Field(default=True, alias="PIPELINE_ENABLE_EMBEDDINGS")
 
     # YouTube discovery config
     discovery_lookback_hours: int = Field(default=36, alias="DISCOVERY_LOOKBACK_HOURS")

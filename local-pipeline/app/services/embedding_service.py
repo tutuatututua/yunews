@@ -3,21 +3,16 @@ from __future__ import annotations
 import logging
 from typing import Any, List
 
-import numpy as np
-
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
-    """Generate embeddings using the Qwen3-0.6B HuggingFace model.
+    """Generate embeddings using a Hugging Face embedding model.
 
-    Implementation detail:
-    - Loads `AutoModel` and mean-pools the last hidden state (masked by attention).
-    - Produces a fixed-length float vector per input.
+    Required model for this project: `Qwen/Qwen3-Embedding-0.6B`.
 
-    Notes:
-    - This is CPU/GPU heavy; for cron usage, consider caching model weights and
-      running on a machine with sufficient RAM.
+    We use `sentence-transformers` which implements the model's recommended
+    pooling and supports `normalize_embeddings=True` for cosine similarity.
     """
 
     def __init__(
@@ -33,9 +28,7 @@ class EmbeddingService:
         self._device = device
         self._max_length = max_length
 
-        self._tokenizer: Any = None
-        self._model: Any = None
-        self._torch: Any = None
+        self._st_model: Any = None
 
     def embed_text(self, text: str) -> List[float]:
         vectors = self.embed_texts([text])
@@ -46,87 +39,65 @@ class EmbeddingService:
             return []
         self._ensure_loaded()
 
-        torch: Any = self._torch
-        tokenizer: Any = self._tokenizer
-        model: Any = self._model
+        model: Any = self._st_model
+        vectors = model.encode(
+            texts,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
 
-        with torch.no_grad():
-            encoded = tokenizer(
-                texts,
-                padding=True,
-                truncation=True,
-                max_length=self._max_length,
-                return_tensors="pt",
-            )
-            encoded = {k: v.to(model.device) for k, v in encoded.items()}
-
-            outputs = model(**encoded)
-            last_hidden = outputs.last_hidden_state  # (B, T, H)
-            attention_mask = encoded.get("attention_mask")  # (B, T)
-
-            if attention_mask is None:
-                pooled = last_hidden.mean(dim=1)
-            else:
-                mask = attention_mask.unsqueeze(-1).expand(last_hidden.size()).float()
-                summed = (last_hidden * mask).sum(dim=1)
-                counts = mask.sum(dim=1).clamp(min=1e-9)
-                pooled = summed / counts
-
-            pooled = pooled.detach().cpu().numpy().astype(np.float32)
-
-        # Normalize for cosine similarity search
-        norms = np.linalg.norm(pooled, axis=1, keepdims=True)
-        pooled = pooled / np.clip(norms, 1e-12, None)
-
-        return [row.tolist() for row in pooled]
+        # SentenceTransformer returns either a numpy array or list depending on config.
+        if hasattr(vectors, "tolist"):
+            return vectors.tolist()
+        return [list(map(float, v)) for v in vectors]
 
     def embedding_dimension(self) -> int:
         self._ensure_loaded()
-        # Try to infer from model config
-        dim = getattr(self._model.config, "hidden_size", None)
-        if isinstance(dim, int) and dim > 0:
-            return dim
-        # Fallback by embedding a tiny string
+        try:
+            dim = int(self._st_model.get_sentence_embedding_dimension())
+            if dim > 0:
+                return dim
+        except Exception:
+            pass
         vec = self.embed_text("test")
         return len(vec)
 
     def _ensure_loaded(self) -> None:
-        if self._model is not None:
+        if self._st_model is not None:
             return
 
         try:
-            import torch
-            try:
-                from huggingface_hub import login  # type: ignore
-            except Exception:  # pragma: no cover
-                from huggingface_hub._login import login  # type: ignore
-            from transformers import AutoModel, AutoTokenizer
+            from sentence_transformers import SentenceTransformer
         except Exception as e:
             raise RuntimeError(
-                "Missing embedding dependencies. Install `transformers`, `torch`, and `huggingface_hub`."
+                "Missing embedding dependencies. Install `sentence-transformers` (and its deps) plus `huggingface_hub`."
             ) from e
 
-        self._torch = torch
-
-        # Login is optional for public models; token enables higher rate limits and private access.
+        # SentenceTransformer handles device internally.
+        st_kwargs: dict[str, Any] = {}
         if self._hf_token:
-            try:
-                login(token=self._hf_token, add_to_git_credential=False)
-            except Exception:
-                logger.warning("HuggingFace login failed; continuing")
+            # sentence-transformers forwards token to Hugging Face Hub.
+            st_kwargs["token"] = self._hf_token
 
-        tokenizer = AutoTokenizer.from_pretrained(self._model_name, token=self._hf_token or None)
-        model = AutoModel.from_pretrained(self._model_name, token=self._hf_token or None)
+        device = self._device
+        if device == "auto":
+            device = "cuda" if _has_cuda() else "cpu"
 
-        if self._device == "auto":
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        else:
-            device = self._device
+        model = SentenceTransformer(self._model_name, device=device, **st_kwargs)
+        try:
+            model.max_seq_length = int(self._max_length)
+        except Exception:
+            pass
 
-        model = model.to(device)
-        model.eval()
-
-        self._tokenizer = tokenizer
-        self._model = model
+        self._st_model = model
 
         logger.info("Loaded embedding model=%s device=%s", self._model_name, device)
+
+
+def _has_cuda() -> bool:
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False

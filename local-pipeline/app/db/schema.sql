@@ -43,13 +43,6 @@ create table if not exists public.transcript_chunks (
   primary key (video_id, chunk_index)
 );
 
--- Per-chunk extracted ticker with categorized keypoints.
--- Note: A single transcript chunk may mention multiple tickers; we store one row per
--- (video_id, chunk_index, ticker) to avoid overwriting on upsert.
--- chunk_summary structure: {positive: [string], negative: [string], neutral: [string]}
--- - positive: bullish/positive claims about the ticker
--- - negative: bearish/negative claims about the ticker
--- - neutral: neutral/factual claims about the ticker
 create table if not exists public.chunk_analysis (
   video_id text not null references public.videos(video_id) on delete cascade,
   chunk_index int not null,
@@ -59,12 +52,6 @@ create table if not exists public.chunk_analysis (
   primary key (video_id, chunk_index, ticker)
 );
 
--- Aggregated summaries by (video_id, ticker)
--- summary structure: {positive: [string], negative: [string], neutral: [string]}
--- Aggregates all chunk-level keypoints for a given (video_id, ticker) combination
--- - positive: aggregated bullish/positive claims
--- - negative: aggregated bearish/negative claims
--- - neutral: aggregated neutral/factual claims
 create table if not exists public.summaries (
   id bigserial primary key,
   video_id text not null references public.videos(video_id) on delete cascade,
@@ -75,23 +62,8 @@ create table if not exists public.summaries (
   unique(video_id, ticker)
 );
 
--- Embeddings per summary row (for semantic search)
--- We keep a `dimension` column so different embedding models can coexist.
--- Note: pgvector allows a fixed dimension. Here we store an unconstrained vector
--- by declaring `vector` (no dimension) for compatibility across environments.
--- If your pgvector version requires a dimension, change this to vector(<DIM>)
--- and keep dimension consistent.
-create table if not exists public.embeddings (
-  id bigserial primary key,
-  summary_id bigint not null references public.summaries(id) on delete cascade,
-  model text not null,
-  dimension int not null,
-  embedding vector not null,
-  created_at timestamptz not null default now(),
-  unique(summary_id, model)
-);
 
--- Overall per-video summary for the UI (optional but recommended)
+
 create table if not exists public.video_summaries (
   video_id text primary key references public.videos(video_id) on delete cascade,
   video_titles text not null,
@@ -137,6 +109,26 @@ create table if not exists public.daily_summaries (
 );
 
 
+create table if not exists public.rag_documents (
+  id bigserial primary key,
+
+  -- Idempotency key (e.g., ticker_summary:<video_id>:<ticker>)
+  source_key text not null unique,
+
+  document_type text not null check (document_type in ('ticker_summary','video_summary','highlight')),
+
+  ticker text null,
+
+  video_id text null references public.videos(video_id) on delete set null,
+  summary_text text not null,
+
+  model text not null,
+  dimension int not null,
+  embedding vector not null,
+
+  created_at timestamptz not null default now()
+);
+
 -- Helpful indexes
 create index if not exists idx_transcript_chunks_video_id on public.transcript_chunks(video_id);
 create index if not exists idx_chunk_analysis_video_id on public.chunk_analysis(video_id);
@@ -146,8 +138,53 @@ create index if not exists idx_video_summaries_video_id on public.video_summarie
 create index if not exists idx_video_summary_embeddings_video_id on public.video_summary_embeddings(video_id);
 create index if not exists idx_daily_summaries_market_date on public.daily_summaries(market_date);
 
--- Vector index for semantic search (choose one)
--- HNSW is recommended when available.
--- If your Supabase project doesn't support HNSW, use IVFFLAT.
--- create index if not exists idx_embeddings_embedding_hnsw on public.embeddings using hnsw (embedding vector_cosine_ops);
--- create index if not exists idx_embeddings_embedding_ivfflat on public.embeddings using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+create index if not exists idx_rag_documents_type on public.rag_documents(document_type);
+create index if not exists idx_rag_documents_ticker on public.rag_documents(ticker);
+create index if not exists idx_rag_documents_video_id on public.rag_documents(video_id);
+create index if not exists idx_rag_documents_created_at on public.rag_documents(created_at);
+
+
+-- RPC: vector similarity search over rag_documents.
+-- Returns the document plus video metadata (if available) for UI citations.
+create or replace function public.match_rag_documents(
+  query_embedding vector,
+  match_count int,
+  filter_ticker text default null,
+  filter_document_type text default null,
+  min_published_at timestamptz default null
+)
+returns table (
+  id bigint,
+  document_type text,
+  ticker text,
+  video_id text,
+  video_title text,
+  thumbnail_url text,
+  summary_text text,
+  similarity double precision
+)
+language sql
+stable
+as $$
+  select
+    d.id,
+    d.document_type,
+    d.ticker,
+    d.video_id,
+    v.title as video_title,
+    v.thumbnail_url as thumbnail_url,
+    d.summary_text,
+    (1 - (d.embedding <=> query_embedding))::double precision as similarity
+  from public.rag_documents d
+  left join public.videos v on v.video_id = d.video_id
+  where
+    (filter_ticker is null or d.ticker = filter_ticker)
+    and (filter_document_type is null or d.document_type = filter_document_type)
+    and (
+      min_published_at is null
+      or (v.published_at is not null and v.published_at >= min_published_at)
+      or (v.published_at is null and d.created_at >= min_published_at)
+    )
+  order by d.embedding <=> query_embedding
+  limit match_count;
+$$;

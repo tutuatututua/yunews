@@ -9,8 +9,4 @@ youtube-transcript-api==1.2.3
 langchain==0.3.14
 langchain-openai==0.2.14
 openai==1.59.7
-# Embedding stack (compatible versions)
-torch>=2.1
-transformers>=4.44,<5
-huggingface-hub>=0.30.0
 orjson==3.10.12

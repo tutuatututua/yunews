@@ -1,0 +1,8 @@
+# Optional dependencies for embeddings / RAG documents
+# Install these in addition to requirements.txt when running locally with embeddings enabled.
+
+sentence-transformers>=3.0.1
+numpy>=1.26
+torch>=2.1
+transformers>=4.44,<5
+huggingface-hub>=0.30.0
