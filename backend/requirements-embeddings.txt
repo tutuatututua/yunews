@@ -1,0 +1,8 @@
+# Optional heavy dependencies for local/HF embeddings.
+# Not recommended on Vercel.
+
+sentence-transformers>=3.2.0
+numpy>=1.26,<2
+torch>=2.1
+transformers>=4.54,<5
+huggingface-hub>=0.30.0
