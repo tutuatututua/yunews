@@ -118,6 +118,24 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
             (query_plan.rewritten_prompt or "")[:300],
         )
 
+    # Cost-saving short-circuit: if the planner says this isn't a stock/business-market
+    # question, skip retrieval + chat generation entirely.
+    if query_plan is not None and (getattr(query_plan, "is_stock_related", True) is False):
+
+        def event_stream_non_stock() -> Iterable[bytes]:
+            yield _sse({"type": "query_plan", "query_plan": query_plan.model_dump(exclude_none=True)})
+            yield _sse({"type": "sources", "sources": []})
+            yield _sse({"type": "retrieval", "chunks": [], "context": ""})
+            yield _sse(
+                {
+                    "type": "delta",
+                    "delta": "I can only help with stock/company/market questions. Try asking about a ticker (e.g., AAPL, TSLA) or a company’s earnings/news.",
+                }
+            )
+            yield _sse({"type": "done"})
+
+        return StreamingResponse(event_stream_non_stock(), media_type="text/event-stream")
+
     retrieval_error: str | None = None
     try:
         chunks = retrieve_chunks(question=question,top_k=5, min_similarity=0.50, query_plan=query_plan)
@@ -137,19 +155,6 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
     def event_stream() -> Iterable[bytes]:
         if query_plan is not None:
             yield _sse({"type": "query_plan", "query_plan": query_plan.model_dump(exclude_none=True)})
-
-        # If the planner says this isn't a stock/business-market question, stop early with a clear message.
-        if query_plan is not None and (getattr(query_plan, "is_stock_related", True) is False):
-            yield _sse({"type": "sources", "sources": []})
-            yield _sse({"type": "retrieval", "chunks": [], "context": ""})
-            yield _sse(
-                {
-                    "type": "delta",
-                    "delta": "I can only help with stock/company/market questions. Try asking about a ticker (e.g., AAPL, TSLA) or a company’s earnings/news.",
-                }
-            )
-            yield _sse({"type": "done"})
-            return
 
         # Always send sources first so the UI can render citations.
         yield _sse({"type": "sources", "sources": _sources_payload(chunks)})

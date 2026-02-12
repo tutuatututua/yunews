@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 from typing import cast
@@ -9,6 +10,85 @@ from typing import cast
 from app.schemas.query_plan import QueryPlan
 
 logger = logging.getLogger(__name__)
+
+
+_FINANCE_HINTS: tuple[str, ...] = (
+    "stock",
+    "stocks",
+    "share",
+    "shares",
+    "price",
+    "valuation",
+    "market cap",
+    "earnings",
+    "guidance",
+    "revenue",
+    "profit",
+    "loss",
+    "margin",
+    "quarter",
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "ipo",
+    "sec",
+    "10-k",
+    "10q",
+    "10-q",
+    "form 4",
+    "buyback",
+    "dividend",
+    "merger",
+    "acquisition",
+    "m&a",
+    "analyst",
+    "upgrade",
+    "downgrade",
+    "target price",
+    "guidance",
+    "ceo",
+    "cfo",
+    "balance sheet",
+    "cash flow",
+    "bond",
+    "yield",
+    "rates",
+    "interest rate",
+    "fed",
+    "inflation",
+    "cpi",
+    "ppi",
+    "jobs report",
+    "unemployment",
+    "gdp",
+    "market",
+    "nasdaq",
+    "nyse",
+)
+
+
+def _guess_stock_related(text: str) -> bool:
+    q = (text or "").strip()
+    if not q:
+        return False
+
+    ql = q.lower()
+    if ql in {"hi", "hello", "hey", "thanks", "thank you", "ok", "okay", "cool"}:
+        return False
+
+    # Strong ticker hints.
+    if re.search(r"\$[A-Za-z]{1,5}\b", q):
+        return True
+    if re.search(r"\b(?:NASDAQ|NYSE|AMEX)\s*:\s*[A-Za-z]{1,5}\b", q, flags=re.IGNORECASE):
+        return True
+    if re.search(r"\bticker\s*[:=]?\s*\$?[A-Za-z]{1,5}\b", q, flags=re.IGNORECASE):
+        return True
+    if re.search(r"\([A-Za-z]{2,5}\)", q):
+        return True
+
+    # Keyword hints.
+    return any(hint in ql for hint in _FINANCE_HINTS)
 
 
 def _clip(s: str, n: int = 600) -> str:
@@ -50,9 +130,10 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
     def _fallback_plan() -> QueryPlan:
         # Minimal, safe default that preserves the user's question without making
         # retrieval depend on chat continuity.
+        q = (question or "").strip()
         return QueryPlan(
-            is_stock_related=True,
-            rewritten_prompt=(question or "").strip() or "(no question)",
+            is_stock_related=_guess_stock_related(q),
+            rewritten_prompt=q or "(no question)",
             tickers=None,
         )
 
@@ -125,9 +206,21 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
             if not data.get("rewritten_prompt"):
                 data["rewritten_prompt"] = (question or "").strip()
 
-            # If the model omitted is_stock_related, default to true.
+            # If the model returned is_stock_related as a string, coerce it.
+            raw_is_stock = data.get("is_stock_related")
+            if isinstance(raw_is_stock, str):
+                v = raw_is_stock.strip().lower()
+                if v in ("true", "false"):
+                    data["is_stock_related"] = v == "true"
+
+            # If the model omitted is_stock_related, infer from the prompt/question.
             if data.get("is_stock_related") is None:
-                data["is_stock_related"] = True
+                basis = str(data.get("rewritten_prompt") or question or "")
+                data["is_stock_related"] = _guess_stock_related(basis)
+
+            # If not stock-related, force tickers=null for safety/consistency.
+            if data.get("is_stock_related") is False:
+                data["tickers"] = None
 
         if not isinstance(data, dict):
             return _fallback_plan()
@@ -144,7 +237,9 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
             return _fallback_plan()
 
         # Normalize tickers.
-        if getattr(plan, "tickers", None):
+        if not getattr(plan, "is_stock_related", True):
+            plan.tickers = None
+        elif getattr(plan, "tickers", None):
             seen: set[str] = set()
             norm: list[str] = []
             for t in (plan.tickers or []):

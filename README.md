@@ -80,6 +80,26 @@ If you take approach (2), build the frontend with the correct API base URL baked
       - `$env:DOCKER_BUILDKIT="0"; $env:COMPOSE_DOCKER_CLI_BUILD="1"; docker compose up --build backend frontend`
     - Or use: `./scripts/compose-legacy.ps1 up --build backend frontend`
 
+  ## Deploy: Vercel (Frontend only)
+
+  This repo contains a Vite SPA (in `frontend/`) plus a Docker-based API (in `backend/`).
+  For Vercel, deploy **only** the frontend:
+
+  1. In Vercel Project Settings → General → **Root Directory**, set it to `frontend`.
+  2. Output directory should be `dist` (Vercel reads this from `frontend/vercel.json`).
+  3. If you still hit Vercel build memory limits on the Free tier, either:
+    - Enable **Enhanced Builds** (bigger build machine), or
+    - Reduce bundle/build workload further (e.g., avoid importing large libs on initial route).
+
+  ## Deploy: Vercel (Backend)
+
+  Vercel can run the FastAPI app as a Python Serverless Function (see `backend/api/index.py`).
+
+  1. In Vercel Project Settings → General → **Root Directory**, set it to `backend`.
+  2. Add the backend env vars in Vercel (see `backend/.env.example`).
+  3. If you previously saw a Vercel memory error during backend build: configure the project to install the smaller dependency set:
+    - `pip install -r requirements-vercel.txt`
+
 ## 4) Run local pipeline (LOCAL ONLY)
 ```bash
 docker compose --profile pipeline run --rm --build local-pipeline

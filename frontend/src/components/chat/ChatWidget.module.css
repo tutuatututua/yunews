@@ -59,6 +59,53 @@
   cursor: pointer;
 }
 
+.iconButton:hover {
+  background: color-mix(in srgb, var(--surface-2) 86%, transparent);
+  border-color: var(--border-2);
+}
+
+.iconButton:active {
+  transform: translateY(0.5px);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.textButton {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  border-color: var(--border);
+}
+
+.textButton:active {
+  transform: translateY(0.5px);
+}
+
+.textButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.textButton:disabled:hover {
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  border-color: var(--border-2);
+}
+
 .messages {
   flex: 1 1 auto;
   padding: 14px;
@@ -90,20 +137,91 @@
   align-self: flex-start;
 }
 
+.messageText {
+  color: var(--text);
+}
+
 .sources {
   margin-top: 8px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.sources img {
-  vertical-align: text-bottom;
-  border-radius: 4px;
+.sourcesDetails {
+  border: 0;
+}
+
+.sourcesSummary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.sourcesList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sourceItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 10px;
   border: 1px solid var(--border);
-  object-fit: cover;
+  background: color-mix(in srgb, var(--surface-2) 86%, transparent);
+}
+
+.sourceThumb,
+.sourceThumbPlaceholder {
   width: 32px;
   height: 18px;
   aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.sourceThumb {
+  object-fit: cover;
+}
+
+.sourceThumbPlaceholder {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.sourceBody {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sourceTitle {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sourceMeta {
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
 }
 
 .retrieval {

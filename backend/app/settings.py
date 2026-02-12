@@ -70,6 +70,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_CHAT_MODEL", "OPENAI_MODEL"),
     )
 
+    # Embeddings used for retrieval (RAG)
+    embedding_provider: str = Field(
+        default="openai",
+        validation_alias=AliasChoices("EMBEDDING_PROVIDER"),
+    )
+    openai_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL"),
+    )
+
     # Chat quota (best-effort, per-process) - limits approximate LLM tokens per client IP.
     # Set to 0 to disable.
     chat_tokens_per_ip_per_window: int = Field(
