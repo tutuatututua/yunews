@@ -70,16 +70,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_CHAT_MODEL", "OPENAI_MODEL"),
     )
 
-    # Embeddings used for retrieval (RAG)
-    embedding_provider: str = Field(
-        default="openai",
-        validation_alias=AliasChoices("EMBEDDING_PROVIDER"),
-    )
-    openai_embedding_model: str = Field(
-        default="text-embedding-3-small",
-        validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL"),
-    )
-
     # Chat quota (best-effort, per-process) - limits approximate LLM tokens per client IP.
     # Set to 0 to disable.
     chat_tokens_per_ip_per_window: int = Field(
@@ -108,7 +98,6 @@ class Settings(BaseSettings):
         default="Qwen/Qwen3-Embedding-0.6B",
         validation_alias=AliasChoices("HF_EMBEDDING_MODEL", "QWEN_EMBED_MODEL"),
     )
-    embedding_device: str = Field(default="auto", validation_alias=AliasChoices("EMBEDDING_DEVICE"))
     embedding_max_length: int = Field(
         default=1024,
         validation_alias=AliasChoices("EMBEDDING_MAX_LENGTH", "QWEN_EMBED_MAX_TOKENS"),

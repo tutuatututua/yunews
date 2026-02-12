@@ -38,7 +38,10 @@ as $$
   from public.rag_documents d
   left join public.videos v on v.video_id = d.video_id
   where
-    (filter_ticker is null or d.ticker = filter_ticker)
+    -- IMPORTANT: Prevent runtime errors when the table contains mixed embedding dimensions
+    -- (e.g., switching providers/models over time). Only compare vectors of the same length.
+    d.dimension = vector_dims(query_embedding)
+    and (filter_ticker is null or d.ticker = filter_ticker)
     and (filter_document_type is null or d.document_type = filter_document_type)
     and (
       min_published_at is null

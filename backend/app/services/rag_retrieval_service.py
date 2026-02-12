@@ -61,6 +61,9 @@ def retrieve_chunks(
         )
 
     q_vec = embedder.embed(q_for_embedding)
+    if not q_vec:
+        logger.warning("Retrieval skipped: embedding service returned an empty vector")
+        return []
 
     tickers: list[str] = []
     if query_plan is not None and query_plan.tickers:
@@ -93,7 +96,18 @@ def retrieve_chunks(
             "filter_ticker": filter_ticker,
             "filter_document_type": document_type,
         }
-        resp = supa.rpc("match_rag_documents", payload).execute()
+        try:
+            resp = supa.rpc("match_rag_documents", payload).execute()
+        except Exception as exc:
+            msg = str(exc)
+            if "different vector dimensions" in msg or "vector dimensions" in msg:
+                logger.error(
+                    "Supabase RPC match_rag_documents failed due to embedding dimension mismatch. "
+                    "query_dim=%s. This usually means rag_documents contains mixed embedding dimensions. "
+                    "Fix by updating the SQL function to filter `d.dimension = vector_dims(query_embedding)`.",
+                    len(q_vec),
+                )
+            raise
         rows = [r for r in (resp.data or []) if isinstance(r, dict)]
 
         for r in rows:

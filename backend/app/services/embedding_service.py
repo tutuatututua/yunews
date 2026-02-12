@@ -5,8 +5,6 @@ from functools import lru_cache
 import threading
 from typing import Any, Protocol
 
-from openai import OpenAI
-
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -18,30 +16,6 @@ class BaseEmbeddingService(Protocol):
 
     def dimension(self) -> int:
         ...
-
-
-class OpenAIEmbeddingService:
-    def __init__(self, *, api_key: str, model: str) -> None:
-        self._api_key = api_key
-        self._model = model
-        self._client = OpenAI(api_key=api_key)
-
-    def embed(self, text: str) -> list[float]:
-        text = (text or "").strip()
-        if not text:
-            return []
-
-        resp = self._client.embeddings.create(
-            model=self._model,
-            input=text,
-        )
-        if not resp.data:
-            return []
-        return list(map(float, resp.data[0].embedding or []))
-
-    def dimension(self) -> int:
-        # Avoid an extra paid request; callers in this codebase don't require the exact value.
-        return 0
 
 
 class SentenceTransformerEmbeddingService:
@@ -99,7 +73,7 @@ class SentenceTransformerEmbeddingService:
             except Exception as e:
                 raise RuntimeError(
                     "sentence-transformers backend is not installed. "
-                    "Install sentence-transformers/torch or switch EMBEDDING_PROVIDER=openai."
+                    "Install sentence-transformers/torch to enable Qwen (HF) embeddings."
                 ) from e
 
             device = self._device
@@ -125,18 +99,8 @@ class SentenceTransformerEmbeddingService:
 def get_embedding_service() -> BaseEmbeddingService:
     settings = get_settings()
 
-    provider = (settings.embedding_provider or "openai").strip().lower()
-    if provider == "openai":
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai")
-        return OpenAIEmbeddingService(api_key=settings.openai_api_key, model=settings.openai_embedding_model)
-
-    if provider in {"hf", "sentence-transformers", "sbert"}:
-        return SentenceTransformerEmbeddingService(
-            hf_token=settings.hf_token,
-            model_name=settings.hf_embedding_model,
-            device=settings.embedding_device,
-            max_length=settings.embedding_max_length,
-        )
-
-    raise ValueError(f"Unknown EMBEDDING_PROVIDER: {settings.embedding_provider!r}")
+    return SentenceTransformerEmbeddingService(
+        hf_token=settings.hf_token,
+        model_name=settings.hf_embedding_model,
+        max_length=settings.embedding_max_length,
+    )
