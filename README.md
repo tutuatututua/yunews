@@ -97,7 +97,8 @@ If you take approach (2), build the frontend with the correct API base URL baked
 
   1. In Vercel Project Settings → General → **Root Directory**, set it to `backend`.
   2. Add the backend env vars in Vercel (see `backend/.env.example`).
-  3. If you previously saw a Vercel memory error during backend build: it was likely from installing `torch/transformers`. The default backend requirements are now Vercel-friendly.
+  3. If you previously saw a Vercel memory error during backend build: it was likely from installing `torch/sentence-transformers`. The default backend requirements are now Vercel-friendly.
+  4. Embeddings on Vercel default to OpenAI (no `torch`). If you need local HF embeddings, deploy outside Vercel and install `backend/requirements-embeddings.txt`.
 
 ## 4) Run local pipeline (LOCAL ONLY)
 ```bash
