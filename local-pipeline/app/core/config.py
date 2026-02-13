@@ -25,7 +25,6 @@ class Settings(BaseSettings):
 
     # APIs
     openai_api_key: str = Field(alias="OPENAI_API_KEY")
-    hf_api_key: str | None = Field(default=None, alias="HF_TOKEN")
     youtube_api_key: str = Field(alias="YOUTUBE_API_KEY")
 
     # Supabase
@@ -61,15 +60,10 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(default=0.1, alias="LLM_TEMPERATURE")
 
     # Embeddings config
-    hf_embedding_model: str = Field(
-        default="Qwen/Qwen3-Embedding-0.6B",
-        validation_alias=AliasChoices("HF_EMBEDDING_MODEL", "QWEN_EMBED_MODEL"),
+    openai_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL", "PIPELINE_OPENAI_EMBEDDING_MODEL"),
     )
-    embedding_max_length: int = Field(
-        default=512,
-        validation_alias=AliasChoices("EMBEDDING_MAX_LENGTH", "QWEN_EMBED_MAX_TOKENS"),
-    )
-    embedding_device: str = Field(default="auto", alias="EMBEDDING_DEVICE")
 
     # Optional features (useful for serverless runtimes like Vercel)
     pipeline_enable_embeddings: bool = Field(default=True, alias="PIPELINE_ENABLE_EMBEDDINGS")

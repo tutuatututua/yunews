@@ -300,12 +300,12 @@ def main() -> None:
     )
 
     embedder: EmbeddingService | None = None
+    embedding_model_name: str | None = None
     if settings.pipeline_enable_embeddings:
+        embedding_model_name = settings.openai_embedding_model
         embedder = EmbeddingService(
-            hf_token=(settings.hf_api_key or ""),
-            model_name=settings.hf_embedding_model,
-            device=settings.embedding_device,
-            max_length=settings.embedding_max_length,
+            openai_api_key=settings.openai_api_key,
+            model=settings.openai_embedding_model,
         )
 
     # 1) Daily discovery
@@ -485,7 +485,7 @@ def main() -> None:
                             ticker=ticker_u,
                             video_id=video.video_id,
                             summary_text=ticker_text,
-                            model=settings.hf_embedding_model,
+                            model=str(embedding_model_name or settings.openai_embedding_model),
                             embedding=ticker_vec,
                             dimension=dimension,
                         )
@@ -558,7 +558,7 @@ def main() -> None:
                                 ticker=None,
                                 video_id=video.video_id,
                                 summary_text=video_doc_text,
-                                model=settings.hf_embedding_model,
+                                model=str(embedding_model_name or settings.openai_embedding_model),
                                 embedding=video_doc_vec,
                                 dimension=dimension,
                             )
@@ -589,7 +589,7 @@ def main() -> None:
                                 ticker=None,
                                 video_id=video.video_id,
                                 summary_text=hl_text,
-                                model=settings.hf_embedding_model,
+                                model=str(embedding_model_name or settings.openai_embedding_model),
                                 embedding=hl_vec,
                                 dimension=dimension,
                             )
@@ -628,7 +628,7 @@ def main() -> None:
                         db.upsert_video_summary_embedding(
                             video_id=video.video_id,
                             published_at=video.published_at,
-                            model=settings.hf_embedding_model,
+                            model=str(embedding_model_name or settings.openai_embedding_model),
                             embedding=video_vector,
                             dimension=dimension,
                         )

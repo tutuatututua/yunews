@@ -30,7 +30,7 @@ Run:
        - When true, the backend will rewrite/route queries to improve retrieval.
        - The assistant answer still uses the user's original question.
      - (optional) `OPENAI_QUERY_PLANNER_MODEL` (default: gpt-4.1-mini)
-     - (optional) `HF_TOKEN` (only needed if you hit Hugging Face rate limits)
+     - (optional) `OPENAI_EMBEDDING_MODEL` (default: text-embedding-3-small)
 
 2. Frontend API base URL:
    - For Vite dev (`npm run dev`): create `frontend/.env` (tip: start from `frontend/.env.example`).
@@ -98,7 +98,7 @@ If you take approach (2), build the frontend with the correct API base URL baked
   1. In Vercel Project Settings → General → **Root Directory**, set it to `backend`.
   2. Add the backend env vars in Vercel (see `backend/.env.example`).
   3. If you previously saw a Vercel memory error during backend build: it was likely from installing `torch/sentence-transformers`. The default backend requirements are now Vercel-friendly.
-  4. Embeddings on Vercel default to OpenAI (no `torch`). If you need local HF embeddings, deploy outside Vercel and install `backend/requirements-embeddings.txt`.
+  4. Embeddings on Vercel use OpenAI (no `torch`).
 
 ## 4) Run local pipeline (LOCAL ONLY)
 ```bash

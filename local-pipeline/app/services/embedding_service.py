@@ -1,34 +1,33 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, List
 
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
-    """Generate embeddings using a Hugging Face embedding model.
-
-    Required model for this project: `Qwen/Qwen3-Embedding-0.6B`.
-
-    We use `sentence-transformers` which implements the model's recommended
-    pooling and supports `normalize_embeddings=True` for cosine similarity.
+    """Generate embeddings for RAG documents.
     """
 
     def __init__(
         self,
         *,
-        hf_token: str,
-        model_name: str,
-        device: str = "auto",
-        max_length: int = 512,
+        openai_api_key: str,
+        model: str = "text-embedding-3-small",
     ) -> None:
-        self._hf_token = hf_token
-        self._model_name = model_name
-        self._device = device
-        self._max_length = max_length
+        self._openai_api_key = (openai_api_key or "").strip()
+        self._model = (model or "").strip()
 
-        self._st_model: Any = None
+        if not self._openai_api_key:
+            raise RuntimeError("Missing OPENAI_API_KEY for OpenAI embeddings")
+        if not self._model:
+            raise RuntimeError("Missing OpenAI embedding model name")
+
+        self._openai_client: Any | None = None
+        self._load_lock = threading.Lock()
+        self._dimension: int | None = None
 
     def embed_text(self, text: str) -> List[float]:
         vectors = self.embed_texts([text])
@@ -37,67 +36,43 @@ class EmbeddingService:
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
-        self._ensure_loaded()
 
-        model: Any = self._st_model
-        vectors = model.encode(
-            texts,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
+        client = self._get_client()
+        resp = client.embeddings.create(model=self._model, input=texts)
+        data = getattr(resp, "data", None) or []
 
-        # SentenceTransformer returns either a numpy array or list depending on config.
-        if hasattr(vectors, "tolist"):
-            return vectors.tolist()
-        return [list(map(float, v)) for v in vectors]
+        out: List[List[float]] = []
+        for item in data:
+            emb = getattr(item, "embedding", None)
+            if not emb:
+                out.append([])
+                continue
+            vec = list(map(float, emb))
+            out.append(vec)
+            if self._dimension is None:
+                self._dimension = len(vec)
+        return out
 
     def embedding_dimension(self) -> int:
-        self._ensure_loaded()
-        try:
-            dim = int(self._st_model.get_sentence_embedding_dimension())
-            if dim > 0:
-                return dim
-        except Exception:
-            pass
+        if self._dimension is not None:
+            return int(self._dimension)
         vec = self.embed_text("test")
-        return len(vec)
+        self._dimension = len(vec)
+        return int(self._dimension)
 
-    def _ensure_loaded(self) -> None:
-        if self._st_model is not None:
-            return
+    def _get_client(self) -> Any:
+        if self._openai_client is not None:
+            return self._openai_client
 
-        try:
-            from sentence_transformers import SentenceTransformer
-        except Exception as e:
-            raise RuntimeError(
-                "Missing embedding dependencies. Install `sentence-transformers` (and its deps) plus `huggingface_hub`."
-            ) from e
+        with self._load_lock:
+            if self._openai_client is not None:
+                return self._openai_client
 
-        # SentenceTransformer handles device internally.
-        st_kwargs: dict[str, Any] = {}
-        if self._hf_token:
-            # sentence-transformers forwards token to Hugging Face Hub.
-            st_kwargs["token"] = self._hf_token
+            try:
+                from openai import OpenAI
+            except Exception as e:
+                raise RuntimeError("Missing openai dependency for OpenAI embeddings") from e
 
-        device = self._device
-        if device == "auto":
-            device = "cuda" if _has_cuda() else "cpu"
-
-        model = SentenceTransformer(self._model_name, device=device, **st_kwargs)
-        try:
-            model.max_seq_length = int(self._max_length)
-        except Exception:
-            pass
-
-        self._st_model = model
-
-        logger.info("Loaded embedding model=%s device=%s", self._model_name, device)
-
-
-def _has_cuda() -> bool:
-    try:
-        import torch
-
-        return bool(torch.cuda.is_available())
-    except Exception:
-        return False
+            self._openai_client = OpenAI(api_key=self._openai_api_key)
+            logger.info("Loaded embeddings provider=openai model=%s", self._model)
+            return self._openai_client

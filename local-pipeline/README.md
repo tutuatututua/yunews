@@ -4,7 +4,7 @@ This folder is a **batch job** that is meant to run to completion (daily/cron), 
 
 ## Local (Docker Compose)
 
-- Ensure `local-pipeline/.env` exists and contains required secrets (Supabase + OpenAI + YouTube + HF token).
+- Ensure `local-pipeline/.env` exists and contains required secrets (Supabase + OpenAI + YouTube).
 - Run once:
 
 ```bash
@@ -36,16 +36,12 @@ Notes:
 - If `PIPELINE_CRON_KEY` is set, the endpoint requires `x-pipeline-key: <value>` (or `?key=<value>`).
 - Vercel Serverless Functions have runtime/time limits; heavy workloads may need ECS/Cloud Run.
 
-## Optional embeddings (local)
+## Optional embeddings
 
-Embeddings/RAG writes are optional. To enable them locally:
+Embeddings/RAG writes are optional.
 
-```bash
-pip install -r requirements.txt -r requirements-embeddings.txt
-```
-
-and set:
-- `PIPELINE_ENABLE_EMBEDDINGS=1`
+Set:
+- `PIPELINE_ENABLE_EMBEDDINGS=1` (default)
 
 ## DB schema changes
 

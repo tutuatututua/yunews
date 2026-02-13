@@ -93,14 +93,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_QUERY_PLANNER_MODEL"),
     )
 
-    hf_token: str | None = Field(default=None, validation_alias=AliasChoices("HF_TOKEN", "HUGGINGFACE_TOKEN"))
-    hf_embedding_model: str = Field(
-        default="Qwen/Qwen3-Embedding-0.6B",
-        validation_alias=AliasChoices("HF_EMBEDDING_MODEL", "QWEN_EMBED_MODEL"),
-    )
-    embedding_max_length: int = Field(
-        default=1024,
-        validation_alias=AliasChoices("EMBEDDING_MAX_LENGTH", "QWEN_EMBED_MAX_TOKENS"),
+    # Embeddings (used for RAG retrieval query vector)
+    openai_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL"),
     )
 
     @model_validator(mode="after")

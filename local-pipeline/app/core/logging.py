@@ -30,7 +30,6 @@ def configure_logging(level: Optional[str] = None) -> None:
         "postgrest",
         "openai",
         "transformers",
-        "huggingface_hub",
     ]:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
