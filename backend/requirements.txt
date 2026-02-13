@@ -2,8 +2,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pydantic-settings==2.7.0
-httpx
-supabase
+supabase==2.10.0
 openai==1.59.7
 gunicorn==22.0.0
-
+sentence-transformers==2.5.1

@@ -1,8 +1,0 @@
-# Optional dependencies for local Hugging Face embeddings.
-#
-# Vercel builds will likely OOM if you include these in requirements.txt.
-# Use them for Docker/VM deployments where you want local embeddings.
-
-sentence-transformers>=3.2.0
-numpy>=1.26,<2
-torch>=2.1
