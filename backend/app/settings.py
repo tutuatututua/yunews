@@ -95,7 +95,7 @@ class Settings(BaseSettings):
 
     # Embeddings (used for RAG retrieval query vector)
     openai_embedding_model: str = Field(
-        default="text-embedding-3-large",
+        default="text-embedding-3-small",
         validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL"),
     )
 
