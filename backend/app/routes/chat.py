@@ -129,7 +129,11 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
             yield _sse(
                 {
                     "type": "delta",
-                    "delta": "I can only help with stock/company/market questions. Try asking about a ticker (e.g., AAPL, TSLA) or a company’s earnings/news.",
+                    "delta": (
+                        "I can only help with stock/company/market questions. "
+                        "(Why you’re seeing this: the query planner marked this question as not stock-related.) "
+                        "If this is actually about a stock, include an explicit ticker (e.g., AAPL, TSLA — or 'SOFI' if you mean SoFi Technologies)."
+                    ),
                 }
             )
             yield _sse({"type": "done"})

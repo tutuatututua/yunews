@@ -201,6 +201,15 @@ export async function streamChat(args: {
     body: JSON.stringify({ question: args.question, history: args.history }),
   })
 
+  const ct = res.headers.get('content-type') || ''
+  if (res.ok && ct.includes('text/html')) {
+    // Common Vercel misconfig: the SPA rewrite returns index.html for `/api/*`.
+    // In that case the backend base URL is wrong (or backend isn't deployed).
+    throw new Error(
+      'Chat backend misconfigured (received HTML). On Vercel, set VITE_BACKEND_BASE_URL to your backend deployment URL (e.g. https://<backend>.vercel.app).',
+    )
+  }
+
   if (!res.ok) {
     const { text } = await readResponseBody(res)
     throw new Error(text || `HTTP ${res.status}`)

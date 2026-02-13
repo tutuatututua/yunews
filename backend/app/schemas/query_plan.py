@@ -26,7 +26,7 @@ class QueryPlan(BaseModel):
     )
 
     is_stock_related: bool = Field(
-        default=True,
+        ...,
         description=(
             "Whether the question is about stocks/companies/markets/business news. "
             "If false, tickers should be null and retrieval should be skipped."

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any
 from typing import cast
@@ -10,86 +9,6 @@ from typing import cast
 from app.schemas.query_plan import QueryPlan
 
 logger = logging.getLogger(__name__)
-
-
-_FINANCE_HINTS: tuple[str, ...] = (
-    "stock",
-    "stocks",
-    "share",
-    "shares",
-    "price",
-    "valuation",
-    "market cap",
-    "earnings",
-    "guidance",
-    "revenue",
-    "profit",
-    "loss",
-    "margin",
-    "quarter",
-    "q1",
-    "q2",
-    "q3",
-    "q4",
-    "ipo",
-    "sec",
-    "10-k",
-    "10q",
-    "10-q",
-    "form 4",
-    "buyback",
-    "dividend",
-    "merger",
-    "acquisition",
-    "m&a",
-    "analyst",
-    "upgrade",
-    "downgrade",
-    "target price",
-    "guidance",
-    "ceo",
-    "cfo",
-    "balance sheet",
-    "cash flow",
-    "bond",
-    "yield",
-    "rates",
-    "interest rate",
-    "fed",
-    "inflation",
-    "cpi",
-    "ppi",
-    "jobs report",
-    "unemployment",
-    "gdp",
-    "market",
-    "nasdaq",
-    "nyse",
-)
-
-
-def _guess_stock_related(text: str) -> bool:
-    q = (text or "").strip()
-    if not q:
-        return False
-
-    ql = q.lower()
-    if ql in {"hi", "hello", "hey", "thanks", "thank you", "ok", "okay", "cool"}:
-        return False
-
-    # Strong ticker hints.
-    if re.search(r"\$[A-Za-z]{1,5}\b", q):
-        return True
-    if re.search(r"\b(?:NASDAQ|NYSE|AMEX)\s*:\s*[A-Za-z]{1,5}\b", q, flags=re.IGNORECASE):
-        return True
-    if re.search(r"\bticker\s*[:=]?\s*\$?[A-Za-z]{1,5}\b", q, flags=re.IGNORECASE):
-        return True
-    if re.search(r"\([A-Za-z]{2,5}\)", q):
-        return True
-
-    # Keyword hints.
-    return any(hint in ql for hint in _FINANCE_HINTS)
-
 
 def _clip(s: str, n: int = 600) -> str:
     s = (s or "").strip()
@@ -104,6 +23,7 @@ _PLANNER_SYSTEM = (
     "Rules:\n"
     "- Output ONLY valid JSON (no markdown, no commentary).\n"
     "- First decide if the question is stock-related (stocks/companies/markets/business news). If it is not, set is_stock_related=false and tickers=null.\n"
+    "- If the user asks about buying/selling/holding/investing in a named company or brand (even if lowercase, e.g. 'sofi', 'tesla'), this IS stock-related: set is_stock_related=true.\n"
     "- Do NOT add facts or assume tickers/time ranges not implied by the user.\n"
     "- Always include rewritten_prompt as a non-empty string. If you are unsure about filters, set them to null and keep rewritten_prompt close to the original.\n"
     "- If the user's question is a follow-up (short/ambiguous like 'what about guidance?' or uses 'it/they/that'), use recent_history (both user and assistant) to resolve the subject and include the resolved subject in rewritten_prompt.\n"
@@ -111,6 +31,7 @@ _PLANNER_SYSTEM = (
     "\n"
     "Ticker guidance:\n"
     "- Set tickers only if the user clearly references a specific stock ticker/company (e.g. '$AAPL', 'AAPL', 'Tesla/TSLA').\n"
+    "- If the user mentions a company name but you are not fully confident of the exact ticker, keep tickers=null (do NOT mark is_stock_related=false just because you can't map it).\n"
     "- If multiple tickers are central to the question (e.g. comparisons), set tickers=[...] (up to 3).\n"
     "- If only one ticker is central, set tickers=['AAPL'].\n"
     "- If unsure, set tickers=null.\n"
@@ -126,16 +47,6 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
     Generate a QueryPlan via OpenAI.
     """
 
-
-    def _fallback_plan() -> QueryPlan:
-        # Minimal, safe default that preserves the user's question without making
-        # retrieval depend on chat continuity.
-        q = (question or "").strip()
-        return QueryPlan(
-            is_stock_related=_guess_stock_related(q),
-            rewritten_prompt=q or "(no question)",
-            tickers=None,
-        )
 
 
     try:
@@ -180,7 +91,7 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
         content = (resp.choices[0].message.content or "").strip()
         if not content:
             logger.info("QueryPlanner empty response")
-            return _fallback_plan()
+            return None
 
         logger.info("QueryPlanner raw=%s", _clip(content, 1200))
 
@@ -188,7 +99,7 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
             data = json.loads(content)
         except Exception:
             logger.info("QueryPlanner invalid JSON=%s", _clip(content, 500))
-            return _fallback_plan()
+            return None
 
         # Backward-compatible input normalization:
         # - older prompts/models may return {"ticker": "AAPL"}. Convert to tickers=[...].
@@ -213,28 +124,32 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
                 if v in ("true", "false"):
                     data["is_stock_related"] = v == "true"
 
-            # If the model omitted is_stock_related, infer from the prompt/question.
+            # Strict mode: the model MUST decide is_stock_related.
             if data.get("is_stock_related") is None:
-                basis = str(data.get("rewritten_prompt") or question or "")
-                data["is_stock_related"] = _guess_stock_related(basis)
+                logger.info("QueryPlanner missing is_stock_related")
+                return None
+
+            if not isinstance(data.get("is_stock_related"), bool):
+                logger.info("QueryPlanner invalid is_stock_related=%s", _clip(str(data.get("is_stock_related")), 200))
+                return None
 
             # If not stock-related, force tickers=null for safety/consistency.
             if data.get("is_stock_related") is False:
                 data["tickers"] = None
 
         if not isinstance(data, dict):
-            return _fallback_plan()
+            return None
 
         try:
             plan = QueryPlan.model_validate(data)
         except Exception:
             logger.info("QueryPlanner invalid schema=%s", _clip(str(data), 500))
-            return _fallback_plan()
+            return None
 
         # Final sanity: rewritten_prompt must exist and be non-empty.
         if not plan.rewritten_prompt.strip():
             logger.info("QueryPlanner missing rewritten_prompt")
-            return _fallback_plan()
+            return None
 
         # Normalize tickers.
         if not getattr(plan, "is_stock_related", True):
@@ -262,4 +177,4 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
         return plan
     except Exception as exc:
         logger.info("QueryPlanner failed: %s: %s", type(exc).__name__, str(exc)[:200])
-        return _fallback_plan()
+        return None
