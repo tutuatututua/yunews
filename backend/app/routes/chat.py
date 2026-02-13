@@ -42,6 +42,43 @@ def _trim_history(history: list[dict], max_messages: int = 10) -> list[dict]:
     return cleaned[-max_messages:]
 
 
+def _safe_retrieval_error_details(raw_error: str) -> dict:
+    """Return a safe, user-facing hint/fix for common Supabase retrieval failures."""
+
+    msg = (raw_error or "").strip()
+    low = msg.lower()
+
+    hint = msg[:300] if msg else "Unknown retrieval error"
+    fix = "Verify your Supabase schema and RPC function match_rag_documents are up to date."
+
+    if "match_rag_documents" in low and ("could not find" in low or "not found" in low or "does not exist" in low):
+        fix = (
+            "Your Supabase RPC function match_rag_documents is missing. "
+            "Run local-pipeline/app/db/schema.sql (and any migrations in local-pipeline/app/db/migrations/) on the same Supabase project used by the backend."
+        )
+    elif "column" in low and "does not exist" in low:
+        fix = (
+            "Your Supabase schema/RPC is outdated. Apply the latest SQL migrations in local-pipeline/app/db/migrations/ "
+            "(and re-run schema.sql if needed)."
+        )
+    elif "permission" in low and "denied" in low:
+        fix = (
+            "Supabase rejected the query due to permissions. Ensure the backend uses SUPABASE_SERVICE_ROLE_KEY "
+            "and that the key/project match your deployed database."
+        )
+    elif "jwt" in low or "invalid api key" in low or "unauthorized" in low:
+        fix = (
+            "Supabase credentials look invalid for this deployment. Double-check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel env vars."
+        )
+    elif "vector" in low and "dimension" in low:
+        fix = (
+            "Embedding dimension mismatch. Ensure your Supabase function filters on embedding dimension "
+            "(see README troubleshooting about vector dims), and that your rag_documents embeddings were generated with the same model/dimension."
+        )
+
+    return {"hint": hint, "fix": fix}
+
+
 def _build_context(chunks) -> str:
     parts: list[str] = []
     for i, c in enumerate(chunks, start=1):
@@ -141,13 +178,15 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
         return StreamingResponse(event_stream_non_stock(), media_type="text/event-stream")
 
     retrieval_error: str | None = None
+    retrieval_error_details: dict | None = None
     try:
         chunks = retrieve_chunks(question=question, top_k=5, query_plan=query_plan)
     except Exception as exc:
         logger.exception("Retrieval failed")
         chunks = []
         # Keep this safe/non-leaky (no raw SQL / stack traces).
-        retrieval_error = str(exc)[:200]
+        retrieval_error = str(exc)[:400]
+        retrieval_error_details = _safe_retrieval_error_details(retrieval_error)
 
     # This is the exact context string that will be sent to the model.
     prompt_context = _build_context(chunks) if chunks else ""
@@ -174,11 +213,15 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
         )
 
         if retrieval_error:
+            request_id = getattr(request.state, "request_id", None)
             yield _sse(
                 {
                     "type": "error",
                     "message": "Retrieval failed. Update your Supabase schema/RPC.",
-                    "details": {"hint": retrieval_error},
+                    "details": {
+                        **(retrieval_error_details or {}),
+                        "request_id": request_id,
+                    },
                 }
             )
             yield _sse({"type": "done"})

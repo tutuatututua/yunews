@@ -184,7 +184,7 @@ type ChatStreamEvent =
   | { type: 'retrieval'; chunks: any[]; context?: string }
   | { type: 'delta'; delta: string }
   | { type: 'done' }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; details?: { hint?: string; fix?: string; request_id?: string } }
 
 export async function streamChat(args: {
   question: string
@@ -230,7 +230,14 @@ export async function streamChat(args: {
     if (evt.type === 'retrieval') args.onRetrieval?.({ chunks: evt.chunks || [], context: evt.context })
     if (evt.type === 'delta') args.onDelta(evt.delta || '')
     if (evt.type === 'done') args.onDone?.()
-    if (evt.type === 'error') throw new Error(evt.message || 'Chat error')
+    if (evt.type === 'error') {
+      const base = evt.message || 'Chat error'
+      const hint = evt.details?.hint ? `Hint: ${evt.details.hint}` : ''
+      const fix = evt.details?.fix ? `Fix: ${evt.details.fix}` : ''
+      const rid = evt.details?.request_id ? `Request ID: ${evt.details.request_id}` : ''
+      const extra = [hint, fix, rid].filter(Boolean).join('\n')
+      throw new Error(extra ? `${base}\n${extra}` : base)
+    }
   }
 
   while (true) {
