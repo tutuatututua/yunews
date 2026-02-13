@@ -138,7 +138,7 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
 
     retrieval_error: str | None = None
     try:
-        chunks = retrieve_chunks(question=question,top_k=5, min_similarity=0.50, query_plan=query_plan)
+        chunks = retrieve_chunks(question=question, top_k=5, query_plan=query_plan)
     except Exception as exc:
         logger.exception("Retrieval failed")
         chunks = []

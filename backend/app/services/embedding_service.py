@@ -83,5 +83,5 @@ def get_embedding_service() -> BaseEmbeddingService:
 
     return OpenAIEmbeddingService(
         api_key=str(settings.openai_api_key or ""),
-        model=str(getattr(settings, "openai_embedding_model", "text-embedding-3-small")),
+        model=str(getattr(settings, "openai_embedding_model", "text-embedding-3-large")),
     )
