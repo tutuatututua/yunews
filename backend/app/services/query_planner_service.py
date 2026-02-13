@@ -23,7 +23,6 @@ _PLANNER_SYSTEM = (
     "Rules:\n"
     "- Output ONLY valid JSON (no markdown, no commentary).\n"
     "- First decide if the question is stock-related (stocks/companies/markets/business news). If it is not, set is_stock_related=false and tickers=null.\n"
-    "- If the user asks about buying/selling/holding/investing in a named company or brand (even if lowercase, e.g. 'sofi', 'tesla'), this IS stock-related: set is_stock_related=true.\n"
     "- Do NOT add facts or assume tickers/time ranges not implied by the user.\n"
     "- Always include rewritten_prompt as a non-empty string. If you are unsure about filters, set them to null and keep rewritten_prompt close to the original.\n"
     "- If the user's question is a follow-up (short/ambiguous like 'what about guidance?' or uses 'it/they/that'), use recent_history (both user and assistant) to resolve the subject and include the resolved subject in rewritten_prompt.\n"

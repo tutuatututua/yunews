@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import logging
 from functools import lru_cache
 import threading
 from typing import Any, Protocol
 
 from app.settings import get_settings
-
-logger = logging.getLogger(__name__)
 
 
 class BaseEmbeddingService(Protocol):
@@ -83,5 +80,5 @@ def get_embedding_service() -> BaseEmbeddingService:
 
     return OpenAIEmbeddingService(
         api_key=str(settings.openai_api_key or ""),
-        model=str(getattr(settings, "openai_embedding_model", "text-embedding-3-large")),
+        model=str(settings.openai_embedding_model),
     )
