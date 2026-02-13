@@ -93,40 +93,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_QUERY_PLANNER_MODEL"),
     )
 
-    # Embeddings (RAG)
-    #
-    # Vercel free-tier builds commonly OOM when installing torch/sentence-transformers.
-    # Prefer hosted embeddings (OpenAI or a Hugging Face endpoint) for serverless.
-    embeddings_backend: str = Field(
-        default="openai",
-        validation_alias=AliasChoices("EMBEDDINGS_BACKEND"),
-    )
-
-    # OpenAI embeddings
-    openai_embedding_model: str = Field(
-        default="text-embedding-3-small",
-        validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL"),
-    )
-
-    # Hugging Face hosted embeddings endpoint
-    # Expected to be either:
-    # - an OpenAI-compatible /v1/embeddings endpoint (e.g., TEI), or
-    # - a custom endpoint that accepts {"inputs": "..."} and returns a vector.
-    hf_embeddings_endpoint_url: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices(
-            "HF_EMBEDDINGS_ENDPOINT_URL",
-            "HUGGINGFACE_EMBEDDINGS_ENDPOINT_URL",
-        ),
-    )
-    hf_embeddings_request_timeout_seconds: float = Field(
-        default=30.0,
-        validation_alias=AliasChoices(
-            "HF_EMBEDDINGS_TIMEOUT_SECONDS",
-            "HF_EMBEDDINGS_REQUEST_TIMEOUT_SECONDS",
-        ),
-    )
-
     hf_token: str | None = Field(default=None, validation_alias=AliasChoices("HF_TOKEN", "HUGGINGFACE_TOKEN"))
     hf_embedding_model: str = Field(
         default="Qwen/Qwen3-Embedding-0.6B",

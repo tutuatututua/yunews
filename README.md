@@ -97,13 +97,8 @@ If you take approach (2), build the frontend with the correct API base URL baked
 
   1. In Vercel Project Settings → General → **Root Directory**, set it to `backend`.
   2. Add the backend env vars in Vercel (see `backend/.env.example`).
-  3. If you previously saw a Vercel memory error during backend build: it was likely from installing `torch/sentence-transformers`. On the Free tier, avoid local HF models.
-  4. To use Hugging Face on Vercel, use a **hosted embeddings endpoint** (no `torch` in the build):
-     - Set `EMBEDDINGS_BACKEND=hf_hosted`
-     - Set `HF_EMBEDDINGS_ENDPOINT_URL` (ideally an OpenAI-compatible `.../v1/embeddings` endpoint)
-     - Set `HF_TOKEN` if your endpoint requires auth
-     - Ensure your pipeline writes embeddings from the same model/provider (same vector dimensions).
-  5. If you want **local** Hugging Face embeddings, deploy outside Vercel and install `backend/requirements-embeddings.txt`.
+  3. If you previously saw a Vercel memory error during backend build: it was likely from installing `torch/sentence-transformers`. The default backend requirements are now Vercel-friendly.
+  4. Embeddings on Vercel default to OpenAI (no `torch`). If you need local HF embeddings, deploy outside Vercel and install `backend/requirements-embeddings.txt`.
 
 ## 4) Run local pipeline (LOCAL ONLY)
 ```bash
