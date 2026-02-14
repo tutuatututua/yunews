@@ -74,22 +74,6 @@ function buildTickerStats(items: Array<{ edges: Array<{ ticker: string; sentimen
   return stats
 }
 
-function buildTickerVideoCounts(items: Array<{ edges: Array<{ ticker: string }>; video_id?: string }> | undefined): Map<string, number> {
-  const byTicker = new Map<string, number>()
-
-  for (const item of items || []) {
-    const uniqueTickersInVideo = new Set<string>()
-    for (const edge of item.edges || []) {
-      if (edge?.ticker) uniqueTickersInVideo.add(edge.ticker)
-    }
-    for (const ticker of uniqueTickersInVideo) {
-      byTicker.set(ticker, (byTicker.get(ticker) || 0) + 1)
-    }
-  }
-
-  return byTicker
-}
-
 export default function HomePage() {
   const { timeZone, timeShiftMinutes } = useTimeZone()
   const intlTimeZone = resolveTimeZoneForIntl(timeZone)
@@ -166,7 +150,6 @@ export default function HomePage() {
   const moversQuery = useTopMovers(moversAnchorDate, moversDays, 8, true)
 
   const tickerStats = useMemo(() => buildTickerStats(infographicQuery.data), [infographicQuery.data])
-  const tickerVideoCounts = useMemo(() => buildTickerVideoCounts(infographicQuery.data as any), [infographicQuery.data])
 
   const moversSortedByMentions = useMemo(() => {
     const items = moversQuery.data ? [...moversQuery.data] : []
@@ -420,7 +403,6 @@ export default function HomePage() {
               <div className={styles.moversList}>
                 {moversSortedByMentions.slice(0, 10).map((m, idx) => {
                   const stats = tickerStats.get(m.symbol)
-                  const videoCount = tickerVideoCounts.get(m.symbol) || 0
                   const dirClass =
                     m.direction === 'bullish'
                       ? styles.moverRowUp

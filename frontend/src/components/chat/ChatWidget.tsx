@@ -2,34 +2,16 @@ import React from 'react'
 import { MessageCircle, X } from 'lucide-react'
 import styles from './ChatWidget.module.css'
 import { streamChat } from '../../services/api'
-import type { QueryPlan } from '../../types'
-
-type Role = 'user' | 'assistant'
-
-type Source = {
-  chunk?: number | null
-  document_type: string
-  ticker?: string | null
-  video_title?: string | null
-  thumbnail_url?: string | null
-  similarity?: number | null
-}
+import type { ChatHistoryMessage, ChatRetrievalChunk, ChatSource, ChatRole, QueryPlan } from '../../types'
 
 type ChatMessage = {
   id: string
-  role: Role
+  role: ChatRole
   content: string
-  sources?: Source[]
+  sources?: ChatSource[]
   retrievalContext?: string
   queryPlan?: QueryPlan
-  retrievalChunks?: Array<{
-    document_type: string
-    ticker?: string | null
-    video_title?: string | null
-    thumbnail_url?: string | null
-    similarity?: number | null
-    text: string
-  }>
+  retrievalChunks?: ChatRetrievalChunk[]
 }
 
 function uid() {
@@ -52,7 +34,7 @@ export function ChatWidget() {
 
   const didInitRef = React.useRef(false)
 
-  const pendingSourcesRef = React.useRef<Source[] | undefined>(undefined)
+  const pendingSourcesRef = React.useRef<ChatSource[] | undefined>(undefined)
   const pendingRetrievalRef = React.useRef<ChatMessage['retrievalChunks'] | undefined>(undefined)
   const pendingRetrievalContextRef = React.useRef<string | undefined>(undefined)
   const pendingQueryPlanRef = React.useRef<QueryPlan | undefined>(undefined)
@@ -137,7 +119,7 @@ export function ChatWidget() {
     pendingRetrievalContextRef.current = undefined
     pendingQueryPlanRef.current = undefined
 
-    const history = [...messages, nextUser]
+    const history: ChatHistoryMessage[] = [...messages, nextUser]
       .slice(-10)
       .map((m) => ({ role: m.role, content: m.content }))
 
@@ -150,17 +132,12 @@ export function ChatWidget() {
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, queryPlan: qp } : m)))
         },
         onSources: (src) => {
-          pendingSourcesRef.current = src as any
-          setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, sources: src as any } : m)),
-          )
+          pendingSourcesRef.current = src
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, sources: src } : m)))
         },
         onRetrieval: (chunks) => {
-          // Backward/forward compatible: backend may send either an array of chunks
-          // or an object with { chunks, context }.
-          const payload = Array.isArray(chunks) ? { chunks } : (chunks as any)
-
-          const parsedChunks = (payload?.chunks ?? payload) as any
+          const payload = chunks
+          const parsedChunks = payload.chunks
           pendingRetrievalRef.current = parsedChunks
           pendingRetrievalContextRef.current = typeof payload?.context === 'string' ? payload.context : undefined
           setMessages((prev) =>

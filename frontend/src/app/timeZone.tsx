@@ -5,9 +5,9 @@ const SHIFT_MINUTES_KEY = 'yunews.timeShiftMinutes'
 
 export const ET_OFFSET_MODE = 'et-offset'
 
-export type TimeZoneSetting = 'local' | 'UTC' | typeof ET_OFFSET_MODE | string
+type TimeZoneSetting = 'local' | 'UTC' | typeof ET_OFFSET_MODE | string
 
-export type TimeZoneState = {
+type TimeZoneState = {
   timeZone: TimeZoneSetting
   /**
    * Only applied when timeZone === 'et-offset'.

@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import Markdown from '../components/Markdown'
+import { useSearchParams } from 'react-router-dom'
 import VideoDetailPanel from '../components/video/VideoDetailPanel'
 import { EmptyState, ErrorCallout } from '../components/ui/Callout'
 import { LoadingLine } from '../components/ui/Loading'
@@ -95,15 +94,6 @@ function getSentimentRowClass(sentiment: Sentiment | null | undefined): string |
   if (sentiment === 'negative') return styles.detailRowNegative
   if (sentiment === 'neutral') return styles.detailRowNeutral
   return null
-}
-
-function buildTickerHref(symbol: string, days: number): string {
-  const sym = String(symbol || '').trim().toUpperCase()
-  return `/ticker?symbol=${encodeURIComponent(sym)}&days=${encodeURIComponent(String(days))}`
-}
-
-function buildVideosHref(days: number): string {
-  return `/videos?days=${encodeURIComponent(String(days))}`
 }
 
 function buildYouTubeWatchUrl(videoId: string): string {

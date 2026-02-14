@@ -2,7 +2,7 @@ import * as Slider from '@radix-ui/react-slider'
 import { cn } from '../../lib/cn'
 import styles from './RangeSlider.module.css'
 
-export type RangeSliderValue = readonly [number, number]
+type RangeSliderValue = readonly [number, number]
 
 type Props = {
   value: RangeSliderValue

@@ -1,4 +1,8 @@
 import type {
+  ChatHistoryMessage,
+  ChatRetrievalChunk,
+  ChatSource,
+  ChatStreamEvent,
   DailySummary,
   EntityChunkRow,
   QueryPlan,
@@ -177,21 +181,12 @@ export async function fetchTopMovers(opts?: { days?: number; limit?: number; dat
   return r.data
 }
 
-type ChatHistoryMessage = { role: 'user' | 'assistant'; content: string }
-type ChatStreamEvent =
-  | { type: 'sources'; sources: any[] }
-  | { type: 'query_plan'; query_plan: QueryPlan }
-  | { type: 'retrieval'; chunks: any[]; context?: string }
-  | { type: 'delta'; delta: string }
-  | { type: 'done' }
-  | { type: 'error'; message: string; details?: { hint?: string; fix?: string; request_id?: string } }
-
 export async function streamChat(args: {
   question: string
   history: ChatHistoryMessage[]
   onQueryPlan?: (queryPlan: QueryPlan) => void
-  onSources?: (sources: any[]) => void
-  onRetrieval?: (payload: { chunks: any[]; context?: string }) => void
+  onSources?: (sources: ChatSource[]) => void
+  onRetrieval?: (payload: { chunks: ChatRetrievalChunk[]; context?: string }) => void
   onDelta: (delta: string) => void
   onDone?: () => void
 }): Promise<void> {

@@ -3,16 +3,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import logging
+from textwrap import dedent
 from typing import Iterable
 
-from fastapi import APIRouter
-from starlette.requests import Request
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from app.core.errors import BadRequestError, UpstreamError
 from app.core.time import market_today
 from app.core.token_quota import estimate_tokens, get_client_ip, get_token_quota
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest, RetrievedChunk
 from app.services.query_planner_service import plan_query
 from app.services.rag_retrieval_service import retrieve_chunks
 from app.settings import get_settings
@@ -20,6 +20,34 @@ from app.settings import get_settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["chat"])
+
+
+SYSTEM_PROMPT = dedent(
+        """\
+        You are yuNews, a stock-video summary assistant.
+        Answer the user's question using ONLY the retrieved context.
+        The retrieved context may be incomplete, outdated, or internally inconsistent.
+
+        Hard rules (must follow):
+        - Use ONLY the retrieved context as your source of truth.
+        - Do NOT add new facts, guess, assume, or fill in missing details.
+        - If the context does not contain the answer, say exactly: "I don't have that information."
+        - Cite sources as [#N] where N is the chunk number.
+        - Every factual claim about companies/events/numbers must have a citation [#N]. If you cannot cite it, do not say it.
+        - You may use the provided Date context (today's date/time) to interpret relative time words like "today"/"yesterday".
+            Do NOT cite the Date context; cite only retrieved chunks as [#N].
+        - If chunks conflict or seem to describe different things, do NOT reconcile them.
+            Instead, describe each version separately with its own citation(s), and explicitly say the sources conflict.
+        - When certainty is not supported, attribute claims (e.g., "According to [#N] ...") rather than stating them as absolute fact.
+
+        Output format (clear and easy to scan, no bullets):
+        - Write 1–3 short paragraphs. Keep sentences short and direct.
+        - Put citations at the end of each sentence that contains factual information.
+        - If the context is ambiguous or conflicting, say so and describe the possible interpretations in separate sentences, each with citations.
+
+        Tone: professional, friendly, concise.
+        """
+).strip()
 
 
 def _sse(obj: dict) -> bytes:
@@ -81,19 +109,19 @@ def _safe_retrieval_error_details(raw_error: str) -> dict:
     return {"hint": hint, "fix": fix}
 
 
-def _build_context(chunks) -> str:
+def _build_context(chunks: list[RetrievedChunk]) -> str:
     parts: list[str] = []
     for i, c in enumerate(chunks, start=1):
         # Summary-only context: keep chunk numbering so the model can cite [#N],
         # but omit all other metadata fields.
-        parts.append(f"[#${i}]".replace("$", ""))
+        parts.append(f"[#{i}]")
         parts.append((c.summary_text or "").strip())
         parts.append("")
 
     return "\n".join(parts).strip()
 
 
-def _retrieval_payload(chunks) -> list[dict]:
+def _retrieval_payload(chunks: list[RetrievedChunk]) -> list[dict]:
     out: list[dict] = []
     for c in chunks:
         text = (c.summary_text or "").strip()
@@ -110,7 +138,7 @@ def _retrieval_payload(chunks) -> list[dict]:
     return out
 
 
-def _sources_payload(chunks) -> list[dict]:
+def _sources_payload(chunks: list[RetrievedChunk]) -> list[dict]:
     """Structured sources aligned with retrieved chunk numbers (#1/#2/...)."""
 
     out: list[dict] = []
@@ -240,41 +268,13 @@ def chat(req: ChatRequest, request: Request) -> StreamingResponse:
             yield _sse({"type": "done"})
             return
 
-        system = (
-                """\
-                You are yuNews, a stock-video summary assistant.
-                Answer the user's question using ONLY the retrieved context.
-                    The retrieved context may be incomplete, outdated, or internally inconsistent.
-
-                Hard rules (must follow):
-                - Use ONLY the retrieved context as your source of truth.
-                - Do NOT add new facts, guess, assume, or fill in missing details.
-                - If the context does not contain the answer, say exactly: "I don't have that information."
-                - Cite sources as [#N] where N is the chunk number.
-                                - Every factual claim about companies/events/numbers must have a citation [#N]. If you cannot cite it, do not say it.
-                                - You may use the provided Date context (today's date/time) to interpret relative time words like "today"/"yesterday".
-                                    Do NOT cite the Date context; cite only retrieved chunks as [#N].
-                    - If chunks conflict or seem to describe different things, do NOT reconcile them.
-                        Instead, describe each version separately with its own citation(s), and explicitly say the sources conflict.
-                    - When certainty is not supported, attribute claims (e.g., "According to [#N] ...") rather than stating them as absolute fact.
-
-                Output format (clear and easy to scan, no bullets):
-                - Write 1–3 short paragraphs. Keep sentences short and direct.
-                - Put citations at the end of each sentence that contains factual information.
-                - If the context is ambiguous or conflicting, say so and describe the possible interpretations in separate sentences, each with citations.
-
-                Tone: professional, friendly, concise.
-                """
-        )
-
-
         date_context = (
             f"Date context: Today is {market_today().isoformat()} (America/New_York). "
             f"Current time is {datetime.now(timezone.utc).replace(microsecond=0).isoformat()} (UTC)."
         )
 
         messages = [
-            {"role": "system", "content": system},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "system", "content": date_context},
             {
                 "role": "system",

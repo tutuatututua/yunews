@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { DailySummary, EntityChunkRow, TopMover, VideoDetail, VideoInfographicItem, VideoListItem } from '../types'
+import type { EntityChunkRow } from '../types'
 import {
   fetchEntityChunks,
   fetchDailySummary,
@@ -98,5 +98,3 @@ export function useTopMovers(
     enabled,
   })
 }
-
-export type { DailySummary, EntityChunkRow, TopMover, VideoDetail, VideoInfographicItem, VideoListItem }

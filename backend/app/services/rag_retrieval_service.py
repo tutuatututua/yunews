@@ -78,8 +78,6 @@ def retrieve_chunks(
     supa = get_supabase_client()
     best_by_id: dict[int, RetrievedChunk] = {}
 
-
-
     def run_stage(*, stage: str, document_type: str | None, filter_ticker: str | None, match_count: int) -> None:
         method = " | ".join(
             [
@@ -152,7 +150,7 @@ def retrieve_chunks(
         )
     # Oversample to allow dedupe + threshold filtering, then keep top_k.
     oversample = max(int(top_k) * 3, 12)
-    
+
     # Progressive broadening (most constrained -> least constrained).
     if tickers:
         per_ticker_count = max(5, (oversample + len(tickers) - 1) // len(tickers))

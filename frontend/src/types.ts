@@ -15,7 +15,7 @@ export type DailySummary = {
   generated_at: string
 }
 
-export type VideoMover = { symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }
+type VideoMover = { symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }
 
 export type TopMover = {
   symbol: string
@@ -81,13 +81,6 @@ export type VideoInfographicItem = {
   edges: Array<{ ticker: string; sentiment: 'positive' | 'negative' | 'neutral'; key_points: string[] }>
 }
 
-export type VideoNested = {
-  video_url?: string
-  video_id?: string
-  channel?: string | null
-  title?: string
-}
-
 export type EntityChunkRow = {
   entities?: Array<{ type: string; symbol?: string }>
   computed_at?: string
@@ -111,3 +104,41 @@ export type QueryPlan = {
   rewritten_prompt: string
   tickers: string[] | null
 }
+
+// Chat (SSE)
+export type ChatRole = 'user' | 'assistant'
+
+export type ChatHistoryMessage = {
+  role: ChatRole
+  content: string
+}
+
+export type ChatSource = {
+  chunk: number
+  document_type: string
+  ticker?: string | null
+  video_title?: string | null
+  thumbnail_url?: string | null
+  similarity?: number | null
+  retrieval_method?: string | null
+}
+
+export type ChatRetrievalChunk = {
+  document_type: string
+  text: string
+  retrieval_method?: string | null
+
+  // Optional metadata (kept for backward/forward compatibility)
+  ticker?: string | null
+  video_title?: string | null
+  thumbnail_url?: string | null
+  similarity?: number | null
+}
+
+export type ChatStreamEvent =
+  | { type: 'sources'; sources: ChatSource[] }
+  | { type: 'query_plan'; query_plan: QueryPlan }
+  | { type: 'retrieval'; chunks: ChatRetrievalChunk[]; context?: string }
+  | { type: 'delta'; delta: string }
+  | { type: 'done' }
+  | { type: 'error'; message: string; details?: { hint?: string; fix?: string; request_id?: string } }

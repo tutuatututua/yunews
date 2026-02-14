@@ -23,6 +23,50 @@ from app.services.youtube_service import YouTubeSearchQuery, YouTubeService
 logger = logging.getLogger(__name__)
 
 
+def _clean_bullets(items: Any, *, max_items: int) -> list[str]:
+    """Return up to max_items non-empty, stripped string bullets."""
+
+    if not isinstance(items, list):
+        return []
+    out: list[str] = []
+    for x in items:
+        sx = str(x).strip()
+        if not sx:
+            continue
+        out.append(sx)
+        if len(out) >= max_items:
+            break
+    return out
+
+
+def _summary_sections(summary_obj: dict[str, Any]) -> tuple[bool, list[tuple[str, list[str]]]]:
+    """Return (categorized, sections) for a summary object.
+
+    - categorized=True: expects positive/negative/neutral keys
+    - categorized=False: expects bull_case/bear_case/risks keys
+    """
+
+    categorized = any(k in summary_obj for k in ("positive", "negative", "neutral"))
+    if categorized:
+        return (
+            True,
+            [
+                ("**Positive**", _clean_bullets(summary_obj.get("positive") or [], max_items=50)),
+                ("**Negative**", _clean_bullets(summary_obj.get("negative") or [], max_items=50)),
+                ("**Neutral**", _clean_bullets(summary_obj.get("neutral") or [], max_items=50)),
+            ],
+        )
+
+    return (
+        False,
+        [
+            ("**Bull case**", _clean_bullets(summary_obj.get("bull_case") or [], max_items=50)),
+            ("**Bear case**", _clean_bullets(summary_obj.get("bear_case") or [], max_items=50)),
+            ("**Risks**", _clean_bullets(summary_obj.get("risks") or [], max_items=50)),
+        ],
+    )
+
+
 def _previous_et_day_window(*, now_utc: datetime) -> tuple[date, datetime, datetime]:
     """Return (market_date, start_utc, end_utc) for the previous ET calendar day.
 
@@ -105,28 +149,21 @@ def _derive_video_summary(*, video_id: str, summary_rows: list[dict[str, Any]]) 
     for r in rows:
         ticker = (r.get("ticker") or "").strip().upper()
         summary_obj = r.get("summary") or {}
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            sections = [
-                ("**Positive**", summary_obj.get("positive") or []),
-                ("**Negative**", summary_obj.get("negative") or []),
-                ("**Neutral**", summary_obj.get("neutral") or []),
-            ]
-        else:
-            sections = [
-                ("**Bull case**", summary_obj.get("bull_case") or []),
-                ("**Bear case**", summary_obj.get("bear_case") or []),
-                ("**Risks**", summary_obj.get("risks") or []),
-            ]
+        if not ticker:
+            continue
 
-        md_lines.append(f"## {ticker}".strip())
+        categorized, sections = _summary_sections(summary_obj if isinstance(summary_obj, dict) else {})
+
+        md_lines.append(f"## {ticker}")
         for title, items in sections:
-            if items:
-                md_lines.append(title)
-                md_lines.extend(f"- {x}" for x in items)
-                key_points.extend(str(x) for x in items)
+            if not items:
+                continue
+            md_lines.append(title)
+            md_lines.extend(f"- {x}" for x in items)
+            key_points.extend(items)
         md_lines.append("")
 
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
+        if categorized:
             _add_unique_strings(opportunities, summary_obj.get("positive") or [], max_items=12)
             _add_unique_strings(risks, summary_obj.get("negative") or [], max_items=12)
         else:
@@ -170,27 +207,17 @@ def _derive_daily_summary(*, market_date: date, rows: list[dict[str, Any]]) -> d
 
         ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
 
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            sections = [
-                ("**Positive**", summary_obj.get("positive") or []),
-                ("**Negative**", summary_obj.get("negative") or []),
-                ("**Neutral**", summary_obj.get("neutral") or []),
-            ]
-        else:
-            sections = [
-                ("**Bull case**", summary_obj.get("bull_case") or []),
-                ("**Bear case**", summary_obj.get("bear_case") or []),
-                ("**Risks**", summary_obj.get("risks") or []),
-            ]
+        categorized, sections = _summary_sections(summary_obj if isinstance(summary_obj, dict) else {})
 
         md_lines.append(f"## {ticker}")
         for title, items in sections:
-            if items:
-                md_lines.append(title)
-                md_lines.extend(f"- {x}" for x in items)
+            if not items:
+                continue
+            md_lines.append(title)
+            md_lines.extend(f"- {x}" for x in items)
         md_lines.append("")
 
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
+        if categorized:
             _add_unique_strings(opportunities, summary_obj.get("positive") or [], max_items=12)
             _add_unique_strings(risks, summary_obj.get("negative") or [], max_items=12)
         else:
@@ -224,23 +251,10 @@ def _derive_daily_summary(*, market_date: date, rows: list[dict[str, Any]]) -> d
 
 
 def _format_ticker_summary_text(*, ticker: str, summary_obj: dict[str, Any], video_title: str, published_at: datetime) -> str:
-    ticker_u = (ticker or '').strip().upper()
-    pos = summary_obj.get('positive') or []
-    neg = summary_obj.get('negative') or []
-    neu = summary_obj.get('neutral') or []
-
-    def _bullets(items: Any, *, max_items: int = 10) -> list[str]:
-        if not isinstance(items, list):
-            return []
-        out: list[str] = []
-        for x in items:
-            s = str(x).strip()
-            if not s:
-                continue
-            out.append(s)
-            if len(out) >= max_items:
-                break
-        return out
+    ticker_u = (ticker or "").strip().upper()
+    pos = summary_obj.get("positive") or []
+    neg = summary_obj.get("negative") or []
+    neu = summary_obj.get("neutral") or []
 
     lines: list[str] = [
         f"Ticker: {ticker_u}",
@@ -249,9 +263,9 @@ def _format_ticker_summary_text(*, ticker: str, summary_obj: dict[str, Any], vid
         "",
     ]
 
-    p = _bullets(pos)
-    n = _bullets(neg)
-    u = _bullets(neu)
+    p = _clean_bullets(pos, max_items=10)
+    n = _clean_bullets(neg, max_items=10)
+    u = _clean_bullets(neu, max_items=10)
     if p:
         lines.append("Positive:")
         lines.extend(f"- {x}" for x in p)

@@ -1,6 +1,6 @@
 import { ApiRequestError } from '../services/api'
 
-export type UiErrorInfo = {
+type UiErrorInfo = {
   message: string
   requestId?: string
   status?: number

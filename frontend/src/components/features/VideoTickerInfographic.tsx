@@ -177,8 +177,8 @@ export default function VideoTickerInfographicForce(props: {
     for (const v of items || []) {
       if (!v?.video_id) continue
       if (!videoThumbMap.has(v.video_id)) videoThumbMap.set(v.video_id, v.thumbnail_url)
-      if (!videoTitleMap.has(v.video_id)) videoTitleMap.set(v.video_id, v.title)
-      if (!videoUrlMap.has(v.video_id)) videoUrlMap.set(v.video_id, v.video_url)
+      if (!videoTitleMap.has(v.video_id)) videoTitleMap.set(v.video_id, v.title ?? undefined)
+      if (!videoUrlMap.has(v.video_id)) videoUrlMap.set(v.video_id, v.video_url ?? undefined)
       let vw = 0
       for (const e of v.edges || []) {
         if (!e?.ticker) continue
@@ -276,7 +276,7 @@ export default function VideoTickerInfographicForce(props: {
 
     nodeEls
       .filter((d: Node) => d.type === 'video')
-      .on('click', (event: any, d: Node) => {
+      .on('click', (_event: any, d: Node) => {
         const id = (d as VideoNode).id
         if (!id) return
         onSelectVideoRef.current?.(id)
@@ -292,7 +292,7 @@ export default function VideoTickerInfographicForce(props: {
 
     nodeEls
       .filter((d: Node) => d.type === 'ticker')
-      .on('click', (event: any, d: Node) => {
+      .on('click', (_event: any, d: Node) => {
         const sym = String(d.label || '').trim().toUpperCase()
         if (!sym) return
         onSelectTickerRef.current?.(sym)

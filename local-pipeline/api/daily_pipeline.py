@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
+
+
+logger = logging.getLogger(__name__)
 
 
 def _is_authorized(*, headers: dict[str, str] | None, query: str) -> bool:
@@ -56,5 +60,7 @@ class handler(BaseHTTPRequestHandler):
 
             pipeline_main()
             self._send(200, {"ok": True})
-        except Exception as e:
-            self._send(500, {"ok": False, "error": str(e)})
+        except Exception:
+            # Never leak exception details in the HTTP response (serverless logs contain the traceback).
+            logger.exception("Pipeline execution failed")
+            self._send(500, {"ok": False, "error": "pipeline_failed"})

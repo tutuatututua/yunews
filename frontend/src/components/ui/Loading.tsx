@@ -1,4 +1,3 @@
-import React from 'react'
 import { util } from '../../styles'
 import styles from './Loading.module.css'
 

@@ -35,9 +35,8 @@ class Settings(BaseSettings):
         ),
     )
 
-
     log_level: str = Field(default="INFO", validation_alias=AliasChoices("LOG_LEVEL"))
-    
+
     # CORS: set explicitly in production. Accepts either JSON array (preferred) or comma-separated string.
     cors_allow_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=list,
