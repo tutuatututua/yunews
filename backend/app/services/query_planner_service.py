@@ -22,7 +22,8 @@ _PLANNER_SYSTEM = (
     "Your job is to rewrite the user's question into a concise retrieval query and extract optional filters.\n"
     "Rules:\n"
     "- Output ONLY valid JSON (no markdown, no commentary).\n"
-    "- First decide if the question is stock-related (stocks/companies/markets/business news). If it is not, set is_stock_related=false and tickers=null.\n"
+    "- First decide if the question is stock-related (stocks/companies/markets/business news). If it is not, set is_stock_related=false.\n"
+    "- If you are unsure whether the question is stock-related, set is_stock_related=true.\n"
     "- Do NOT add facts or assume tickers/time ranges not implied by the user.\n"
     "- Always include rewritten_prompt as a non-empty string. If you are unsure about filters, set them to null and keep rewritten_prompt close to the original.\n"
     "- If the user's question is a follow-up (short/ambiguous like 'what about guidance?' or uses 'it/they/that'), use recent_history (both user and assistant) to resolve the subject and include the resolved subject in rewritten_prompt.\n"
@@ -123,10 +124,9 @@ def plan_query(*, question: str, history: list[dict] | None, openai_api_key: str
                 if v in ("true", "false"):
                     data["is_stock_related"] = v == "true"
 
-            # Strict mode: the model MUST decide is_stock_related.
+            # If the model is unsure/omits is_stock_related, default to True.
             if data.get("is_stock_related") is None:
-                logger.info("QueryPlanner missing is_stock_related")
-                return None
+                data["is_stock_related"] = True
 
             if not isinstance(data.get("is_stock_related"), bool):
                 logger.info("QueryPlanner invalid is_stock_related=%s", _clip(str(data.get("is_stock_related")), 200))
