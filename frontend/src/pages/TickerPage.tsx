@@ -134,6 +134,25 @@ function buildInfographicEdgeChips(
   return normalized.map(({ ticker, sentiment }) => ({ ticker, sentiment }))
 }
 
+function hasUsableVideoRowInfo(args: {
+  title: string | null | undefined
+  videoId: string | null | undefined
+  url: string | null | undefined
+  publishedAt: string | null | undefined
+}): boolean {
+  const title = String(args.title || '').trim()
+  const videoId = String(args.videoId || '').trim()
+  const url = String(args.url || '').trim()
+  const publishedAt = String(args.publishedAt || '').trim()
+
+  if (!title) return false
+  if (!videoId && !url) return false
+  if (!publishedAt) return false
+  const ms = Date.parse(publishedAt)
+  if (!Number.isFinite(ms)) return false
+  return true
+}
+
 
 function groupEntityChunkRows(
   rows: EntityChunkRow[],
@@ -768,16 +787,19 @@ export default function TickerPage() {
                         {groupEntityChunkRows(entityChunksQuery.data).map((g) => {
                           const row = g.row
                           const key = g.key
-                          const title = row.videos?.title || row.videos?.video_id || 'Video'
                           const videoId = row.videos?.video_id ? String(row.videos.video_id) : null
                           const url =
                             (row.videos?.video_url ? safeExternalHref(row.videos.video_url) : null) ||
                             (videoId ? buildYouTubeWatchUrl(videoId) : null)
 
                           const metaFromInfographic = videoId ? allItemsByVideoId.get(videoId) : null
+                          const title = metaFromInfographic?.title || row.videos?.title || row.videos?.video_id || 'Video'
                           const youtubeThumb = videoId ? buildYouTubeThumbUrl(videoId) : null
                           const thumbnailUrl = metaFromInfographic?.thumbnail_url || youtubeThumb || null
                           const publishedAt = metaFromInfographic?.published_at || row.videos?.published_at || null
+
+                          if (!hasUsableVideoRowInfo({ title, videoId, url, publishedAt })) return null
+
                           const publishedDay = toUtcDayIndex(publishedAt)
                           const publishedIso = publishedDay == null ? null : dayIndexToIsoDate(publishedDay)
                           const relativeToFilter =

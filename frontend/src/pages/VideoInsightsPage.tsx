@@ -88,6 +88,17 @@ function summarizeVideoEdges(items: VideoInfographicItem[] | undefined): Map<str
   return byVideoId
 }
 
+function hasUsableVideoListInfo(v: { video_id: string; title: string; published_at: string } | null | undefined): boolean {
+  if (!v) return false
+  const videoId = String((v as any).video_id || '').trim()
+  const title = String((v as any).title || '').trim()
+  const publishedAt = String((v as any).published_at || '').trim()
+  if (!videoId || !title || !publishedAt) return false
+  const ms = Date.parse(publishedAt)
+  if (!Number.isFinite(ms)) return false
+  return true
+}
+
 export default function VideoInsightsPage() {
   const { timeZone, timeShiftMinutes } = useTimeZone()
   const intlTimeZone = resolveTimeZoneForIntl(timeZone)
@@ -123,6 +134,10 @@ export default function VideoInsightsPage() {
   }, [infographicQuery.data])
 
   const detailQuery = useVideoDetail(expandedVideoId)
+
+  const visibleVideos = useMemo(() => {
+    return (videosQuery.data || []).filter((v) => hasUsableVideoListInfo(v as any))
+  }, [videosQuery.data])
 
   const copyHref = async (href: string) => {
     const next = String(href || '').trim()
@@ -203,13 +218,13 @@ export default function VideoInsightsPage() {
       {!canQueryWindow && <LoadingLine label="Preparing your feed…" />}
       {canQueryWindow && videosQuery.isLoading && <LoadingLine label="Loading videos…" />}
 
-      {canQueryWindow && !videosQuery.isLoading && !videosQuery.data?.length && (
+      {canQueryWindow && !videosQuery.isLoading && !visibleVideos.length && (
         <EmptyState title="No videos found" body="Try expanding the window or verify the backend has ingested videos." />
       )}
 
       <section className={ui.card} aria-label="Video feed">
-        {(videosQuery.data || []).map((v) => {
-          const rowVideoId = v.video_id || v.id
+        {visibleVideos.map((v) => {
+          const rowVideoId = String(v.video_id || '').trim()
           const expanded = !!rowVideoId && expandedVideoId === rowVideoId
           const edgeSummary = v.video_id ? edgeSummaryByVideoId.get(v.video_id) : undefined
           const rowSentiment = normalizeSentiment(v.sentiment) || edgeSummary?.overall || null
@@ -217,7 +232,7 @@ export default function VideoInsightsPage() {
           const toggleExpanded = () => setExpandedVideoId(expanded ? null : (rowVideoId || null))
 
           return (
-            <div key={rowVideoId || v.id} className={cn(styles.videoRow, expanded && styles.videoRowExpanded)}>
+            <div key={rowVideoId} className={cn(styles.videoRow, expanded && styles.videoRowExpanded)}>
               <div className={styles.videoTop}>
                 {v.thumbnail_url ? (
                   <img className={styles.thumb} src={v.thumbnail_url} alt="" loading="lazy" decoding="async" />

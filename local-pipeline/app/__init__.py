@@ -1,0 +1,1 @@
+"""Local batch pipeline package."""

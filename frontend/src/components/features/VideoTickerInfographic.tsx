@@ -93,7 +93,9 @@ export default function VideoTickerInfographicForce(props: {
     >()
 
     for (const v of items || []) {
-      if (!v?.video_id) continue
+      const videoId = String(v?.video_id || '').trim()
+      const title = String((v as any)?.title || '').trim()
+      if (!videoId || !title) continue
       for (const e of v.edges || []) {
         if (!e?.ticker) continue
         const sym = String(e.ticker).toUpperCase()
@@ -113,9 +115,9 @@ export default function VideoTickerInfographicForce(props: {
             negativeVideoIds: Set<string>
           })
         row.mentions += 1
-        if (e.sentiment === 'positive') row.positiveVideoIds.add(v.video_id)
-        else if (e.sentiment === 'negative') row.negativeVideoIds.add(v.video_id)
-        else row.neutralVideoIds.add(v.video_id)
+        if (e.sentiment === 'positive') row.positiveVideoIds.add(videoId)
+        else if (e.sentiment === 'negative') row.negativeVideoIds.add(videoId)
+        else row.neutralVideoIds.add(videoId)
         m.set(sym, row)
       }
     }
@@ -175,10 +177,12 @@ export default function VideoTickerInfographicForce(props: {
     const links: Link[] = []
 
     for (const v of items || []) {
-      if (!v?.video_id) continue
-      if (!videoThumbMap.has(v.video_id)) videoThumbMap.set(v.video_id, v.thumbnail_url)
-      if (!videoTitleMap.has(v.video_id)) videoTitleMap.set(v.video_id, v.title ?? undefined)
-      if (!videoUrlMap.has(v.video_id)) videoUrlMap.set(v.video_id, v.video_url ?? undefined)
+      const videoId = String(v?.video_id || '').trim()
+      const title = String((v as any)?.title || '').trim()
+      if (!videoId || !title) continue
+      if (!videoThumbMap.has(videoId)) videoThumbMap.set(videoId, v.thumbnail_url)
+      if (!videoTitleMap.has(videoId)) videoTitleMap.set(videoId, title)
+      if (!videoUrlMap.has(videoId)) videoUrlMap.set(videoId, v.video_url ?? undefined)
       let vw = 0
       for (const e of v.edges || []) {
         if (!e?.ticker) continue
@@ -187,13 +191,13 @@ export default function VideoTickerInfographicForce(props: {
         tickerMap.set(sym, (tickerMap.get(sym) || 0) + w)
         vw += w
         links.push({
-          source: v.video_id,
+          source: videoId,
           target: sym,
           sentiment: (e.sentiment || 'neutral') as EdgeSentiment,
           weight: w,
         })
       }
-      if (vw > 0) videoMap.set(v.video_id, vw)
+      if (vw > 0) videoMap.set(videoId, vw)
     }
 
     const nodes: Node[] = []
