@@ -27,6 +27,15 @@ configure_logging(level=settings.log_level)
 
 app = FastAPI(title="yuNews Backend API", version="1.0.0")
 
+
+@app.get("/", include_in_schema=False)
+def root() -> dict:
+    return {
+        "ok": True,
+        "service": "yunews-backend",
+        "health": "/health",
+    }
+
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
