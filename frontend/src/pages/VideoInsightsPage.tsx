@@ -93,9 +93,13 @@ function hasUsableVideoListInfo(v: { video_id: string; title: string; published_
   const videoId = String((v as any).video_id || '').trim()
   const title = String((v as any).title || '').trim()
   const publishedAt = String((v as any).published_at || '').trim()
+  const overallExplanation = String((v as any).overall_explanation || '').trim()
+  const sentiment = String((v as any).sentiment || '').trim()
   if (!videoId || !title || !publishedAt) return false
   const ms = Date.parse(publishedAt)
   if (!Number.isFinite(ms)) return false
+  // Hide videos that don't have any derived insight yet.
+  if (!overallExplanation && !sentiment) return false
   return true
 }
 
