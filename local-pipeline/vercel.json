@@ -1,9 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/daily_pipeline",
-      "schedule": "0 0 * * *",
-      "timezone": "America/New_York"
-    }
-  ]
-}
