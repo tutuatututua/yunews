@@ -218,7 +218,7 @@ export function ChatWidget() {
           </div>
 
           <div className={styles.caution} role="note">
-            Caution: Responses use only the latest 7 days of data and are not financial advice.
+            Caution: Responses use only the latest 7 days of data and not a financial advice.
           </div>
 
           <div className={styles.messages} ref={scrollerRef}>
