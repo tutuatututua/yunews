@@ -11,7 +11,7 @@ from pydantic import SecretStr
 from pydantic import ValidationError
 
 from app.core.logging import log_llm_prompt_stats
-from app.models.schemas import ExtractionResult
+from app.models.schemas import ExtractionResult, TickerTopicPair
 
 logger = logging.getLogger(__name__)
 
@@ -100,12 +100,12 @@ class TickerTopicService:
         # Fallback: regex tickers with no keypoints
         return ExtractionResult(
             ticker_topic_pairs=[
-                {
-                    "ticker": t,
-                    "positive_keypoints": [],
-                    "negative_keypoints": [],
-                    "neutral_keypoints": [],
-                }
+                TickerTopicPair(
+                    ticker=t,
+                    positive_keypoints=[],
+                    negative_keypoints=[],
+                    neutral_keypoints=[],
+                )
                 for t in sorted(regex_tickers)
             ],
             tickers=sorted(regex_tickers),  # legacy field
@@ -122,15 +122,15 @@ class TickerTopicService:
         - neutral_keypoints: neutral/factual claims (max 4 per ticker)
         """
         raw_pairs = payload.get("ticker_topic_pairs") if isinstance(payload, dict) else None
-        
+
         normalized_pairs: List[dict] = []
         seen_tickers: Set[str] = set()
-        
+
         if isinstance(raw_pairs, list):
             for pair in raw_pairs[:10]:  # max 10 pairs per chunk
                 if not isinstance(pair, dict):
                     continue
-                
+
                 raw_ticker = pair.get("ticker", "")
                 ticker = str(raw_ticker).strip().upper()
                 if ticker.startswith("$"):
@@ -140,12 +140,12 @@ class TickerTopicService:
                     pass  # Valid special ticker
                 elif not ticker or not re.fullmatch(r"[A-Z]{1,5}", ticker):
                     continue
-                
+
                 # Deduplicate tickers within same chunk
                 if ticker in seen_tickers:
                     continue
                 seen_tickers.add(ticker)
-                
+
                 # Validate categorized keypoints (max 4 each, non-empty)
                 positive_keypoints: List[str] = []
                 negative_keypoints: List[str] = []
@@ -166,15 +166,15 @@ class TickerTopicService:
 
                 normalized_pairs.append(
                     {
-                    "ticker": ticker,
-                    "positive_keypoints": positive_keypoints,
-                    "negative_keypoints": negative_keypoints,
-                    "neutral_keypoints": neutral_keypoints,
+                        "ticker": ticker,
+                        "positive_keypoints": positive_keypoints,
+                        "negative_keypoints": negative_keypoints,
+                        "neutral_keypoints": neutral_keypoints,
                     }
                 )
-        
-        # Merge in any regex-detected tickers not in LLM output
-        for ticker in regex_tickers:
+
+        # Merge in any regex-detected tickers not in LLM output (sorted for deterministic output)
+        for ticker in sorted(regex_tickers):
             if ticker not in seen_tickers:
                 normalized_pairs.append({
                     "ticker": ticker,
@@ -183,7 +183,7 @@ class TickerTopicService:
                     "neutral_keypoints": [],
                 })
                 seen_tickers.add(ticker)
-        
+
         # Legacy field for backward compatibility
         all_tickers = sorted(seen_tickers)
         return {

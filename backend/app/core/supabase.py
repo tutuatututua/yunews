@@ -17,5 +17,6 @@ def get_supabase_client() -> Any:
     """
 
     settings = get_settings()
-    # `settings.supabase_key` prefers `SUPABASE_SERVICE_ROLE_KEY` when set.
-    return create_client(settings.supabase_url, settings.supabase_key)
+    # Settings validation guarantees this is present.
+    assert settings.supabase_service_role_key
+    return create_client(settings.supabase_url, settings.supabase_service_role_key)

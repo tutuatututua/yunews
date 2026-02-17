@@ -206,10 +206,19 @@ export function ChatWidget() {
               >
                 New
               </button>
-            <button type="button" className={styles.iconButton} aria-label="Close chat" onClick={() => setOpen(false)}>
-              <X size={18} />
-            </button>
+              <button
+                type="button"
+                className={styles.iconButton}
+                aria-label="Close chat"
+                onClick={() => setOpen(false)}
+              >
+                <X size={18} />
+              </button>
             </div>
+          </div>
+
+          <div className={styles.caution} role="note">
+            Caution: Responses use only the latest 7 days of data and are not financial advice.
           </div>
 
           <div className={styles.messages} ref={scrollerRef}>

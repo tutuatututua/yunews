@@ -42,6 +42,15 @@
   background: color-mix(in srgb, var(--surface) 86%, transparent);
 }
 
+.caution {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 86%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
 .title {
   font-weight: 800;
   letter-spacing: -0.01em;

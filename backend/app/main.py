@@ -31,12 +31,10 @@ app.add_middleware(RequestIdMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
-if settings.trusted_hosts:
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.effective_cors_allow_origins,
+    allow_origins=settings.cors_allow_origins,
     allow_credentials=False,
     allow_methods=settings.cors_allow_methods,
     allow_headers=settings.cors_allow_headers,

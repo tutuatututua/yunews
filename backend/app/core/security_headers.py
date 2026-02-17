@@ -32,13 +32,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "geolocation=(), microphone=(), camera=()",
         )
 
-        settings = get_settings()
-        if settings.enable_hsts:
-            # Only send HSTS when we can reasonably infer HTTPS.
-            # If you terminate TLS at a reverse proxy, ensure it forwards proto.
-            forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
-            is_https = request.url.scheme == "https" or forwarded_proto == "https"
-            if is_https:
-                _set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        # Only send HSTS when we can reasonably infer HTTPS.
+        # If you terminate TLS at a reverse proxy, ensure it forwards proto.
+        forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+        is_https = request.url.scheme == "https" or forwarded_proto == "https"
+        if is_https:
+            _set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
         return response
