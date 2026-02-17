@@ -96,7 +96,25 @@ class Settings(BaseSettings):
 
         if isinstance(v, (list, tuple, set)):
             return [s for s in (str(x).strip() for x in v) if s]
-        
+
+        if isinstance(v, str):
+            raw = v.strip()
+            if not raw:
+                return []
+
+            # Prefer JSON arrays (e.g. '["https://a","https://b"]'), common in Vercel env vars.
+            if raw[:1] in ("[", "{"):
+                try:
+                    loaded = json.loads(raw)
+                except json.JSONDecodeError:
+                    loaded = None
+
+                if isinstance(loaded, list):
+                    return [s for s in (str(x).strip() for x in loaded) if s]
+
+            # Fallback: comma-separated values.
+            return [s for s in (part.strip() for part in raw.split(",")) if s]
+
         return v
 
 
