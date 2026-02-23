@@ -10,6 +10,9 @@ import type {
   VideoDetail,
   VideoInfographicItem,
   VideoListItem,
+  YoutuberRecommendationEvent,
+  YoutuberRecommendationListData,
+  YoutuberRecommendationOverlay,
 } from '../types'
 
 import { getBackendBaseUrl } from '../config/env'
@@ -179,6 +182,27 @@ export async function fetchTopMovers(opts?: { days?: number; limit?: number; dat
   const suffix = qs.toString() ? `?${qs.toString()}` : ''
   const r = await getJson<{ data: TopMover[] }>(`/entities/top-movers${suffix}`)
   return r.data
+}
+
+export async function fetchYoutuberRecommendationOverlay(symbol: string, opts?: { days?: number }): Promise<YoutuberRecommendationOverlay> {
+  const qs = new URLSearchParams()
+  qs.set('symbol', String(symbol || '').trim().toUpperCase())
+  if (opts?.days != null) qs.set('days', String(opts.days))
+  const r = await getJson<{ data: YoutuberRecommendationOverlay }>(`/youtuber-recommendations/overlay?${qs.toString()}`)
+  return r.data
+}
+
+export async function fetchYoutuberRecommendations(opts?: {
+  symbol?: string
+  days?: number
+  limit?: number
+}): Promise<YoutuberRecommendationEvent[]> {
+  const qs = new URLSearchParams()
+  if (opts?.symbol) qs.set('symbol', String(opts.symbol).trim().toUpperCase())
+  if (opts?.days != null) qs.set('days', String(opts.days))
+  qs.set('limit', String(opts?.limit ?? 200))
+  const r = await getJson<{ data: YoutuberRecommendationListData }>(`/youtuber-recommendations?${qs.toString()}`)
+  return r.data.items || []
 }
 
 export async function streamChat(args: {

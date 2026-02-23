@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -18,178 +19,20 @@ from app.services.youtube_service import YouTubeSearchQuery, YouTubeService
 logger = logging.getLogger(__name__)
 
 
-def _add_unique_strings(target: list[str], items: Any, *, max_items: int) -> None:
-    """Append unique, non-empty strings from items into target up to max_items."""
-
-    if not isinstance(items, list):
-        return
-
-    for x in items:
-        if len(target) >= max_items:
-            return
-        sx = str(x).strip()
-        if not sx:
-            continue
-        if sx not in target:
-            target.append(sx)
+_RECO_TITLE_RE = re.compile(
+    r"\b(recommend(?:ation)?|recomend(?:ation)?|buy(?:ing)?|stock\s+picks?|picks?|top\s+stocks?|best\s+stocks?)\b",
+    re.IGNORECASE,
+)
+_RECO_TITLE_EXCLUDE_RE = re.compile(r"\b(don't\s+buy|do\s+not\s+buy|sell|short|avoid)\b", re.IGNORECASE)
 
 
-def _aggregate_keypoints(keypoints_list: list[dict[str, Any]]) -> dict[str, Any]:
-    """Aggregate keypoints from multiple chunks into a single structure."""
-
-    positive: list[str] = []
-    negative: list[str] = []
-    neutral: list[str] = []
-
-    for kp_dict in keypoints_list:
-        if not isinstance(kp_dict, dict):
-            continue
-
-        _add_unique_strings(positive, kp_dict.get("positive", []), max_items=10)
-        _add_unique_strings(negative, kp_dict.get("negative", []), max_items=10)
-        _add_unique_strings(neutral, kp_dict.get("neutral", []), max_items=10)
-
-    return {
-        "positive": positive,
-        "negative": negative,
-        "neutral": neutral,
-    }
-
-
-def _derive_video_summary(*, video_id: str, summary_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Create a lightweight per-video summary from aggregated (ticker) rows."""
-
-    rows = [r for r in (summary_rows or []) if isinstance(r, dict)]
-    if not rows:
-        return None
-
-    tickers = sorted({(r.get("ticker") or "").strip().upper() for r in rows if r.get("ticker")})
-
-    key_points: list[str] = []
-    opportunities: list[str] = []
-    risks: list[str] = []
-    md_lines: list[str] = []
-
-    for r in rows:
-        ticker = (r.get("ticker") or "").strip().upper()
-        summary_obj = r.get("summary") or {}
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            sections = [
-                ("**Positive**", summary_obj.get("positive") or []),
-                ("**Negative**", summary_obj.get("negative") or []),
-                ("**Neutral**", summary_obj.get("neutral") or []),
-            ]
-        else:
-            sections = [
-                ("**Bull case**", summary_obj.get("bull_case") or []),
-                ("**Bear case**", summary_obj.get("bear_case") or []),
-                ("**Risks**", summary_obj.get("risks") or []),
-            ]
-
-        md_lines.append(f"## {ticker}".strip())
-        for title, items in sections:
-            if items:
-                md_lines.append(title)
-                md_lines.extend(f"- {x}" for x in items)
-                key_points.extend(str(x) for x in items)
-        md_lines.append("")
-
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            _add_unique_strings(opportunities, summary_obj.get("positive") or [], max_items=12)
-            _add_unique_strings(risks, summary_obj.get("negative") or [], max_items=12)
-        else:
-            _add_unique_strings(opportunities, summary_obj.get("bull_case") or [], max_items=12)
-            _add_unique_strings(risks, summary_obj.get("risks") or [], max_items=12)
-            _add_unique_strings(risks, summary_obj.get("bear_case") or [], max_items=12)
-
-    return {
-        "video_id": video_id,
-        "summary_markdown": "\n".join(md_lines).strip(),
-        "overall_explanation": "",
-        "risks": risks,
-        "opportunities": opportunities,
-        "key_points": key_points[:12],
-        "tickers": tickers,
-        "sentiment": None,
-        "model": "derived-from-summaries",
-        "summarized_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-def _derive_daily_summary(*, market_date: date, rows: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Create a daily market summary derived from aggregated (video,ticker) summaries."""
-
-    if not rows:
-        return None
-
-    ticker_counts: dict[str, int] = {}
-    opportunities: list[str] = []
-    risks: list[str] = []
-
-    md_lines: list[str] = [f"# Market Summary — {market_date.isoformat()}", ""]
-
-    for r in rows:
-        if not isinstance(r, dict):
-            continue
-        ticker = (r.get("ticker") or "").strip().upper()
-        summary_obj = r.get("summary") or {}
-        if not ticker:
-            continue
-
-        ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
-
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            sections = [
-                ("**Positive**", summary_obj.get("positive") or []),
-                ("**Negative**", summary_obj.get("negative") or []),
-                ("**Neutral**", summary_obj.get("neutral") or []),
-            ]
-        else:
-            sections = [
-                ("**Bull case**", summary_obj.get("bull_case") or []),
-                ("**Bear case**", summary_obj.get("bear_case") or []),
-                ("**Risks**", summary_obj.get("risks") or []),
-            ]
-
-        md_lines.append(f"## {ticker}")
-        for title, items in sections:
-            if items:
-                md_lines.append(title)
-                md_lines.extend(f"- {x}" for x in items)
-        md_lines.append("")
-
-        if any(k in summary_obj for k in ("positive", "negative", "neutral")):
-            _add_unique_strings(opportunities, summary_obj.get("positive") or [], max_items=12)
-            _add_unique_strings(risks, summary_obj.get("negative") or [], max_items=12)
-        else:
-            _add_unique_strings(opportunities, summary_obj.get("bull_case") or [], max_items=12)
-            _add_unique_strings(risks, summary_obj.get("risks") or [], max_items=12)
-            _add_unique_strings(risks, summary_obj.get("bear_case") or [], max_items=12)
-
-    movers = [
-        {
-            "symbol": sym,
-            "direction": "mixed",
-            "reason": f"Mentioned in {ticker_counts[sym]} ticker summaries",
-        }
-        for sym in sorted(ticker_counts, key=lambda s: (-ticker_counts[s], s))[:10]
-    ]
-
-    return {
-        "id": market_date.isoformat(),
-        "market_date": market_date.isoformat(),
-        "title": f"Market Summary — {market_date.isoformat()}",
-        "summary_markdown": "\n".join(md_lines).strip(),
-        "movers": movers,
-        "risks": risks,
-        "opportunities": opportunities,
-        "sentiment": None,
-        "sentiment_score": None,
-        "sentiment_reason": "",
-        "model": "derived-from-summaries",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-    }
-
+def _is_recommendation_title(title: str | None) -> bool:
+    t = str(title or "").strip()
+    if not t:
+        return False
+    if _RECO_TITLE_EXCLUDE_RE.search(t):
+        return False
+    return _RECO_TITLE_RE.search(t) is not None
 
 def main() -> None:
     configure_logging()
@@ -263,10 +106,11 @@ def main() -> None:
 
         # 4) Time-based chunking
         chunks = chunker.chunk_by_time(video.video_id, entries)
-        db.upsert_transcript_chunks(chunks)
 
         # 5) Extract tickers from EACH chunk with categorized keypoints
+        # Note: We aggregate in-memory to avoid persisting per-chunk rows in Supabase.
         total_extractions = 0
+        grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for chunk in chunks:
             chunk_extraction = extractor.extract(chunk.chunk_text)
             if not chunk_extraction.ticker_topic_pairs:
@@ -275,35 +119,28 @@ def main() -> None:
 
             # Filter out invalid pairs
             valid_pairs = [pair for pair in chunk_extraction.ticker_topic_pairs if pair.ticker]
-
             if not valid_pairs:
                 continue
 
             logger.debug(
                 "Chunk %d: extracted %d tickers with keypoints",
                 chunk.chunk_index,
-                len(valid_pairs)
+                len(valid_pairs),
             )
 
-            # 6) Store one analysis row per (chunk, ticker) with keypoints
             for pair in valid_pairs:
-                ticker = pair.ticker
+                ticker_u = str(pair.ticker).strip().upper()
+                if not ticker_u:
+                    continue
 
-                # Build keypoints structure
                 keypoints = {
                     "positive": pair.positive_keypoints,
                     "negative": pair.negative_keypoints,
                     "neutral": pair.neutral_keypoints,
                 }
 
+                grouped[ticker_u].append(keypoints)
                 total_extractions += 1
-
-                db.upsert_chunk_analysis(
-                    video_id=video.video_id,
-                    chunk_index=chunk.chunk_index,
-                    ticker=ticker,
-                    chunk_summary=keypoints,
-                )
 
         if total_extractions == 0:
             logger.info("No tickers extracted from any chunk for video_id=%s, skipping", video.video_id)
@@ -316,24 +153,6 @@ def main() -> None:
             total_extractions,
             video.video_id
         )
-
-        # 7) Aggregation: group chunk keypoints by (video_id, ticker)
-        analysis_rows = db.list_chunk_analysis(video.video_id)
-
-        # Group by ticker
-        grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for row in analysis_rows:
-            ticker_value = row.get("ticker")
-            keypoints = row.get("chunk_summary") or {}
-
-            if ticker_value:
-                ticker = str(ticker_value).upper()
-                grouped[ticker].append(keypoints)
-            else:
-                logger.debug(
-                    "Skipping malformed chunk_analysis row: ticker=%s",
-                    ticker_value,
-                )
 
         if not grouped:
             logger.info("No ticker groups created for video_id=%s", video.video_id)
@@ -348,20 +167,22 @@ def main() -> None:
 
         # Aggregate ONCE per video (LLM), producing per-ticker aggregates.
         # This is much cheaper than calling the LLM once per ticker.
-        aggregated_by_ticker: dict[str, dict[str, Any]] = {}
-        try:
-            agg_map = summarizer.aggregate_video_tickers(grouped_chunk_summaries=grouped)
-            aggregated_by_ticker = {t: a.model_dump() for t, a in (agg_map or {}).items()}
-        except Exception:
-            logger.exception("Failed video-level aggregation; falling back to deterministic aggregation")
+        agg_map = summarizer.aggregate_video_tickers(grouped_chunk_summaries=grouped)
+        if not agg_map:
+            raise RuntimeError(f"aggregate_video_tickers returned empty for video_id={video.video_id}")
+        aggregated_by_ticker: dict[str, dict[str, Any]] = {t: a.model_dump() for t, a in agg_map.items()}
 
         for ticker, keypoints_list in grouped.items():
             ticker_u = str(ticker).strip().upper()
 
             aggregated_keypoints = aggregated_by_ticker.get(ticker_u)
             if not aggregated_keypoints:
-                # Deterministic fallback (dedupe/limit) if LLM output is missing/invalid.
-                aggregated_keypoints = _aggregate_keypoints(keypoints_list)
+                logger.info(
+                    "Missing LLM aggregated keypoints; skipping aggregated summary ticker=%s video_id=%s",
+                    ticker_u,
+                    video.video_id,
+                )
+                continue
 
             aggregated_items_for_video.append(
                 {
@@ -376,6 +197,34 @@ def main() -> None:
                 ticker=ticker_u,
                 aggregated_summary=aggregated_keypoints,
             )
+
+        # 8b) If the video title suggests explicit stock recommendations, store lightweight events.
+        # This keeps Supabase usage low: we do NOT store price history, only the recommendation event.
+        try:
+            if _is_recommendation_title(video.title):
+                reco_tickers = sorted(
+                    {
+                        str(it.get("ticker")).strip().upper()
+                        for it in (aggregated_items_for_video or [])
+                        if isinstance(it, dict) and it.get("ticker")
+                    }
+                )
+                reco_tickers = [t for t in reco_tickers if t and t != "MARKET"]
+                for sym in reco_tickers:
+                    db.upsert_youtuber_recommendation(
+                        video_id=video.video_id,
+                        ticker=sym,
+                        action="buy",
+                        source="title",
+                    )
+                if reco_tickers:
+                    logger.info(
+                        "Stored %d youtuber recommendations for video_id=%s",
+                        len(reco_tickers),
+                        video.video_id,
+                    )
+        except Exception:
+            logger.exception("Failed to upsert youtuber recommendations")
 
         # 9) Store an overall per-video summary for the UI (optional table)
         try:
@@ -447,33 +296,10 @@ def main() -> None:
                 except Exception:
                     logger.exception("Failed to embed/store video summary embedding")
             else:
-                # Fallback to derived-from-summaries (keeps UI populated even if LLM fails).
-                logger.info("Falling back to derived video summary video_id=%s", video.video_id)
-                sr2 = (
-                    db.client.table("summaries")
-                    .select("ticker,summary,created_at")
-                    .eq("video_id", video.video_id)
-                    .order("created_at", desc=True)
-                    .limit(500)
-                    .execute()
-                ).data or []
-                vs = _derive_video_summary(video_id=video.video_id, summary_rows=sr2)
-                if vs is not None:
-                    db.upsert_video_summary(
-                        video_id=video.video_id,
-                        video_titles=video.title,
-                        published_at=video.published_at,
-                        summary_markdown=vs["summary_markdown"],
-                        overall_explanation=vs.get("overall_explanation") or "",
-                        movers=vs.get("movers") or [],
-                        risks=vs.get("risks") or [],
-                        opportunities=vs.get("opportunities") or [],
-                        key_points=vs["key_points"],
-                        sentiment=vs["sentiment"],
-                        events=vs.get("events") or [],
-                        model=vs["model"],
-                        summarized_at=vs["summarized_at"],
-                    )
+                logger.info(
+                    "Overall video summary markdown empty; skipping video_summary upsert video_id=%s",
+                    video.video_id,
+                )
         except Exception:
             logger.exception("Failed to store video summary")
 
@@ -562,29 +388,7 @@ def main() -> None:
                     model=f"llm:{settings.openai_chat_model}",
                 )
             else:
-                s_resp = (
-                    db.client.table("summaries")
-                    .select("video_id,ticker,summary,created_at")
-                    .in_("video_id", video_ids)
-                    .order("created_at", desc=True)
-                    .limit(4000)
-                    .execute()
-                )
-                ds = _derive_daily_summary(market_date=market_date, rows=(s_resp.data or []))
-                if ds is not None:
-                    db.upsert_daily_summary(
-                        market_date=market_date,
-                        title=ds["title"],
-                        summary_markdown=ds["summary_markdown"],
-                        movers=ds["movers"],
-                        risks=ds["risks"],
-                        opportunities=ds["opportunities"],
-                        sentiment=ds.get("sentiment"),
-                        sentiment_score=ds.get("sentiment_score"),
-                        sentiment_reason=ds.get("sentiment_reason") or "",
-                        model=ds["model"],
-                        generated_at=ds["generated_at"],
-                    )
+                logger.info("Daily summary markdown empty; skipping daily_summary upsert")
     except Exception:
         logger.exception("Failed to store daily summary")
 

@@ -23,6 +23,7 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/infographic" element={<LegacyInfographicRedirect />} />
               <Route path="/ticker" element={<TickerPage />} />
+              <Route path="/recomendation" element={<Navigate to="/" replace />} />
               <Route path="/videos" element={<VideoInsightsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

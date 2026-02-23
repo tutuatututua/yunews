@@ -16,6 +16,19 @@ docker compose --profile pipeline run --rm local-pipeline
 If your Supabase schema was created before a change landed, apply any incremental SQL in:
 - `local-pipeline/app/db/migrations/`
 
+### Backfill youtuber recommendations (old videos)
+
+1) Apply the migration:
+
+- `local-pipeline/app/db/migrations/2026-02-23_youtuber_recommendations.sql`
+
+2) Run the backfill script:
+
+```bash
+python local-pipeline/backfill_youtuber_recommendations.py --dry-run --days 3650 --limit 20000
+python local-pipeline/backfill_youtuber_recommendations.py --days 3650 --limit 20000
+```
+
 ## Production (AWS ECS)
 
 Deploy this as:

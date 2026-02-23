@@ -345,15 +345,7 @@ export default function VideoInsightsPage() {
                               showVideosLink={false}
                             />
 
-                            {detailQuery.data.transcript?.transcript_text?.trim() ? (
-                              <div className={styles.section}>
-                                <div className={styles.sectionTitle}>Transcript</div>
-                                <details className={styles.transcriptDetails}>
-                                  <summary className={styles.transcriptSummary}>Show transcript</summary>
-                                  <pre className={styles.transcriptText}>{detailQuery.data.transcript.transcript_text}</pre>
-                                </details>
-                              </div>
-                            ) : null}
+
                           </>
                         )
                       })() : (

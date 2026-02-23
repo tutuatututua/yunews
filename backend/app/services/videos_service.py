@@ -258,26 +258,6 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
     if "id" not in video:
         video["id"] = video.get("video_id")
 
-    tr_resp = (
-        supa.table("transcript_chunks")
-        .select("chunk_index,chunk_text")
-        .eq("video_id", video_id)
-        .order("chunk_index", desc=False)
-        .limit(500)
-        .execute()
-    )
-    chunks = tr_resp.data or []
-    transcript_text = "\n\n".join((c.get("chunk_text") or "").strip() for c in chunks if isinstance(c, dict))
-    transcript = (
-        {
-            "id": f"{video_id}:merged",
-            "transcript_text": transcript_text,
-            "transcript_language": None,
-        }
-        if transcript_text
-        else None
-    )
-
     ticker_details: list[dict[str, Any]] = []
 
     summary: dict[str, Any] | None = None
@@ -368,4 +348,4 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
             }
         )
 
-    return {"video": video, "transcript": transcript, "summary": summary, "ticker_details": ticker_details}
+    return {"video": video, "summary": summary, "ticker_details": ticker_details}

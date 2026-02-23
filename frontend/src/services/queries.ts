@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { EntityChunkRow } from '../types'
+import type { EntityChunkRow, YoutuberRecommendationEvent, YoutuberRecommendationOverlay } from '../types'
 import {
   fetchEntityChunks,
   fetchDailySummary,
@@ -9,6 +9,8 @@ import {
   fetchVideoDetail,
   fetchVideoInfographic,
   fetchVideos,
+  fetchYoutuberRecommendations,
+  fetchYoutuberRecommendationOverlay,
 } from './api'
 
 /**
@@ -96,5 +98,31 @@ export function useTopMovers(
     queryKey: ['topMovers', anchorDate ?? null, days, limit],
     queryFn: () => fetchTopMovers({ date: anchorDate, days, limit }),
     enabled,
+  })
+}
+
+export function useYoutuberRecommendationOverlay(symbol: string | null, opts?: { days?: number }, enabled: boolean = true) {
+  const sym = symbol ? String(symbol).trim().toUpperCase() : null
+  return useQuery<YoutuberRecommendationOverlay>({
+    queryKey: ['youtuberRecoOverlay', sym ?? null, opts?.days ?? null],
+    queryFn: () => fetchYoutuberRecommendationOverlay(sym as string, { days: opts?.days }),
+    enabled: !!sym && enabled,
+    staleTime: 60_000,
+  })
+}
+
+export function useYoutuberRecommendationsList(
+  opts?: { symbol?: string; days?: number; limit?: number },
+  enabled: boolean = true,
+) {
+  const sym = opts?.symbol ? String(opts.symbol).trim().toUpperCase() : undefined
+  const days = opts?.days ?? 365
+  const limit = opts?.limit ?? 200
+
+  return useQuery<YoutuberRecommendationEvent[]>({
+    queryKey: ['youtuberRecoList', sym ?? null, days, limit],
+    queryFn: () => fetchYoutuberRecommendations({ symbol: sym, days, limit }),
+    enabled,
+    staleTime: 60_000,
   })
 }

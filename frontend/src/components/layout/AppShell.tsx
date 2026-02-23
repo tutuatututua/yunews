@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Bell, Home, Image, Menu, Search, Video, X } from 'lucide-react'
+import { Bell, Home, Image, Menu, Search, TrendingUp, Video, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { TimeZoneMenu } from '../ui/TimeZoneMenu'
 import { ChatWidget } from '../chat/ChatWidget'

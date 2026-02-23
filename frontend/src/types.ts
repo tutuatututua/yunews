@@ -41,7 +41,6 @@ export type VideoListItem = {
 
 export type VideoDetail = {
   video: any
-  transcript: { id: string; transcript_text: string; transcript_language: string | null } | null
   summary: {
     id: string
     summary_markdown: string
@@ -103,6 +102,38 @@ export type QueryPlan = {
   is_stock_related: boolean
   rewritten_prompt: string
   tickers: string[] | null
+}
+
+export type PriceBar = {
+  date: string
+  close: number | null
+}
+
+export type YoutuberRecommendationEvent = {
+  video_id: string
+  ticker: string
+  action: 'buy'
+  title?: string | null
+  channel?: string | null
+  published_at?: string | null
+  video_url?: string | null
+  entry_date?: string | null
+  entry_close?: number | null
+  latest_date?: string | null
+  latest_close?: number | null
+  return_pct?: number | null
+  return_7d_pct?: number | null
+  return_30d_pct?: number | null
+}
+
+export type YoutuberRecommendationOverlay = {
+  symbol: string
+  prices: PriceBar[]
+  events: YoutuberRecommendationEvent[]
+}
+
+export type YoutuberRecommendationListData = {
+  items: YoutuberRecommendationEvent[]
 }
 
 // Chat (SSE)

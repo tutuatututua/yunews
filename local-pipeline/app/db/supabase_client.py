@@ -6,7 +6,7 @@ from typing import Any
 
 from supabase import Client, create_client
 
-from app.models.schemas import TranscriptChunk, VideoMetadata
+from app.models.schemas import VideoMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -62,50 +62,6 @@ class SupabaseDB:
         self._client.table("videos").update({"processed_at": datetime.now(timezone.utc).isoformat()}).eq(
             "video_id", video_id
         ).execute()
-
-    def upsert_transcript_chunks(self, chunks: list[TranscriptChunk]) -> None:
-        if not chunks:
-            return
-
-        payload = [
-            {
-                "video_id": c.video_id,
-                "chunk_index": c.chunk_index,
-                "chunk_start_time": c.chunk_start_time,
-                "chunk_end_time": c.chunk_end_time,
-                "chunk_text": c.chunk_text,
-            }
-            for c in chunks
-        ]
-
-        # `transcript_chunks` is keyed by (video_id, chunk_index). Target that key to make reruns idempotent.
-        self._client.table("transcript_chunks").upsert(
-            payload,
-            on_conflict="video_id,chunk_index",
-        ).execute()
-
-    def upsert_chunk_analysis(
-        self,
-        *,
-        video_id: str,
-        chunk_index: int,
-        ticker: str,
-        chunk_summary: dict[str, Any],
-    ) -> None:
-        payload = {
-            "video_id": video_id,
-            "chunk_index": chunk_index,
-            "ticker": ticker,
-            "chunk_summary": chunk_summary,
-        }
-        self._client.table("chunk_analysis").upsert(
-            payload,
-            on_conflict="video_id,chunk_index,ticker",
-        ).execute()
-
-    def list_chunk_analysis(self, video_id: str) -> list[dict[str, Any]]:
-        resp = self._client.table("chunk_analysis").select("*").eq("video_id", video_id).execute()
-        return resp.data or []
 
     def upsert_aggregated_summary(
         self,
@@ -340,5 +296,54 @@ class SupabaseDB:
             if "published_at" in msg and ("does not exist" in msg or "column" in msg):
                 payload.pop("published_at", None)
                 self._client.table("video_summary_embeddings").upsert(payload, on_conflict="video_id,model").execute()
+                return
+            raise
+
+    def upsert_youtuber_recommendation(
+        self,
+        *,
+        video_id: str,
+        ticker: str,
+        action: str = "buy",
+        source: str | None = "title",
+    ) -> None:
+        """Upsert a lightweight recommendation event.
+
+        This is intentionally small to minimize Supabase storage: we store only
+        (video_id, ticker, action) and join against `videos` for metadata.
+
+        If the table isn't present (older schema), this becomes a safe no-op.
+        """
+
+        sym = str(ticker or "").strip().upper()
+        if not sym:
+            return
+
+        payload: dict[str, Any] = {
+            "video_id": str(video_id),
+            "ticker": sym,
+            "action": str(action or "buy").strip().lower() or "buy",
+            "source": source,
+        }
+
+        try:
+            self._client.table("youtuber_recommendations").upsert(
+                payload,
+                on_conflict="video_id,ticker,action",
+            ).execute()
+        except Exception as exc:
+            # Backward compatibility: older DBs may not have this table/columns.
+            msg = str(exc)
+            if "youtuber_recommendations" in msg and (
+                "does not exist" in msg or "relation" in msg or "404" in msg
+            ):
+                logger.debug("youtuber_recommendations table missing; skipping upsert")
+                return
+            if "source" in msg and ("does not exist" in msg or "column" in msg):
+                payload.pop("source", None)
+                self._client.table("youtuber_recommendations").upsert(
+                    payload,
+                    on_conflict="video_id,ticker,action",
+                ).execute()
                 return
             raise

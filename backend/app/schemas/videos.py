@@ -93,18 +93,9 @@ class VideoSummary(BaseModel):
     published_at: str | None = None
 
 
-class VideoTranscript(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: str
-    transcript_text: str
-    transcript_language: str | None = None
-
-
 class VideoDetailData(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     video: dict[str, Any]
-    transcript: VideoTranscript | None = None
     summary: VideoSummary | None = None
     ticker_details: list[VideoTickerDetail] = Field(default_factory=list)
