@@ -211,7 +211,7 @@ export default function VideoInsightsPage() {
             </select>
           </label>  
 
-          <Link className={cn(ui.button, ui.ghost)} to={`/ticker?days=${encodeURIComponent(String(days))}`}>
+          <Link className={cn(ui.button, ui.ghost)} to={`/infographic?days=${encodeURIComponent(String(days))}`}>
             Ticker view
           </Link>
         </div>

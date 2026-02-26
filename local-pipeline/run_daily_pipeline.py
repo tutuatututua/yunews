@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import logging
-import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.core.recommendations import is_recommendation_title
 from app.db.supabase_client import SupabaseDB
 from app.services.chunking_service import ChunkingService
 from app.services.embedding_service import EmbeddingService
@@ -19,20 +19,28 @@ from app.services.youtube_service import YouTubeSearchQuery, YouTubeService
 logger = logging.getLogger(__name__)
 
 
-_RECO_TITLE_RE = re.compile(
-    r"\b(recommend(?:ation)?|recomend(?:ation)?|buy(?:ing)?|stock\s+picks?|picks?|top\s+stocks?|best\s+stocks?)\b",
-    re.IGNORECASE,
-)
-_RECO_TITLE_EXCLUDE_RE = re.compile(r"\b(don't\s+buy|do\s+not\s+buy|sell|short|avoid)\b", re.IGNORECASE)
+def _clip(text: str, n: int = 1200) -> str:
+    s = str(text or "")
+    if len(s) <= n:
+        return s
+    return s[:n] + "…"
 
 
-def _is_recommendation_title(title: str | None) -> bool:
-    t = str(title or "").strip()
-    if not t:
-        return False
-    if _RECO_TITLE_EXCLUDE_RE.search(t):
-        return False
-    return _RECO_TITLE_RE.search(t) is not None
+def _keypoints_to_markdown(keypoints: dict[str, Any]) -> str:
+    def _section(name: str, items: Any) -> str:
+        lst = items if isinstance(items, list) else []
+        bits = [str(x).strip() for x in lst if str(x).strip()]
+        if not bits:
+            return f"{name}:\n- (none)"
+        return f"{name}:\n" + "\n".join(f"- {b}" for b in bits)
+
+    return "\n\n".join(
+        [
+            _section("Positive", keypoints.get("positive")),
+            _section("Negative", keypoints.get("negative")),
+            _section("Neutral", keypoints.get("neutral")),
+        ]
+    ).strip()
 
 def main() -> None:
     configure_logging()
@@ -163,14 +171,20 @@ def main() -> None:
         # 8) Aggregate keypoints and create embeddings
         dimension = embedder.embedding_dimension()
 
+        rag_docs_to_upsert: list[dict[str, Any]] = []
+
         aggregated_items_for_video: list[dict[str, Any]] = []
 
         # Aggregate ONCE per video (LLM), producing per-ticker aggregates.
         # This is much cheaper than calling the LLM once per ticker.
         agg_map = summarizer.aggregate_video_tickers(grouped_chunk_summaries=grouped)
         if not agg_map:
-            raise RuntimeError(f"aggregate_video_tickers returned empty for video_id={video.video_id}")
+            logger.warning(f"aggregate_video_tickers returned empty for video_id={video.video_id}")
+            break
         aggregated_by_ticker: dict[str, dict[str, Any]] = {t: a.model_dump() for t, a in agg_map.items()}
+
+        # 8a) Upsert per-(video,ticker) semantic search docs
+        ticker_jobs: list[dict[str, Any]] = []
 
         for ticker, keypoints_list in grouped.items():
             ticker_u = str(ticker).strip().upper()
@@ -198,10 +212,59 @@ def main() -> None:
                 aggregated_summary=aggregated_keypoints,
             )
 
+            ticker_md = _keypoints_to_markdown(aggregated_keypoints)
+            ticker_jobs.append(
+                {
+                    "document_type": "ticker_summary",
+                    "video_id": video.video_id,
+                    "ticker": ticker_u,
+                    "source_key": "aggregate",
+                    "video_title": video.title,
+                    "thumbnail_url": video.thumbnail_url,
+                    "summary_text": ticker_md,
+                    "_embed_text": "\n\n".join(
+                        [
+                            f"Type: ticker_summary",
+                            f"Ticker: {ticker_u}",
+                            f"Video: {video.title}",
+                            f"Channel: {video.channel}",
+                            ticker_md,
+                        ]
+                    ).strip(),
+                }
+            )
+
+        # Embed + store ticker_summary docs
+        if ticker_jobs:
+            try:
+                embed_texts = [str(j.get("_embed_text") or " ") for j in ticker_jobs]
+                vectors = embedder.embed_texts(embed_texts)
+                if len(vectors) != len(ticker_jobs):
+                    raise RuntimeError(f"Embedding batch size mismatch: got {len(vectors)} expected {len(ticker_jobs)}")
+
+                for j, vec in zip(ticker_jobs, vectors, strict=False):
+                    rag_docs_to_upsert.append(
+                        {
+                            "document_type": j["document_type"],
+                            "video_id": j["video_id"],
+                            "ticker": j.get("ticker") or "",
+                            "source_key": j.get("source_key") or "",
+                            "video_title": j.get("video_title"),
+                            "thumbnail_url": j.get("thumbnail_url"),
+                            "summary_text": j.get("summary_text") or "",
+                            "model": settings.openai_embedding_model,
+                            "dimension": dimension,
+                            "embedding": vec,
+                        }
+                    )
+            except Exception:
+                logger.exception("Failed to embed/store ticker_summary rag documents for video_id=%s", video.video_id)
+
+
         # 8b) If the video title suggests explicit stock recommendations, store lightweight events.
         # This keeps Supabase usage low: we do NOT store price history, only the recommendation event.
         try:
-            if _is_recommendation_title(video.title):
+            if is_recommendation_title(video.title):
                 reco_tickers = sorted(
                     {
                         str(it.get("ticker")).strip().upper()
@@ -213,6 +276,7 @@ def main() -> None:
                 for sym in reco_tickers:
                     db.upsert_youtuber_recommendation(
                         video_id=video.video_id,
+                        published_at=video.published_at,
                         ticker=sym,
                         action="buy",
                         source="title",
@@ -286,12 +350,19 @@ def main() -> None:
                         ]
                     ).strip()
                     video_vector = embedder.embed_text(video_embed_text)
-                    db.upsert_video_summary_embedding(
-                        video_id=video.video_id,
-                        published_at=video.published_at,
-                        model=settings.openai_embedding_model,
-                        embedding=video_vector,
-                        dimension=dimension,
+                    rag_docs_to_upsert.append(
+                        {
+                            "document_type": "video_summary",
+                            "video_id": video.video_id,
+                            "ticker": "",
+                            "source_key": "overall",
+                            "video_title": video.title,
+                            "thumbnail_url": video.thumbnail_url,
+                            "summary_text": summary_markdown,
+                            "model": settings.openai_embedding_model,
+                            "dimension": dimension,
+                            "embedding": video_vector,
+                        }
                     )
                 except Exception:
                     logger.exception("Failed to embed/store video summary embedding")
@@ -302,6 +373,13 @@ def main() -> None:
                 )
         except Exception:
             logger.exception("Failed to store video summary")
+
+        # Flush all rag documents for this video (best-effort).
+        if rag_docs_to_upsert:
+            try:
+                db.upsert_rag_documents(rag_docs_to_upsert)
+            except Exception:
+                logger.exception("Failed to upsert rag_documents for video_id=%s", video.video_id)
 
         db.mark_video_processed(video.video_id)
         processed += 1
@@ -387,6 +465,40 @@ def main() -> None:
                     sentiment_reason=getattr(daily, "sentiment_reason", "") or "",
                     model=f"llm:{settings.openai_chat_model}",
                 )
+
+                # Also embed the daily summary for chat/RAG retrieval.
+                try:
+                    dimension = embedder.embedding_dimension()
+                    daily_embed_text = "\n\n".join(
+                        [
+                            "Type: daily_summary",
+                            f"Market date: {market_date.isoformat()}",
+                            f"Title: {daily.title}",
+                            daily.summary_markdown,
+                        ]
+                    ).strip()
+                    daily_vector = embedder.embed_text(daily_embed_text)
+
+                    # Note: daily summaries aren't tied to a specific YouTube video.
+                    # We store them in rag_documents with a synthetic video_id.
+                    db.upsert_rag_documents(
+                        [
+                            {
+                                "document_type": "daily_summary",
+                                "video_id": f"daily:{market_date.isoformat()}",
+                                "ticker": "",
+                                "source_key": market_date.isoformat(),
+                                "video_title": f"Daily Summary {market_date.isoformat()}",
+                                "thumbnail_url": None,
+                                "summary_text": daily.summary_markdown,
+                                "model": settings.openai_embedding_model,
+                                "dimension": dimension,
+                                "embedding": daily_vector,
+                            }
+                        ]
+                    )
+                except Exception:
+                    logger.exception("Failed to embed/store daily_summary rag document")
             else:
                 logger.info("Daily summary markdown empty; skipping daily_summary upsert")
     except Exception:

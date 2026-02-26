@@ -4,7 +4,7 @@
 
 .svg {
   width: 100%;
-  height: 160px;
+  height: 400px;
   display: block;
   border: 1px solid var(--border-2);
   border-radius: 14px;
@@ -23,14 +23,65 @@
   stroke-width: 2;
 }
 
+.baseline {
+  stroke: var(--border-2);
+  stroke-width: 1;
+}
+
 .markerLine {
   stroke: color-mix(in srgb, var(--primary) 55%, var(--border-2));
   stroke-width: 1;
   stroke-dasharray: 3 3;
+  stroke-linecap: round;
+}
+
+.markerDot {
+  fill: var(--surface);
+  stroke: var(--primary);
+  stroke-width: 2;
 }
 
 .dot {
   fill: var(--primary);
   stroke: var(--surface);
   stroke-width: 1;
+}
+
+.profitLine {
+  stroke: color-mix(in srgb, var(--muted) 70%, var(--border-2));
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+}
+
+.profitLineUp {
+  stroke: color-mix(in srgb, var(--sent-pos) 80%, var(--border-2));
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+}
+
+.profitLineDown {
+  stroke: color-mix(in srgb, var(--sent-neg) 80%, var(--border-2));
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+}
+
+.thumbRing {
+  fill: var(--surface);
+  stroke: color-mix(in srgb, var(--muted) 70%, var(--border));
+  stroke-width: 2;
+}
+
+.thumbRingUp {
+  fill: var(--surface);
+  stroke: color-mix(in srgb, var(--sent-pos) 80%, var(--border));
+  stroke-width: 2;
+}
+
+.thumbRingDown {
+  fill: var(--surface);
+  stroke: color-mix(in srgb, var(--sent-neg) 80%, var(--border));
+  stroke-width: 2;
 }

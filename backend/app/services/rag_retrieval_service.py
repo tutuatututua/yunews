@@ -157,14 +157,16 @@ def retrieve_chunks(
         for t in tickers:
             run_stage(stage="ticker", document_type="ticker_summary", filter_ticker=t, match_count=per_ticker_count)
 
+        # Daily market context (not ticker-filtered).
+        run_stage(stage="daily", document_type="daily_summary", filter_ticker=None, match_count=max(2, top_k // 3))
+
         # Supporting, but not ticker-filtered: catches relevant context even when
         # metadata is imperfect.
-        run_stage(stage="general", document_type="highlight", filter_ticker=None, match_count=max(6, top_k))
         run_stage(stage="general", document_type="video_summary", filter_ticker=None, match_count=max(4, top_k // 2))
     else:
         # Default ordering when we don't have a reliable ticker filter.
+        run_stage(stage="daily", document_type="daily_summary", filter_ticker=None, match_count=max(2, top_k // 3))
         run_stage(stage="general", document_type="video_summary", filter_ticker=None, match_count=max(6, top_k))
-        run_stage(stage="general", document_type="highlight", filter_ticker=None, match_count=max(oversample, top_k))
 
     # Final: completely unfiltered vector search (skip if we already have enough).
     if len(best_by_id) < top_k:

@@ -1,9 +1,8 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Bell, Home, Image, Menu, Search, TrendingUp, Video, X } from 'lucide-react'
+import { Bell, Home, Image, Menu, MessageCircle, Search, TrendingUp, Video, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { TimeZoneMenu } from '../ui/TimeZoneMenu'
-import { ChatWidget } from '../chat/ChatWidget'
 import styles from './AppShell.module.css'
 
 function navLinkClassName({ isActive }: { isActive: boolean }) {
@@ -12,7 +11,9 @@ function navLinkClassName({ isActive }: { isActive: boolean }) {
 
 function pageTitleForPath(pathname: string) {
   if (pathname === '/' || pathname === '') return 'Home'
-  if (pathname.startsWith('/ticker')) return 'Ticker'
+  if (pathname.startsWith('/chat')) return 'Chat'
+  if (pathname.startsWith('/infographic') || pathname.startsWith('/ticker')) return 'Infographic'
+  if (pathname.startsWith('/recommendations') || pathname.startsWith('/recomendation')) return 'Recommendations'
   if (pathname.startsWith('/videos')) return 'Videos'
   return 'yuNews'
 }
@@ -96,13 +97,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Home size={18} />
           <span className={styles.navLabel}>Home</span>
           </NavLink>
-          <NavLink to="/ticker" className={navLinkClassName}>
-            <Image size={18} />
-            <span className={styles.navLabel}>Ticker</span>
-          </NavLink>
           <NavLink to="/videos" className={navLinkClassName}>
             <Video size={18} />
             <span className={styles.navLabel}>Videos</span>
+          </NavLink>
+          <NavLink to="/infographic" className={navLinkClassName}>
+            <Image size={18} />
+            <span className={styles.navLabel}>Infographic</span>
+          </NavLink>
+          <NavLink to="/recommendations" className={navLinkClassName}>
+            <TrendingUp size={18} />
+            <span className={styles.navLabel}>Recommendations</span>
+          </NavLink>
+          <NavLink to="/chat" className={navLinkClassName}>
+            <MessageCircle size={18} />
+            <span className={styles.navLabel}>Chat</span>
           </NavLink>
         </nav>
       </aside>
@@ -148,8 +157,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className={styles.container}>{children}</main>
       </div>
-
-      <ChatWidget />
     </div>
   )
 }

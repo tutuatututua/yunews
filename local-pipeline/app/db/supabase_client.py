@@ -126,16 +126,50 @@ class SupabaseDB:
         embedding: list[float],
         dimension: int,
     ) -> None:
-        if len(embedding) != dimension:
-            raise ValueError(f"Embedding dimension mismatch: got {len(embedding)} expected {dimension}")
+        raise NotImplementedError(
+            "This project uses `rag_documents` as the canonical embedding store. "
+            "Use upsert_rag_documents(...) instead."
+        )
 
-        payload = {
-            "summary_id": summary_id,
-            "model": model,
-            "dimension": dimension,
-            "embedding": embedding,
-        }
-        self._client.table("embeddings").upsert(payload, on_conflict="summary_id,model").execute()
+    def upsert_rag_documents(self, docs: list[dict[str, Any]]) -> None:
+        """Upsert semantic-search documents into `rag_documents`.
+
+                Expected keys per doc:
+                - document_type, video_id, ticker, source_key, video_title, thumbnail_url,
+                    summary_text, model, dimension, embedding
+
+                Backward compatibility:
+                - If the Supabase table (or PostgREST schema cache) does not expose a
+                    `model` column, we retry without it.
+        """
+
+        if not docs:
+            return
+
+        # Supabase can reject very large payloads; keep batches reasonably small.
+        batch_size = 200
+        for i in range(0, len(docs), batch_size):
+            batch = docs[i : i + batch_size]
+            try:
+                self._client.table("rag_documents").upsert(
+                    batch,
+                    on_conflict="document_type,video_id,ticker,source_key,model",
+                ).execute()
+            except Exception as exc:
+                msg = str(exc)
+                if "Could not find the 'model' column" in msg and "rag_documents" in msg:
+                    logger.warning(
+                        "Supabase rag_documents is missing `model` column (or schema cache is stale). "
+                        "Retrying rag_documents upsert without model. Error=%s",
+                        msg,
+                    )
+                    fallback_batch = [{k: v for k, v in d.items() if k != "model"} for d in batch]
+                    self._client.table("rag_documents").upsert(
+                        fallback_batch,
+                        on_conflict="document_type,video_id,ticker,source_key",
+                    ).execute()
+                else:
+                    raise
 
     def upsert_video_summary(
         self,
@@ -268,41 +302,16 @@ class SupabaseDB:
         embedding: list[float],
         dimension: int,
     ) -> None:
-        """Upsert embedding for overall per-video summary.
-
-        Stored in `video_summary_embeddings` (separate from per-(video,ticker) `summaries`).
-        """
-
-        if len(embedding) != dimension:
-            raise ValueError(f"Embedding dimension mismatch: got {len(embedding)} expected {dimension}")
-
-        payload = {
-            "video_id": video_id,
-            "published_at": published_at.isoformat() if published_at else None,
-            "model": model,
-            "dimension": dimension,
-            "embedding": embedding,
-        }
-
-        if payload["published_at"] is None:
-            payload.pop("published_at", None)
-
-        # NOTE: table may not exist in older DBs; caller may catch and continue.
-        try:
-            self._client.table("video_summary_embeddings").upsert(payload, on_conflict="video_id,model").execute()
-        except Exception as exc:
-            # Backward compatibility: older schemas may not have published_at.
-            msg = str(exc)
-            if "published_at" in msg and ("does not exist" in msg or "column" in msg):
-                payload.pop("published_at", None)
-                self._client.table("video_summary_embeddings").upsert(payload, on_conflict="video_id,model").execute()
-                return
-            raise
+        raise NotImplementedError(
+            "This project uses `rag_documents` as the canonical embedding store. "
+            "Store video-level embeddings as a rag_documents row of type `video_summary`."
+        )
 
     def upsert_youtuber_recommendation(
         self,
         *,
         video_id: str,
+        published_at: datetime | None = None,
         ticker: str,
         action: str = "buy",
         source: str | None = "title",
@@ -321,10 +330,14 @@ class SupabaseDB:
 
         payload: dict[str, Any] = {
             "video_id": str(video_id),
+            "published_at": published_at.isoformat() if published_at else None,
             "ticker": sym,
             "action": str(action or "buy").strip().lower() or "buy",
             "source": source,
         }
+
+        if payload["published_at"] is None:
+            payload.pop("published_at", None)
 
         try:
             self._client.table("youtuber_recommendations").upsert(
@@ -338,6 +351,13 @@ class SupabaseDB:
                 "does not exist" in msg or "relation" in msg or "404" in msg
             ):
                 logger.debug("youtuber_recommendations table missing; skipping upsert")
+                return
+            if "published_at" in msg and ("does not exist" in msg or "column" in msg):
+                payload.pop("published_at", None)
+                self._client.table("youtuber_recommendations").upsert(
+                    payload,
+                    on_conflict="video_id,ticker,action",
+                ).execute()
                 return
             if "source" in msg and ("does not exist" in msg or "column" in msg):
                 payload.pop("source", None)

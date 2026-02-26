@@ -136,6 +136,17 @@ class SummarizationService:
 
         try:
             items_json = self._json_dumps_with_char_limit(items, max_chars=max_chars)
+            if items and items_json == "[]":
+                # This happens when even the first ticker's chunk summaries exceed max_chars,
+                # so the char-budget logic can't include any item without breaking JSON.
+                logger.warning(
+                    "aggregate_video_tickers: input truncated to empty due to max_chars=%s; "
+                    "tickers_in_grouped=%s tickers_in_prompt=%s max_chunks_per_ticker=%s",
+                    max_chars,
+                    len(grouped_chunk_summaries or {}),
+                    len(items),
+                    max_chunks_per_ticker,
+                )
             prompt = self._agg_video_prompt.format(items=items_json)
             log_llm_prompt_stats(
                 logger,
@@ -150,15 +161,32 @@ class SummarizationService:
                 },
             )
             msg = self._llm.invoke(prompt)
-            parsed = self._safe_json(str(msg.content))
+            raw_text = str(msg.content or "")
+            parsed, parse_err = self._safe_json_with_error(raw_text)
             if not parsed:
+                # Common causes:
+                # - trailing commas / single quotes
+                # - model returned non-JSON prose
+                # - model returned multiple JSON objects
+                logger.warning(
+                    "aggregate_video_tickers: model output not valid JSON (model=%s err=%s) snippet=%r",
+                    self._model,
+                    parse_err,
+                    (raw_text[:400] + "…") if len(raw_text) > 400 else raw_text,
+                )
                 return {}
 
             raw_items = parsed.get("items")
             if not isinstance(raw_items, list):
+                logger.warning(
+                    "aggregate_video_tickers: parsed JSON missing list 'items' (type=%s keys=%s)",
+                    type(raw_items).__name__,
+                    sorted(list(parsed.keys()))[:30],
+                )
                 return {}
 
             out: Dict[str, AggregatedSummary] = {}
+            validation_drops = 0
             for it in raw_items:
                 if not isinstance(it, dict):
                     continue
@@ -168,12 +196,36 @@ class SummarizationService:
                 try:
                     out[ticker] = AggregatedSummary.model_validate(it)
                 except ValidationError:
+                    validation_drops += 1
                     continue
+
+            if not out:
+                logger.warning(
+                    "aggregate_video_tickers: all items dropped after validation (raw_items=%s validation_drops=%s)",
+                    len(raw_items),
+                    validation_drops,
+                )
 
             return out
         except Exception:
             logger.exception("Video-level aggregation failed")
             return {}
+
+    @staticmethod
+    def _safe_json_with_error(text: str) -> tuple[dict | None, str | None]:
+        text = (text or "").strip()
+        if not text:
+            return None, "empty"
+        first = text.find("{")
+        last = text.rfind("}")
+        if first == -1 or last == -1 or last <= first:
+            return None, "no-json-object-braces"
+        candidate = text[first : last + 1]
+        try:
+            parsed = json.loads(candidate)
+            return (parsed if isinstance(parsed, dict) else None), None
+        except json.JSONDecodeError as e:
+            return None, f"{e.msg} (pos {e.pos})"
 
     def summarize_video_overall_from_aggregates(
         self,

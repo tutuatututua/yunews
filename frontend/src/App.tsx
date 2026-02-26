@@ -4,13 +4,15 @@ import AppShell from './components/layout/AppShell'
 import { queryClient } from './app/queryClient'
 import { TimeZoneProvider } from './app/timeZone'
 import HomePage from './pages/HomePage'
+import ChatPage from './pages/ChatPage'
+import RecommendationPage from './pages/RecommendationPage'
 import TickerPage from './pages/TickerPage'
 import VideoInsightsPage from './pages/VideoInsightsPage'
 import { Analytics } from '@vercel/analytics/react'
 
 function LegacyInfographicRedirect() {
   const location = useLocation()
-  return <Navigate to={`/ticker${location.search || ''}`} replace />
+  return <Navigate to={`/infographic${location.search || ''}`} replace />
 }
 
 export default function App() {
@@ -21,9 +23,11 @@ export default function App() {
           <AppShell>
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/infographic" element={<LegacyInfographicRedirect />} />
-              <Route path="/ticker" element={<TickerPage />} />
-              <Route path="/recomendation" element={<Navigate to="/" replace />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/infographic" element={<TickerPage />} />
+              <Route path="/ticker" element={<LegacyInfographicRedirect />} />
+              <Route path="/recomendation" element={<Navigate to="/recommendations" replace />} />
+              <Route path="/recommendations" element={<RecommendationPage />} />
               <Route path="/videos" element={<VideoInsightsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -331,7 +331,7 @@ export default function VideoDetailPanel(props: {
                       return (
                         <div key={`${videoId}-mv-${sym}-${i}`} className={styles.videoEventRow}>
                           <div className={styles.videoEventWhen}>
-                            <Link to={`/ticker?symbol=${encodeURIComponent(sym)}&days=${encodeURIComponent(String(days))}`} className={cn(styles.moverChip, dirClass)} title={reason || undefined}>
+                            <Link to={`/infographic?symbol=${encodeURIComponent(sym)}&days=${encodeURIComponent(String(days))}`} className={cn(styles.moverChip, dirClass)} title={reason || undefined}>
                               {sym}
                             </Link>
                           </div>

@@ -6,7 +6,7 @@ export type EdgeSentiment = 'positive' | 'negative' | 'neutral'
 
 function buildTickerHref(symbol: string, days: number): string {
   const sym = String(symbol || '').trim().toUpperCase()
-  return `/ticker?symbol=${encodeURIComponent(sym)}&days=${encodeURIComponent(String(days))}`
+    return `/infographic?symbol=${encodeURIComponent(sym)}&days=${encodeURIComponent(String(days))}`
 }
 
 export default function VideoTickerBadge(props: {

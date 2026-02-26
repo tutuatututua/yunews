@@ -1,0 +1,17 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: calc(100vh - 56px - 50px);
+}
+
+@media (max-width: 860px) {
+  .page {
+    height: auto;
+  }
+}
+
+.panelWrap {
+  flex: 1 1 auto;
+  min-height: 560px;
+}

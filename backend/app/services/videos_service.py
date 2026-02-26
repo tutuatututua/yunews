@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import html
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.core.supabase import get_supabase_client
 from app.core.time import market_day_bounds, market_today
+
+
+def _clean_text(value: object) -> str:
+    return html.unescape(str(value or "")).strip()
 
 
 def edge_sentiment(summary_obj: Any) -> str:
@@ -93,6 +98,11 @@ def list_videos(*, date_: date | None, days: int | None, limit: int) -> list[dic
             row["id"] = row.get("video_id")
 
         if isinstance(row, dict):
+            if "title" in row:
+                row["title"] = _clean_text(row.get("title"))
+            if "channel" in row:
+                row["channel"] = _clean_text(row.get("channel"))
+
             vs = row.get("video_summaries")
             if isinstance(vs, list):
                 vs = vs[0] if vs else None
@@ -226,8 +236,8 @@ def video_infographic(*, date_: date | None, days: int, limit: int) -> list[dict
             {
                 "id": vid,
                 "video_id": vid,
-                "title": v.get("title"),
-                "channel": v.get("channel"),
+                "title": _clean_text(v.get("title")),
+                "channel": _clean_text(v.get("channel")),
                 "published_at": v.get("published_at"),
                 "video_url": v.get("video_url"),
                 "thumbnail_url": v.get("thumbnail_url"),
@@ -254,6 +264,11 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
 
     if not isinstance(video, dict) or not video:
         return None
+
+    if "title" in video:
+        video["title"] = _clean_text(video.get("title"))
+    if "channel" in video:
+        video["channel"] = _clean_text(video.get("channel"))
 
     if "id" not in video:
         video["id"] = video.get("video_id")
@@ -308,7 +323,11 @@ def get_video_detail(video_id: str) -> dict[str, Any] | None:
         "events": vs_obj.get("events") or [],
         "model": vs_obj.get("model") or "",
         "summarized_at": vs_obj.get("summarized_at") or datetime.now(timezone.utc).isoformat(),
-        "video_titles": vs_obj.get("video_titles"),
+        "video_titles": [
+            _clean_text(x) for x in (vs_obj.get("video_titles") or []) if str(x or "").strip()
+        ]
+        if isinstance(vs_obj.get("video_titles"), list)
+        else vs_obj.get("video_titles"),
         "published_at": vs_obj.get("published_at") or video.get("published_at"),
     }
 

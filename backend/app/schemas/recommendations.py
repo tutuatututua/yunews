@@ -10,6 +10,7 @@ class PriceBar(BaseModel):
 
     date: str = Field(description="UTC date in YYYY-MM-DD")
     close: float | None = None
+    adj_close: float | None = None
 
 
 class RecommendationEvent(BaseModel):
@@ -23,6 +24,7 @@ class RecommendationEvent(BaseModel):
     channel: str | None = None
     published_at: str | None = None
     video_url: str | None = None
+    thumbnail_url: str | None = None
 
     # Computed from market data (best-effort; null when unavailable)
     entry_date: str | None = None

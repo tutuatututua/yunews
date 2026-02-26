@@ -1,80 +1,45 @@
-.floatingButton {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 80;
-}
-
 .panel {
-  position: fixed;
-  right: 18px;
-  bottom: 82px;
-  width: min(420px, calc(100vw - 36px));
-  height: min(560px, calc(100vh - 120px));
+  width: 100%;
+  height: 100%;
+  min-height: 560px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  z-index: 80;
 }
 
 .header {
-  height: 48px;
-  padding: 0 12px;
+  padding: 12px 14px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 86%, transparent);
 }
 
+.title {
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .caution {
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface-2) 86%, transparent);
   color: var(--muted);
   font-size: 11px;
   line-height: 1.3;
-}
-
-.title {
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.iconButton {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.iconButton:hover {
-  background: color-mix(in srgb, var(--surface-2) 86%, transparent);
-  border-color: var(--border-2);
-}
-
-.iconButton:active {
-  transform: translateY(0.5px);
 }
 
 .headerActions {
@@ -257,10 +222,6 @@
   line-height: 1.35;
 }
 
-.sources a {
-  text-decoration: none;
-}
-
 .composer {
   border-top: 1px solid var(--border);
   padding: 10px;
@@ -272,8 +233,8 @@
 .input {
   flex: 1 1 auto;
   resize: none;
-  max-height: 120px;
-  min-height: 40px;
+  max-height: 160px;
+  min-height: 44px;
   padding: 10px 10px;
   border-radius: 12px;
   border: 1px solid var(--border);
@@ -286,8 +247,8 @@
 
 .send {
   flex: 0 0 auto;
-  height: 40px;
-  padding: 0 12px;
+  height: 44px;
+  padding: 0 14px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface);

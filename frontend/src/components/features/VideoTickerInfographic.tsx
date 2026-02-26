@@ -152,7 +152,7 @@ export default function VideoTickerInfographicForce(props: {
     return m
   }, [tickerStats])
 
-  const popoutHref = useMemo(() => `/ticker?days=${encodeURIComponent(String(days))}`, [days])
+  const popoutHref = useMemo(() => `/infographic?days=${encodeURIComponent(String(days))}`, [days])
 
   const onHeaderClick = () => {
     if (!enablePopout) return

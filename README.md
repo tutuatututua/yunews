@@ -13,9 +13,9 @@
 If you already created the schema before 2026-01-23, also run:
 - `local-pipeline/app/db/migrations/2026-01-23_add_sentiment_and_drop_video_summaries_tickers.sql`
 
-If you see `/chat` failing with `column d.company_name does not exist`, your Supabase RPC is outdated.
-Run:
-- `local-pipeline/app/db/migrations/2026-02-08_fix_match_rag_documents.sql`
+If you see `/chat` failing with `relation "public.rag_documents" does not exist` or `match_rag_documents` missing,
+run:
+- `local-pipeline/app/db/migrations/2026-02-24_create_rag_documents_and_rpc.sql`
 
 ## 2) Configure environment
 1. Backend API env:

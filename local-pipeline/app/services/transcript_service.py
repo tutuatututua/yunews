@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import logging
 import random
 import time
@@ -22,6 +23,12 @@ class TranscriptService:
 
     _MIN_SLEEP_SECONDS = 1.5
     _MAX_SLEEP_SECONDS = 2.5
+
+    @staticmethod
+    def _clean_text(value: object) -> str:
+        # YouTube sources sometimes return HTML entities (e.g. &quot;).
+        # Unescape so downstream summaries/UI show real characters.
+        return html.unescape(str(value or "")).strip()
 
     def fetch_transcript(self, video_id: str, *, languages: Optional[list[str]] = None) -> list[TranscriptEntry]:
         languages = languages or ["en"]
@@ -66,7 +73,7 @@ class TranscriptService:
                     TranscriptEntry(
                         start=float(start or 0.0),
                         duration=float(duration or 0.0),
-                        text=str(text or "").strip(),
+                        text=self._clean_text(text),
                     )
                 )
             except Exception:

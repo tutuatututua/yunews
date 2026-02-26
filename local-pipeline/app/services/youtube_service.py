@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import logging
 import re
 from dataclasses import dataclass
@@ -36,6 +37,11 @@ class YouTubeService:
     _ISO8601_DURATION_RE = re.compile(
         r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
     )
+
+    @staticmethod
+    def _clean_text(value: object) -> str:
+        # YouTube API fields can contain HTML entities like &quot;.
+        return html.unescape(str(value or "")).strip()
 
     @staticmethod
     def _to_int(value: object) -> Optional[int]:
@@ -189,10 +195,10 @@ class YouTubeService:
             results.append(
                 VideoMetadata(
                     video_id=video_id,
-                    title=snippet.get("title") or "",
-                    channel=snippet.get("channelTitle") or "",
+                    title=self._clean_text(snippet.get("title")),
+                    channel=self._clean_text(snippet.get("channelTitle")),
                     published_at=published_at,
-                    description=snippet.get("description") or "",
+                    description=self._clean_text(snippet.get("description")),
                 )
             )
 

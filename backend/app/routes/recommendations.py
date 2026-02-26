@@ -3,13 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from app.schemas.common import ApiResponse
-from app.schemas.youtuber_recommendations import RecommendationListData, RecommendationOverlayData
-from app.services.youtuber_recommendations_service import (
+from app.schemas.recommendations import RecommendationListData, RecommendationOverlayData
+from app.services.recommendations_service import (
     get_recommendation_overlay as svc_get_recommendation_overlay,
     list_recommendations as svc_list_recommendations,
 )
 
-router = APIRouter(prefix="/youtuber-recommendations", tags=["youtuber-recommendations"])
+router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 
 @router.get("", response_model=ApiResponse[RecommendationListData])

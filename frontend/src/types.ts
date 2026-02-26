@@ -107,9 +107,10 @@ export type QueryPlan = {
 export type PriceBar = {
   date: string
   close: number | null
+  adj_close?: number | null
 }
 
-export type YoutuberRecommendationEvent = {
+export type RecommendationEvent = {
   video_id: string
   ticker: string
   action: 'buy'
@@ -117,6 +118,7 @@ export type YoutuberRecommendationEvent = {
   channel?: string | null
   published_at?: string | null
   video_url?: string | null
+  thumbnail_url?: string | null
   entry_date?: string | null
   entry_close?: number | null
   latest_date?: string | null
@@ -126,14 +128,14 @@ export type YoutuberRecommendationEvent = {
   return_30d_pct?: number | null
 }
 
-export type YoutuberRecommendationOverlay = {
+export type RecommendationOverlay = {
   symbol: string
   prices: PriceBar[]
-  events: YoutuberRecommendationEvent[]
+  events: RecommendationEvent[]
 }
 
-export type YoutuberRecommendationListData = {
-  items: YoutuberRecommendationEvent[]
+export type RecommendationListData = {
+  items: RecommendationEvent[]
 }
 
 // Chat (SSE)
