@@ -78,5 +78,3 @@ def log_llm_prompt_stats(
     if extra:
         payload.update(extra)
 
-    # Structured-ish logging without requiring JSON logger config.
-    logger.info("LLM prompt stats: %s", payload)

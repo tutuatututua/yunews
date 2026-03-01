@@ -2,6 +2,80 @@
   width: 100%;
 }
 
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.headerRight {
+  display: inline-flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.priceRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.symbol {
+  color: var(--text);
+  font-weight: 900;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.priceValue {
+  color: var(--text);
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.priceUnit {
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.deltaUp {
+  color: var(--sent-pos);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.deltaDown {
+  color: var(--sent-neg);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.deltaFlat {
+  color: var(--muted);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.rangeText {
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 12px;
+}
+
 .svg {
   width: 100%;
   height: 400px;
@@ -9,18 +83,48 @@
   border: 1px solid var(--border-2);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface) 82%, transparent);
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
 }
 
 .axisText {
   fill: var(--muted);
   font-size: 11px;
   font-weight: 700;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .priceLine {
   fill: none;
   stroke: var(--primary);
   stroke-width: 2;
+}
+
+.priceLineUp {
+  fill: none;
+  stroke: var(--sent-pos);
+  stroke-width: 2;
+}
+
+.priceLineDown {
+  fill: none;
+  stroke: var(--sent-neg);
+  stroke-width: 2;
+}
+
+.area {
+  fill: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.areaUp {
+  fill: color-mix(in srgb, var(--sent-pos) 12%, transparent);
+}
+
+.areaDown {
+  fill: color-mix(in srgb, var(--sent-neg) 12%, transparent);
 }
 
 .baseline {
@@ -84,4 +188,103 @@
   fill: var(--surface);
   stroke: color-mix(in srgb, var(--sent-neg) 80%, var(--border));
   stroke-width: 2;
+}
+
+.rangeShade {
+  fill: color-mix(in srgb, var(--primary) 12%, transparent);
+  pointer-events: none;
+}
+
+.rangeShadeUp {
+  fill: color-mix(in srgb, var(--sent-pos) 14%, transparent);
+  pointer-events: none;
+}
+
+.rangeShadeDown {
+  fill: color-mix(in srgb, var(--sent-neg) 14%, transparent);
+  pointer-events: none;
+}
+
+.rangeEdge {
+  stroke: color-mix(in srgb, var(--primary) 65%, var(--border-2));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.rangeEdgeUp {
+  stroke: color-mix(in srgb, var(--sent-pos) 78%, var(--border-2));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.rangeEdgeDown {
+  stroke: color-mix(in srgb, var(--sent-neg) 78%, var(--border-2));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.rangeLabel {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rangeLabelUp {
+  fill: var(--sent-pos);
+  font-size: 12px;
+  font-weight: 900;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rangeLabelDown {
+  fill: var(--sent-neg);
+  font-size: 12px;
+  font-weight: 900;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hoverLine {
+  stroke: color-mix(in srgb, var(--muted) 70%, var(--border-2));
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+
+.hoverDot {
+  fill: var(--surface);
+  stroke: var(--text);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.tooltipBox {
+  fill: color-mix(in srgb, var(--surface) 92%, transparent);
+  stroke: var(--border-2);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.tooltipPrice {
+  fill: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tooltipDate {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }

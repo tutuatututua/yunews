@@ -5,14 +5,15 @@ from typing import Any
 
 _RECOMMENDATION_TITLE_RE = re.compile(
     r"\b("
-    r"recommend(?:ation)?"
-    r"|recomend(?:ation)?"
+    r"recommend(?:s|ed|ing|ation)?"
+    r"|recomend(?:s|ed|ing|ation)?"
     r"|buy(?:ing)?"
     r"|stock\s+picks?"
     r"|picks?"
     r"|top\s+stocks?"
     r"|best\s+stocks?"
     r"|this\s+stock\b.{0,40}\b(?:will|can|could|is\s+going\s+to)\s+(?:grow|rise|soar|surge|rally|explode|moon|double|(?:[2-9]|10)x)\b"
+    r"|all+in?"
     r")\b",
     re.IGNORECASE,
 )
@@ -32,6 +33,12 @@ def is_recommendation_title(title: Any) -> bool:
     text = str(title or "").strip()
     if not text:
         return False
-    if _RECOMMENDATION_TITLE_EXCLUDE_RE.search(text):
+
+    include = _RECOMMENDATION_TITLE_RE.search(text) is not None
+    if not include:
         return False
-    return _RECOMMENDATION_TITLE_RE.search(text) is not None
+
+    # Titles can contain both "buy" and "avoid" (e.g., "3 stocks to buy and 2 to avoid").
+    # In those mixed cases we still want to treat the video as recommendation-style,
+    # and let downstream per-ticker filters decide what to store.
+    return True

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { PriceBar, RecommendationEvent } from '../../types'
 import styles from './RecommendationOverlayChart.module.css'
 
@@ -9,6 +10,7 @@ type ChartData = {
   minY: number
   maxY: number
   x: (ms: number) => number
+  invX: (px: number) => number
   y: (v: number) => number
   W: number
   H: number
@@ -17,9 +19,69 @@ type ChartData = {
   padT: number
   padB: number
   path: string
+  areaPath: string
+}
+
+type TrendDir = 'up' | 'down' | 'flat'
+
+type Marker = {
+  entry: string
+  ms: number
+  title: string
+  channel: string
+  entryClose: number | null
+  ret: number | null
+  thumbnailUrl: string | null
+}
+
+type MarkerDayGroup = {
+  day: string
+  ms: number | null
+  list: Marker[]
+}
+
+type RangeInfo = {
+  leftPx: number
+  rightPx: number
+  startMs: number
+  endMs: number
+  startPrice: number
+  endPrice: number
+  pct: number
+  label: string
+  dir: TrendDir
+}
+
+type TooltipBox = {
+  x: number
+  y: number
+  w: number
+  h: number
+  pad: number
+}
+
+type HoverInfo = {
+  x: number
+  ms: number
+  price: number
+  y: number
+  dateLabel: string
+  priceLabel: string
+  tooltip: TooltipBox
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+
+const CHART_W = 900
+const CHART_H = 220
+const CHART_PAD_L = 64
+const CHART_PAD_R = 18
+const CHART_PAD_T = 12
+const CHART_PAD_B = 28
+
+const TOOLTIP_W = 178
+const TOOLTIP_H = 48
+const TOOLTIP_PAD = 10
 
 function toMs(isoDate: string): number | null {
   const ms = Date.parse(`${isoDate}T00:00:00Z`)
@@ -66,12 +128,41 @@ function fmtMonthDay(ms: number): string {
   return `${mm}/${dd}`
 }
 
+function fmtRangeDateEng(ms: number): string {
+  const d = new Date(ms)
+  if (!Number.isFinite(d.getTime())) return '—'
+
+  // Match reference style but in English: "Tue 24 Feb 2026"
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).formatToParts(d)
+
+  const wk = parts.find((p) => p.type === 'weekday')?.value
+  const day = parts.find((p) => p.type === 'day')?.value
+  const month = parts.find((p) => p.type === 'month')?.value
+  const year = parts.find((p) => p.type === 'year')?.value
+
+  return [wk, day, month, year].filter(Boolean).join(' ')
+}
+
 function fmtPrice(n: number): string {
   if (!Number.isFinite(n)) return '—'
   // Keep it compact; user asked for price, not currency formatting.
   const abs = Math.abs(n)
   const digits = abs < 10 ? 3 : abs < 100 ? 2 : 2
   return n.toFixed(digits)
+}
+
+function fmtDelta(n: number): string {
+  if (!Number.isFinite(n)) return '—'
+  const abs = Math.abs(n)
+  const digits = abs < 10 ? 2 : abs < 100 ? 2 : 2
+  const s = n.toFixed(digits)
+  return n > 0 ? `+${s}` : s
 }
 
 function fmtPct(n: number): string {
@@ -132,136 +223,233 @@ function priceAtMs(pts: Array<{ ms: number; price: number }>, ms: number): numbe
   return a.price + t * (b.price - a.price)
 }
 
+function trendFromValue(v: number): TrendDir {
+  if (!Number.isFinite(v)) return 'flat'
+  return v > 1e-9 ? 'up' : v < -1e-9 ? 'down' : 'flat'
+}
+
+function buildChartData(prices: PriceBar[]): ChartData | null {
+  const raw = (prices || [])
+    .map((b) => {
+      const d = String(b?.date || '').trim()
+      const ms = d ? toMs(d) : null
+      const pxRaw = b?.adj_close ?? b?.close
+      const price = pxRaw == null ? null : Number(pxRaw)
+      if (!d || ms == null || !Number.isFinite(price)) return null
+      return { date: d, ms, price }
+    })
+    .filter(Boolean) as Array<{ date: string; ms: number; price: number }>
+
+  raw.sort((a, b) => a.ms - b.ms)
+  if (!raw.length) return null
+
+  const pts = raw
+
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (const p of pts) {
+    minX = Math.min(minX, p.ms)
+    maxX = Math.max(maxX, p.ms)
+    minY = Math.min(minY, p.price)
+    maxY = Math.max(maxY, p.price)
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || minX === maxX) return null
+
+  const range = maxY - minY
+  if (Number.isFinite(range) && range > 0) {
+    const mid = (minY + maxY) / 2
+    const pad = Math.max(range * 0.12, 0.6, Math.abs(mid) * 0.003)
+    minY -= pad
+    maxY += pad
+  } else {
+    minY = minY - 1
+    maxY = maxY + 1
+  }
+
+  const W = CHART_W
+  const H = CHART_H
+  const padL = CHART_PAD_L
+  const padR = CHART_PAD_R
+  const padT = CHART_PAD_T
+  const padB = CHART_PAD_B
+
+  const spanX = maxX - minX
+  // Keep the series tight to the visible plot area; avoid large left/right gaps.
+  const padX = 0
+  const scaleMinX = minX - padX
+  const scaleMaxX = maxX + padX
+
+  const x = (ms: number) => {
+    const denom = scaleMaxX - scaleMinX
+    const t = denom === 0 ? 0.5 : (ms - scaleMinX) / denom
+    return padL + t * (W - padL - padR)
+  }
+
+  const invX = (px: number) => {
+    const denom = W - padL - padR
+    const t = denom === 0 ? 0.5 : (px - padL) / denom
+    return scaleMinX + t * (scaleMaxX - scaleMinX)
+  }
+
+  const y = (v: number) => {
+    const t = (v - minY) / (maxY - minY)
+    return padT + (1 - t) * (H - padT - padB)
+  }
+
+  let d = ''
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]
+    const px = x(p.ms)
+    const py = y(p.price)
+    d += i === 0 ? `M ${px.toFixed(2)} ${py.toFixed(2)}` : ` L ${px.toFixed(2)} ${py.toFixed(2)}`
+  }
+
+  const baseY = H - padB
+  const firstPx = x(pts[0].ms)
+  const lastPx = x(pts[pts.length - 1].ms)
+  const areaPath = `${d} L ${lastPx.toFixed(2)} ${baseY.toFixed(2)} L ${firstPx.toFixed(2)} ${baseY.toFixed(2)} Z`
+
+  return { pts, minX, maxX, minY, maxY, x, invX, y, W, H, padL, padR, padT, padB, path: d, areaPath }
+}
+
+function buildMarkers(events: RecommendationEvent[]): Marker[] {
+  const out = (events || [])
+    .map((ev) => {
+      const publishedAt = String(ev?.published_at || '').trim()
+      const publishedDayEt = publishedAt ? toEtIsoDay(publishedAt) : null
+      const entry = String(ev?.entry_date || '').trim()
+      const dayKey = publishedDayEt || entry
+      const title = String(ev?.title || '').trim()
+      const channel = String(ev?.channel || '').trim()
+      const entryClose = ev?.entry_close == null ? null : Number(ev.entry_close)
+      const ret = ev?.return_pct == null ? null : Number(ev.return_pct)
+      const thumbnailUrl = ev?.thumbnail_url ? String(ev.thumbnail_url).trim() : null
+
+      const ms = dayKey ? toMs(dayKey) : null
+      if (!dayKey || ms == null) return null
+      return { entry: dayKey, ms, title, channel, entryClose, ret, thumbnailUrl }
+    })
+    .filter(Boolean) as Marker[]
+
+  out.sort((a, b) => a.ms - b.ms)
+  return out
+}
+
+function groupMarkersByDay(markers: Marker[]): MarkerDayGroup[] {
+  const groups = new Map<string, Marker[]>()
+  for (const m of markers) {
+    const key = String(m.entry || '').trim()
+    if (!key) continue
+    const arr = groups.get(key)
+    if (arr) arr.push(m)
+    else groups.set(key, [m])
+  }
+
+  const out = Array.from(groups.entries()).map(([day, list]) => ({ day, ms: list[0]?.ms ?? null, list }))
+  out.sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0) || a.day.localeCompare(b.day))
+  return out
+}
+
+function computeTooltipBox(opts: {
+  x: number
+  y: number
+  W: number
+  padL: number
+  padR: number
+  plotMinY: number
+  plotMaxY: number
+}): TooltipBox {
+  const { x, y, W, padL, padR, plotMinY, plotMaxY } = opts
+
+  const preferRight = x < W * 0.62
+  const x0 = preferRight ? x + 10 : x - 10 - TOOLTIP_W
+  const y0 = clamp(y - TOOLTIP_H / 2, plotMinY + 6, plotMaxY - TOOLTIP_H - 6)
+  const xClamped = clamp(x0, padL + 6, W - padR - TOOLTIP_W - 6)
+
+  return { x: xClamped, y: y0, w: TOOLTIP_W, h: TOOLTIP_H, pad: TOOLTIP_PAD }
+}
+
+function computeRangeInfo(data: ChartData, rangePx: { a: number; b: number } | null): RangeInfo | null {
+  if (!rangePx) return null
+  // Clamp range to the actual data-domain, not the padded scale domain.
+  // This prevents selecting in the left/right empty space where the line doesn't exist.
+  const plotMinX = data.x(data.minX)
+  const plotMaxX = data.x(data.maxX)
+
+  const a = clamp(rangePx.a, plotMinX, plotMaxX)
+  const b = clamp(rangePx.b, plotMinX, plotMaxX)
+  const leftPx = Math.min(a, b)
+  const rightPx = Math.max(a, b)
+  if (!Number.isFinite(leftPx) || !Number.isFinite(rightPx) || rightPx - leftPx < 2) return null
+
+  const startMs = clamp(data.invX(leftPx), data.minX, data.maxX)
+  const endMs = clamp(data.invX(rightPx), data.minX, data.maxX)
+  const startPrice = priceAtMs(data.pts, startMs)
+  const endPrice = priceAtMs(data.pts, endMs)
+  if (startPrice == null || endPrice == null || !Number.isFinite(startPrice) || !Number.isFinite(endPrice) || startPrice === 0) return null
+
+  const pct = endPrice / startPrice - 1
+  const fromLabel = `${fmtRangeDateEng(startMs)} ${fmtPrice(startPrice)}`
+  const toLabel = `${fmtRangeDateEng(endMs)} ${fmtPrice(endPrice)}`
+  const label = `${fromLabel} → ${toLabel} (${fmtPct(pct)})`
+  const dir = trendFromValue(pct)
+
+  return { leftPx, rightPx, startMs, endMs, startPrice, endPrice, pct, label, dir }
+}
+
+function computeHoverInfo(data: ChartData, hoverPx: number | null): HoverInfo | null {
+  if (hoverPx == null) return null
+  // Clamp hover to the actual data-domain.
+  const plotMinX = data.x(data.minX)
+  const plotMaxX = data.x(data.maxX)
+  const plotMinY = data.padT
+  const plotMaxY = data.H - data.padB
+
+  const x = clamp(hoverPx, plotMinX, plotMaxX)
+  const ms = clamp(data.invX(x), data.minX, data.maxX)
+  const price = priceAtMs(data.pts, ms)
+  if (price == null || !Number.isFinite(price)) return null
+  const y = data.y(price)
+  const tooltip = computeTooltipBox({ x, y, W: data.W, padL: data.padL, padR: data.padR, plotMinY, plotMaxY })
+
+  return {
+    x,
+    ms,
+    price,
+    y,
+    dateLabel: fmtRangeDateEng(ms),
+    priceLabel: `${fmtPrice(price)}`,
+    tooltip,
+  }
+}
+
 export default function RecommendationOverlayChart(props: {
   symbol: string
   prices: PriceBar[]
   events: RecommendationEvent[]
+  headerRight?: ReactNode
 }) {
-  const data = useMemo<ChartData | null>(() => {
-    const raw = (props.prices || [])
-      .map((b) => {
-        const d = String(b?.date || '').trim()
-        const ms = d ? toMs(d) : null
-        const pxRaw = b?.adj_close ?? b?.close
-        const price = pxRaw == null ? null : Number(pxRaw)
-        if (!d || ms == null || !Number.isFinite(price)) return null
-        return { date: d, ms, price }
-      })
-      .filter(Boolean) as Array<{ date: string; ms: number; price: number }>
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const draggingRef = useRef(false)
+  const [rangePx, setRangePx] = useState<{ a: number; b: number; dragging: boolean } | null>(null)
+  const [hoverPx, setHoverPx] = useState<number | null>(null)
 
-    raw.sort((a, b) => a.ms - b.ms)
+  const data = useMemo<ChartData | null>(() => buildChartData(props.prices || []), [props.prices])
+  const markers = useMemo<Marker[]>(() => buildMarkers(props.events || []), [props.events])
+  const byDay = useMemo<MarkerDayGroup[]>(() => groupMarkersByDay(markers), [markers])
 
-    if (!raw.length) return null
+  const rangeInfo = useMemo<RangeInfo | null>(() => {
+    if (!data) return null
+    return computeRangeInfo(data, rangePx)
+  }, [data, rangePx])
 
-    const pts = raw
-
-    let minX = Number.POSITIVE_INFINITY
-    let maxX = Number.NEGATIVE_INFINITY
-    let minY = Number.POSITIVE_INFINITY
-    let maxY = Number.NEGATIVE_INFINITY
-    for (const p of pts) {
-      minX = Math.min(minX, p.ms)
-      maxX = Math.max(maxX, p.ms)
-      minY = Math.min(minY, p.price)
-      maxY = Math.max(maxY, p.price)
-    }
-
-    if (!pts.length || !Number.isFinite(minX) || !Number.isFinite(maxX) || minX === maxX) return null
-
-    // Add padding so the line isn't glued to borders.
-    const range = maxY - minY
-    if (Number.isFinite(range) && range > 0) {
-      const mid = (minY + maxY) / 2
-      const pad = Math.max(range * 0.12, 0.6, Math.abs(mid) * 0.003)
-      minY -= pad
-      maxY += pad
-    } else {
-      // Avoid flat line when min==max
-      minY = minY - 1
-      maxY = maxY + 1
-    }
-
-    const W = 900
-    const H = 220
-    const padL = 64
-    const padR = 18
-    const padT = 12
-    const padB = 28
-
-    // Add a little x padding so right/left-most points (and bubble columns)
-    // aren't visually glued to the border.
-    const spanX = maxX - minX
-    const padX = Math.max(DAY_MS, Math.min(DAY_MS * 4, spanX * 0.06))
-    const scaleMinX = minX - padX
-    const scaleMaxX = maxX + padX
-
-    const x = (ms: number) => {
-      const denom = scaleMaxX - scaleMinX
-      const t = denom === 0 ? 0.5 : (ms - scaleMinX) / denom
-      return padL + t * (W - padL - padR)
-    }
-
-    const y = (v: number) => {
-      const t = (v - minY) / (maxY - minY)
-      return padT + (1 - t) * (H - padT - padB)
-    }
-
-    let d = ''
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i]
-      const px = x(p.ms)
-      const py = y(p.price)
-      d += i === 0 ? `M ${px.toFixed(2)} ${py.toFixed(2)}` : ` L ${px.toFixed(2)} ${py.toFixed(2)}`
-    }
-
-    return { pts, minX, maxX, minY, maxY, x, y, W, H, padL, padR, padT, padB, path: d }
-  }, [props.prices])
-
-  const markers = useMemo(() => {
-    const e = (props.events || [])
-      .map((ev) => {
-        const publishedAt = String(ev?.published_at || '').trim()
-        const publishedDayEt = publishedAt ? toEtIsoDay(publishedAt) : null
-        const entry = String(ev?.entry_date || '').trim()
-        const dayKey = publishedDayEt || entry
-        const title = String(ev?.title || '').trim()
-        const channel = String(ev?.channel || '').trim()
-        const entryClose = ev?.entry_close == null ? null : Number(ev.entry_close)
-        const ret = ev?.return_pct == null ? null : Number(ev.return_pct)
-        const thumbnailUrl = ev?.thumbnail_url ? String(ev.thumbnail_url).trim() : null
-
-        const ms = dayKey ? toMs(dayKey) : null
-        if (!dayKey || ms == null) return null
-        return { entry: dayKey, ms, title, channel, entryClose, ret, thumbnailUrl }
-      })
-      .filter(Boolean) as Array<{
-        entry: string
-        ms: number
-        title: string
-        channel: string
-        entryClose: number | null
-        ret: number | null
-        thumbnailUrl: string | null
-      }>
-
-    e.sort((a, b) => a.ms - b.ms)
-    return e
-  }, [props.events])
-
-  const byDay = useMemo(() => {
-    const groups = new Map<string, typeof markers>()
-    for (const m of markers) {
-      const key = String(m.entry || '').trim()
-      if (!key) continue
-      const arr = groups.get(key)
-      if (arr) arr.push(m)
-      else groups.set(key, [m])
-    }
-
-    const out = Array.from(groups.entries()).map(([day, list]) => ({ day, ms: list[0]?.ms ?? null, list }))
-    out.sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0) || a.day.localeCompare(b.day))
-    return out
-  }, [markers])
+  const hoverInfo = useMemo<HoverInfo | null>(() => {
+    if (!data) return null
+    return computeHoverInfo(data, hoverPx)
+  }, [data, hoverPx])
 
   if (!data) {
     return (
@@ -271,8 +459,58 @@ export default function RecommendationOverlayChart(props: {
     )
   }
 
+  const plotMinX = data.padL
+  const plotMaxX = data.W - data.padR
+  const plotMinY = data.padT
+  const plotMaxY = data.H - data.padB
+
+  const domainMinX = data.x(data.minX)
+  const domainMaxX = data.x(data.maxX)
+
+  const clientToSvgPoint = (clientX: number, clientY: number): { x: number; y: number } | null => {
+    const el = svgRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    if (!Number.isFinite(rect.width) || rect.width <= 0) return null
+    if (!Number.isFinite(rect.height) || rect.height <= 0) return null
+    const tx = (clientX - rect.left) / rect.width
+    const ty = (clientY - rect.top) / rect.height
+    const x = tx * data.W
+    const y = ty * data.H
+    return {
+      // Use padded plot bounds for y (vertical), but data-domain bounds for x (horizontal).
+      x: clamp(x, domainMinX, domainMaxX),
+      // Keep y raw so we can detect “outside plot”.
+      y,
+    }
+  }
+
   const latest = data.pts[data.pts.length - 1]
   const first = data.pts[0]
+  const seriesPct = first.price !== 0 ? latest.price / first.price - 1 : NaN
+  const trend: TrendDir = trendFromValue(seriesPct)
+  const lineClass = trend === 'up' ? styles.priceLineUp : trend === 'down' ? styles.priceLineDown : styles.priceLine
+  const areaClass = trend === 'up' ? styles.areaUp : trend === 'down' ? styles.areaDown : styles.area
+
+  const headerDeltaAbs = latest.price - first.price
+  const headerDeltaPct = first.price !== 0 ? latest.price / first.price - 1 : NaN
+  const headerDeltaDir: TrendDir = trendFromValue(headerDeltaPct)
+
+  const headerDeltaClass =
+    headerDeltaDir === 'up' ? styles.deltaUp : headerDeltaDir === 'down' ? styles.deltaDown : styles.deltaFlat
+
+  const rangeShadeClass =
+    rangeInfo?.dir === 'up'
+      ? styles.rangeShadeUp
+      : rangeInfo?.dir === 'down'
+        ? styles.rangeShadeDown
+        : styles.rangeShade
+
+  const rangeEdgeClass =
+    rangeInfo?.dir === 'up' ? styles.rangeEdgeUp : rangeInfo?.dir === 'down' ? styles.rangeEdgeDown : styles.rangeEdge
+
+  const rangeLabelClass =
+    rangeInfo?.dir === 'up' ? styles.rangeLabelUp : rangeInfo?.dir === 'down' ? styles.rangeLabelDown : styles.rangeLabel
 
   const ticks = [data.minY, (data.minY + data.maxY) / 2, data.maxY]
     .filter((v, i, arr) => arr.findIndex((x) => Math.abs(x - v) < 1e-9) === i)
@@ -305,7 +543,72 @@ export default function RecommendationOverlayChart(props: {
 
   return (
     <div className={styles.wrap}>
-      <svg className={styles.svg} viewBox={`0 0 ${data.W} ${data.H}`} role="img" aria-label={`Price chart for ${props.symbol}`}>
+      <div className={styles.header} aria-label="Price summary">
+        <div className={styles.headerLeft}>
+          <div className={styles.priceRow}>
+            <span className={styles.symbol}>{props.symbol}</span>
+            <span className={styles.priceValue}>{fmtPrice(latest.price)}</span>
+            <span className={styles.priceUnit}>USD</span>
+          </div>
+          <div className={headerDeltaClass}>
+            {fmtDelta(headerDeltaAbs)} ({fmtPct(headerDeltaPct)})
+          </div>
+
+          <div className={styles.rangeText}>
+            {fmtRangeDateEng(first.ms)} → {fmtRangeDateEng(latest.ms)}
+          </div>
+        </div>
+
+        {props.headerRight ? <div className={styles.headerRight}>{props.headerRight}</div> : null}
+      </div>
+
+      <svg
+        ref={svgRef}
+        className={styles.svg}
+        viewBox={`0 0 ${data.W} ${data.H}`}
+        role="img"
+        aria-label={`Price chart for ${props.symbol}`}
+        style={{ touchAction: 'none' }}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return
+          const pt = clientToSvgPoint(e.clientX, e.clientY)
+          if (!pt) return
+          // Only start drag if the initial press is inside the plot area.
+          if (pt.y < plotMinY || pt.y > plotMaxY) return
+          ;(e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId)
+          draggingRef.current = true
+          setRangePx({ a: pt.x, b: pt.x, dragging: true })
+          setHoverPx(pt.x)
+        }}
+        onPointerMove={(e) => {
+          const pt = clientToSvgPoint(e.clientX, e.clientY)
+          if (!pt) return
+          // If not dragging, hide hover when pointer isn't in the plot area.
+          if (!draggingRef.current && (pt.y < plotMinY || pt.y > plotMaxY)) {
+            setHoverPx(null)
+            return
+          }
+
+          setHoverPx(pt.x)
+          setRangePx((prev) => (prev?.dragging ? { ...prev, b: pt.x } : prev))
+        }}
+        onPointerUp={(e) => {
+          try {
+            ;(e.currentTarget as SVGSVGElement).releasePointerCapture(e.pointerId)
+          } catch {
+            // ignore
+          }
+          draggingRef.current = false
+          setRangePx((prev) => (prev ? { ...prev, dragging: false } : prev))
+        }}
+        onPointerCancel={() => {
+          draggingRef.current = false
+          setRangePx((prev) => (prev ? { ...prev, dragging: false } : prev))
+        }}
+        onPointerLeave={() => {
+          setHoverPx(null)
+        }}
+      >
         <defs>
           {byDay.map((g) => {
             const ms = g.ms
@@ -350,8 +653,68 @@ export default function RecommendationOverlayChart(props: {
           </text>
         ))}
 
-        {/* Price line */}
-        <path className={styles.priceLine} d={data.path} />
+        {/* Area + price line */}
+        <path className={areaClass} d={data.areaPath} />
+        <path className={lineClass} d={data.path} />
+
+        {/* Hover guide + tooltip */}
+        {hoverInfo && (
+          <g>
+            <line className={styles.hoverLine} x1={hoverInfo.x} x2={hoverInfo.x} y1={plotMinY} y2={plotMaxY} />
+            <circle className={styles.hoverDot} cx={hoverInfo.x} cy={hoverInfo.y} r={4.2} />
+
+            <g>
+              <rect
+                className={styles.tooltipBox}
+                x={hoverInfo.tooltip.x}
+                y={hoverInfo.tooltip.y}
+                width={hoverInfo.tooltip.w}
+                height={hoverInfo.tooltip.h}
+                rx={10}
+                ry={10}
+              />
+              <text
+                className={styles.tooltipPrice}
+                x={hoverInfo.tooltip.x + hoverInfo.tooltip.pad}
+                y={hoverInfo.tooltip.y + 20}
+                textAnchor="start"
+              >
+                {hoverInfo.priceLabel}
+              </text>
+              <text
+                className={styles.tooltipDate}
+                x={hoverInfo.tooltip.x + hoverInfo.tooltip.pad}
+                y={hoverInfo.tooltip.y + 38}
+                textAnchor="start"
+              >
+                {hoverInfo.dateLabel}
+              </text>
+            </g>
+          </g>
+        )}
+
+        {/* Drag-to-select range window */}
+        {rangeInfo && (
+          <g>
+            <rect
+              className={rangeShadeClass}
+              x={rangeInfo.leftPx}
+              y={plotMinY}
+              width={Math.max(0, rangeInfo.rightPx - rangeInfo.leftPx)}
+              height={Math.max(0, plotMaxY - plotMinY)}
+            />
+            <line className={rangeEdgeClass} x1={rangeInfo.leftPx} x2={rangeInfo.leftPx} y1={plotMinY} y2={plotMaxY} />
+            <line className={rangeEdgeClass} x1={rangeInfo.rightPx} x2={rangeInfo.rightPx} y1={plotMinY} y2={plotMaxY} />
+            <text
+              className={rangeLabelClass}
+              x={(rangeInfo.leftPx + rangeInfo.rightPx) / 2}
+              y={plotMinY + 26}
+              textAnchor="middle"
+            >
+              {rangeInfo.label}
+            </text>
+          </g>
+        )}
 
         {/* Recommendation bubbles (grouped and stacked per day) */}
         {byDay.map((g) => {

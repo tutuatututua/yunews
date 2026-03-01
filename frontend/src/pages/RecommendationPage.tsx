@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import RecommendationOverlayChart from '../components/features/RecommendationOverlayChart'
 import { ErrorCallout, EmptyState } from '../components/ui/Callout'
@@ -12,6 +12,13 @@ import { useRecommendationOverlay, useRecommendationsList } from '../services/qu
 import type { RecommendationEvent } from '../types'
 import { ui, util } from '../styles'
 import styles from './RecommendationPage.module.css'
+
+const WINDOW_OPTIONS = [
+  ['1y', '1y'],
+  ['6m', '6m'],
+  ['3m', '3m'],
+  ['1m', '1m'],
+] as const
 
 function buildYouTubeWatchUrl(videoId: string): string {
   return `https://www.youtube.com/watch?v=${encodeURIComponent(String(videoId || '').trim())}`
@@ -38,6 +45,11 @@ function avgFinite(values: Array<number | null | undefined>): number | null {
   return sum / n
 }
 
+function normalizeSymbol(x: unknown): string | null {
+  const sym = String(x || '').trim().toUpperCase()
+  return sym || null
+}
+
 export default function RecommendationPage() {
   const { timeZone, timeShiftMinutes } = useTimeZone()
   const intlTimeZone = resolveTimeZoneForIntl(timeZone)
@@ -46,6 +58,7 @@ export default function RecommendationPage() {
   const [params, setParams] = useSearchParams()
   const [tickerSearch, setTickerSearch] = useState('')
   const [windowKey, setWindowKey] = useState<'1y' | '6m' | '3m' | '1m'>('1y')
+  const [netPositiveOnly, setNetPositiveOnly] = useState(false)
 
   const windowDays = useMemo(() => {
     switch (windowKey) {
@@ -62,17 +75,18 @@ export default function RecommendationPage() {
   }, [windowKey])
 
   const selectedSymbol = useMemo(() => {
-    const raw = params.get('symbol')
-    const sym = String(raw || '').trim().toUpperCase()
-    return sym || null
+    return normalizeSymbol(params.get('symbol'))
   }, [params])
 
-  const listQuery = useRecommendationsList({ days: 365, limit: 600 })
+  const listQuery = useRecommendationsList({ days: 365, limit: 600, netPositiveOnly })
+
+  const tickerQuery = String(tickerSearch || '').trim().toUpperCase()
+  const hasTickerQuery = tickerQuery.length > 0
 
   const tickers = useMemo(() => {
     const counts = new Map<string, number>()
     for (const ev of listQuery.data || []) {
-      const sym = String(ev?.ticker || '').trim().toUpperCase()
+      const sym = normalizeSymbol(ev?.ticker)
       if (!sym) continue
       counts.set(sym, (counts.get(sym) || 0) + 1)
     }
@@ -82,11 +96,10 @@ export default function RecommendationPage() {
     return items
   }, [listQuery.data])
 
-  const filteredTickers = useMemo(() => {
-    const q = String(tickerSearch || '').trim().toUpperCase()
-    if (!q) return tickers
-    return tickers.filter((t) => t.symbol.includes(q))
-  }, [tickers, tickerSearch])
+  const shownTickers = useMemo(() => {
+    if (!hasTickerQuery) return tickers
+    return tickers.filter((t) => t.symbol.includes(tickerQuery))
+  }, [hasTickerQuery, tickers, tickerQuery])
 
   useEffect(() => {
     if (selectedSymbol) return
@@ -95,10 +108,25 @@ export default function RecommendationPage() {
     const next = new URLSearchParams(params)
     next.set('symbol', tickers[0].symbol)
     setParams(next, { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, tickers.map((t) => t.symbol).join('|')])
+  }, [params, selectedSymbol, setParams, tickers])
+
+  useEffect(() => {
+    if (!selectedSymbol) return
+    if (!tickers.length) return
+    if (tickers.some((t) => t.symbol === selectedSymbol)) return
+
+    const next = new URLSearchParams(params)
+    next.set('symbol', tickers[0].symbol)
+    setParams(next, { replace: true })
+  }, [params, selectedSymbol, setParams, tickers])
 
   const overlayQuery = useRecommendationOverlay(selectedSymbol, { days: windowDays }, !!selectedSymbol)
+  const overlay = overlayQuery.data || null
+
+  const avgNowPct = useMemo(() => {
+    if (!overlay) return null
+    return avgFinite((overlay.events || []).map((e) => e?.return_pct ?? null))
+  }, [overlay])
 
   const errorInfo = getUiErrorInfo(listQuery.error) || getUiErrorInfo(overlayQuery.error) || null
 
@@ -148,86 +176,95 @@ export default function RecommendationPage() {
                     autoComplete="off"
                   />
                 </div>
+
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Filters</span>
+                  <button
+                    type="button"
+                    className={cn(ui.chip, styles.filterChip, netPositiveOnly && styles.filterChipActive)}
+                    aria-pressed={netPositiveOnly}
+                    onClick={() => setNetPositiveOnly((v) => !v)}
+                    title="Only show tickers where positive keypoints exceed negative keypoints across recommendation videos"
+                  >
+                    Net-positive
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className={styles.tickerChips} role="list">
-              {(filteredTickers.length ? filteredTickers : tickers).map((t) => {
-                const active = selectedSymbol === t.symbol
-                return (
-                  <button
-                    key={t.symbol}
-                    type="button"
-                    className={cn(ui.chip, styles.tickerChip, active && styles.tickerChipActive)}
-                    aria-current={active ? 'true' : undefined}
-                    onClick={() => {
-                      const next = new URLSearchParams(params)
-                      next.set('symbol', t.symbol)
-                      setParams(next, { replace: true })
-                    }}
-                  >
-                    <span className={styles.tickerSym}>{t.symbol}</span>
-                    <span className={styles.tickerCount}>{t.count}</span>
-                  </button>
-                )
-              })}
+              {hasTickerQuery && shownTickers.length === 0 ? (
+                <div className={cn(util.muted, util.small, styles.tickerNone)} role="status">
+                  Can't find any tickers matching "{tickerSearch}"
+                </div>
+              ) : (
+                shownTickers.map((t) => {
+                  const active = selectedSymbol === t.symbol
+                  return (
+                    <button
+                      key={t.symbol}
+                      type="button"
+                      className={cn(ui.chip, styles.tickerChip, active && styles.tickerChipActive)}
+                      aria-current={active ? 'true' : undefined}
+                      onClick={() => {
+                        const next = new URLSearchParams(params)
+                        next.set('symbol', t.symbol)
+                        setParams(next, { replace: true })
+                      }}
+                    >
+                      <span className={styles.tickerSym}>{t.symbol}</span>
+                      <span className={styles.tickerCount}>{t.count}</span>
+                    </button>
+                  )
+                })
+              )}
             </div>
           </section>
 
           <main className={styles.main}>
             {selectedSymbol ? (
               <section className={ui.card} aria-label="Recommendation overlay">
-                <div className={ui.cardHeader}>
-                  <h2>{selectedSymbol} overlay</h2>
-                  <div className={ui.cardHeaderRight}>
-                    <div className={cn(util.muted, util.small)}>Price series from yfinance (cached best-effort).</div>
-                    <div className={styles.windowChips} role="list" aria-label="Window">
-                      {([
-                        ['1y', '1y'],
-                        ['6m', '6m'],
-                        ['3m', '3m'],
-                        ['1m', '1m'],
-                      ] as const).map(([key, label]) => {
-                        const active = windowKey === key
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            className={cn(ui.chip, styles.windowChip, active && styles.windowChipActive)}
-                            aria-current={active ? 'true' : undefined}
-                            onClick={() => setWindowKey(key)}
-                          >
-                            {label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {overlayQuery.data &&
-                      (() => {
-                        const avg = avgFinite((overlayQuery.data.events || []).map((e) => e?.return_pct ?? null))
-                        if (avg == null) return null
-                        return <span className={ui.chip}>Avg: {fmtPct(avg)}</span>
-                      })()}
-                  </div>
-                </div>
-
                 {overlayQuery.isLoading && <LoadingLine label={`Loading ${selectedSymbol} overlay…`} />}
 
-                {overlayQuery.data && (
+                {overlay && (
                   <>
                     <RecommendationOverlayChart
                       symbol={selectedSymbol}
-                      prices={overlayQuery.data.prices || []}
-                      events={overlayQuery.data.events || []}
+                      prices={overlay.prices || []}
+                      events={overlay.events || []}
+                      headerRight={
+                        <>
+                          <div className={cn(util.muted, util.small)}>
+                            Price series from yfinance (cached best-effort).
+                          </div>
+                          <div className={styles.windowChips} role="list" aria-label="Window">
+                            {WINDOW_OPTIONS.map(([key, label]) => {
+                              const active = windowKey === key
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  className={cn(ui.chip, styles.windowChip, active && styles.windowChipActive)}
+                                  aria-current={active ? 'true' : undefined}
+                                  onClick={() => setWindowKey(key)}
+                                >
+                                  {label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {avgNowPct != null && <span className={ui.chip}>Avg: {fmtPct(avgNowPct)}</span>}
+                        </>
+                      }
                     />
 
-                    {(overlayQuery.data.events?.length || 0) === 0 ? (
+                    {(overlay.events?.length || 0) === 0 ? (
                       <div className={cn(util.muted, util.small)} style={{ marginTop: 12 }}>
                         No recommendation-style videos found for this ticker.
                       </div>
                     ) : (
                       <div className={styles.eventList}>
-                        {overlayQuery.data.events.slice(0, 50).map((ev: RecommendationEvent) => {
+                        {overlay.events.slice(0, 50).map((ev: RecommendationEvent) => {
                           const title = String(ev?.title || 'Video').trim()
                           const channel = ev?.channel ? String(ev.channel).trim() : null
                           const published = ev?.published_at

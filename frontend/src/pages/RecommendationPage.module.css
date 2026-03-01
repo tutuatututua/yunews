@@ -114,6 +114,10 @@
   color: var(--text);
 }
 
+.tickerNone {
+  padding: 6px 2px;
+}
+
 .tickerSym {
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -226,3 +230,4 @@
   background: color-mix(in srgb, var(--primary) 16%, var(--surface));
   color: var(--text);
 }
+

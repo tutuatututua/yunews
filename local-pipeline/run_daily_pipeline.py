@@ -265,14 +265,41 @@ def main() -> None:
         # This keeps Supabase usage low: we do NOT store price history, only the recommendation event.
         try:
             if is_recommendation_title(video.title):
-                reco_tickers = sorted(
-                    {
-                        str(it.get("ticker")).strip().upper()
-                        for it in (aggregated_items_for_video or [])
-                        if isinstance(it, dict) and it.get("ticker")
-                    }
-                )
-                reco_tickers = [t for t in reco_tickers if t and t != "MARKET"]
+                logger.info("!!!!!Video title suggests recommendation-style content; applying recommendation filters video_id=%s title=%s", video.video_id, video.title)
+                def _count_keypoints(summary: Any, key: str) -> int:
+                    if not isinstance(summary, dict):
+                        return 0
+                    raw = summary.get(key)
+                    if not isinstance(raw, list):
+                        return 0
+                    return sum(1 for x in raw if str(x).strip())
+
+                reco_candidates: list[str] = []
+                for it in (aggregated_items_for_video or []):
+                    if not isinstance(it, dict):
+                        continue
+
+                    ticker_u = str(it.get("ticker") or "").strip().upper()
+                    if not ticker_u or ticker_u == "MARKET":
+                        continue
+
+                    summary = it.get("summary")
+                    pos = _count_keypoints(summary, "positive")
+                    neg = _count_keypoints(summary, "negative")
+
+                    if pos > neg:
+                        reco_candidates.append(ticker_u)
+                        logger.info("Recommendation ticker passed filter (pos>neg): ticker=%s pos=%s neg=%s video_id=%s", ticker_u, pos, neg, video.video_id)
+                    else:
+                        logger.debug(
+                            "Recommendation ticker filtered out (pos<=neg): ticker=%s pos=%s neg=%s video_id=%s",
+                            ticker_u,
+                            pos,
+                            neg,
+                            video.video_id,
+                        )
+
+                reco_tickers = sorted(set(reco_candidates))
                 for sym in reco_tickers:
                     db.upsert_youtuber_recommendation(
                         video_id=video.video_id,
@@ -286,6 +313,12 @@ def main() -> None:
                         "Stored %d youtuber recommendations for video_id=%s",
                         len(reco_tickers),
                         video.video_id,
+                    )
+                else:
+                    logger.info(
+                        "Recommendation-style video detected but no tickers passed filter (pos>neg): video_id=%s title=%s",
+                        video.video_id,
+                        video.title,
                     )
         except Exception:
             logger.exception("Failed to upsert youtuber recommendations")
