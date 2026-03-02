@@ -321,7 +321,9 @@ function buildMarkers(events: RecommendationEvent[]): Marker[] {
       const publishedAt = String(ev?.published_at || '').trim()
       const publishedDayEt = publishedAt ? toEtIsoDay(publishedAt) : null
       const entry = String(ev?.entry_date || '').trim()
-      const dayKey = publishedDayEt || entry
+      // Prefer the computed market entry day (aligns with price bars). Fall back to
+      // the YouTube publish day when we don't have an entry day.
+      const dayKey = entry || publishedDayEt
       const title = String(ev?.title || '').trim()
       const channel = String(ev?.channel || '').trim()
       const entryClose = ev?.entry_close == null ? null : Number(ev.entry_close)
