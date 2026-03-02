@@ -3,7 +3,7 @@ from __future__ import annotations
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from app.settings import get_settings
+from app.core.config import get_settings
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

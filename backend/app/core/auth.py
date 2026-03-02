@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import Header, Request
 
 from app.core.errors import UnauthorizedError
-from app.settings import get_settings
+from app.core.config import get_settings
 
 
 def _extract_bearer(authorization: str | None) -> str | None:

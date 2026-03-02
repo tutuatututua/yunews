@@ -16,6 +16,17 @@ class AppError(Exception):
     message: str
     details: Any | None = None
 
+    def __post_init__(self) -> None:
+        # `Exception` normally stores its message in `.args`, but dataclass doesn't
+        # call `Exception.__init__` for us. Also, `frozen=True` prevents normal
+        # assignment, so we set `.args` via `object.__setattr__`.
+        msg = (self.message or "").strip() or (self.code or "").strip() or type(self).__name__
+        object.__setattr__(self, "args", (msg,))
+
+    def __str__(self) -> str:
+        # Make `str(AppError)` reliably non-empty for logging and error handling.
+        return str((self.message or "").strip() or (self.code or "").strip() or type(self).__name__)
+
 
 class BadRequestError(AppError):
     def __init__(self, message: str = "Bad Request", *, code: str = "bad_request", details: Any | None = None):

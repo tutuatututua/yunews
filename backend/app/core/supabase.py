@@ -5,7 +5,7 @@ from typing import Any
 
 from supabase import create_client
 
-from app.settings import get_settings
+from app.core.config import get_settings
 
 
 @lru_cache(maxsize=1)

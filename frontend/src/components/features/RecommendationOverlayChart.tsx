@@ -725,14 +725,6 @@ export default function RecommendationOverlayChart(props: {
 
           const x = data.x(ms)
 
-          // Draw a dot on the actual history line (prefer exact bar price; fall back to event entry close).
-          const linePrice = priceAtMs(data.pts, ms)
-          const dotPrice =
-            linePrice != null && Number.isFinite(linePrice)
-              ? linePrice
-              : (g.list.find((m) => m.entryClose != null && Number.isFinite(m.entryClose))?.entryClose ?? null)
-          const dotY = dotPrice != null && Number.isFinite(dotPrice) ? data.y(dotPrice) : null
-
           let dayRetSum = 0
           let dayRetN = 0
           for (const m of g.list) {
@@ -745,12 +737,27 @@ export default function RecommendationOverlayChart(props: {
           const dayRetAvg = dayRetN > 0 ? dayRetSum / dayRetN : null
           const dayProfitState: 'up' | 'down' | 'flat' =
             dayRetAvg == null || !Number.isFinite(dayRetAvg) ? 'flat' : dayRetAvg >= 0 ? 'up' : 'down'
+
+          // Draw a dot on the actual history line (prefer exact bar price; fall back to event entry close).
+          const linePrice = priceAtMs(data.pts, ms)
+          const dotPrice =
+            linePrice != null && Number.isFinite(linePrice)
+              ? linePrice
+              : (g.list.find((m) => m.entryClose != null && Number.isFinite(m.entryClose))?.entryClose ?? null)
+          const dotY = dotPrice != null && Number.isFinite(dotPrice) ? data.y(dotPrice) : null
           const dayLineClass =
             dayProfitState === 'up'
               ? styles.profitLineUp
               : dayProfitState === 'down'
                 ? styles.profitLineDown
                 : styles.profitLine
+
+          const dayDotClass =
+            dayProfitState === 'up'
+              ? styles.markerDotUp
+              : dayProfitState === 'down'
+                ? styles.markerDotDown
+                : styles.markerDot
 
           const ys = stackYs({ baseY: stackMaxY, count: g.list.length, step: stackStep, minY: stackMinY, maxY: stackMaxY })
           const clipBase = `thumb-${symbolKey}-${g.day}`
@@ -762,7 +769,7 @@ export default function RecommendationOverlayChart(props: {
 
               {/* Dot on the history line for this day */}
               {dotY != null && (
-                <circle className={styles.markerDot} cx={x} cy={dotY} r={3.5}>
+                <circle className={dayDotClass} cx={x} cy={dotY} r={3.5}>
                   <title>{`${g.day} • ${fmtPrice(dotPrice ?? NaN)}`}</title>
                 </circle>
               )}

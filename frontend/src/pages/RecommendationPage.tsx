@@ -8,7 +8,7 @@ import { getUiErrorInfo } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { safeExternalHref } from '../lib/safeUrl'
 import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
-import { useRecommendationOverlay, useRecommendationsList } from '../services/queries'
+import { useRecommendationOverlay, useRecommendationsList } from '../features/recommendations/queries'
 import type { RecommendationEvent } from '../types'
 import { ui, util } from '../styles'
 import styles from './RecommendationPage.module.css'
@@ -58,7 +58,6 @@ export default function RecommendationPage() {
   const [params, setParams] = useSearchParams()
   const [tickerSearch, setTickerSearch] = useState('')
   const [windowKey, setWindowKey] = useState<'1y' | '6m' | '3m' | '1m'>('1y')
-  const [netPositiveOnly, setNetPositiveOnly] = useState(false)
 
   const windowDays = useMemo(() => {
     switch (windowKey) {
@@ -78,7 +77,7 @@ export default function RecommendationPage() {
     return normalizeSymbol(params.get('symbol'))
   }, [params])
 
-  const listQuery = useRecommendationsList({ days: 365, limit: 600, netPositiveOnly })
+  const listQuery = useRecommendationsList({ days: 365, limit: 600 })
 
   const tickerQuery = String(tickerSearch || '').trim().toUpperCase()
   const hasTickerQuery = tickerQuery.length > 0
@@ -104,16 +103,6 @@ export default function RecommendationPage() {
   useEffect(() => {
     if (selectedSymbol) return
     if (!tickers.length) return
-
-    const next = new URLSearchParams(params)
-    next.set('symbol', tickers[0].symbol)
-    setParams(next, { replace: true })
-  }, [params, selectedSymbol, setParams, tickers])
-
-  useEffect(() => {
-    if (!selectedSymbol) return
-    if (!tickers.length) return
-    if (tickers.some((t) => t.symbol === selectedSymbol)) return
 
     const next = new URLSearchParams(params)
     next.set('symbol', tickers[0].symbol)
@@ -175,19 +164,6 @@ export default function RecommendationPage() {
                     inputMode="search"
                     autoComplete="off"
                   />
-                </div>
-
-                <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Filters</span>
-                  <button
-                    type="button"
-                    className={cn(ui.chip, styles.filterChip, netPositiveOnly && styles.filterChipActive)}
-                    aria-pressed={netPositiveOnly}
-                    onClick={() => setNetPositiveOnly((v) => !v)}
-                    title="Only show tickers where positive keypoints exceed negative keypoints across recommendation videos"
-                  >
-                    Net-positive
-                  </button>
                 </div>
               </div>
             </div>

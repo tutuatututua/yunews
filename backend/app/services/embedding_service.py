@@ -4,7 +4,8 @@ from functools import lru_cache
 import threading
 from typing import Any, Protocol
 
-from app.settings import get_settings
+from app.core.errors import UpstreamError
+from app.core.config import get_settings
 
 
 class BaseEmbeddingService(Protocol):
@@ -78,7 +79,28 @@ class OpenAIEmbeddingService:
 def get_embedding_service() -> BaseEmbeddingService:
     settings = get_settings()
 
+    class DisabledEmbeddingService:
+        def __init__(self, *, reason: str) -> None:
+            self._reason = (reason or "").strip() or "Embedding service disabled"
+
+        def embed(self, text: str) -> list[float]:
+            raise UpstreamError(
+                message="Embedding service unavailable",
+                details={"reason": self._reason},
+            )
+
+        def dimension(self) -> int:
+            return 0
+
+    api_key = str(settings.openai_api_key or "").strip()
+    model = str(settings.openai_embedding_model or "").strip()
+
+    if not api_key:
+        return DisabledEmbeddingService(reason="Missing OPENAI_API_KEY")
+    if not model:
+        return DisabledEmbeddingService(reason="Missing OPENAI_EMBEDDING_MODEL")
+
     return OpenAIEmbeddingService(
-        api_key=str(settings.openai_api_key or ""),
-        model=str(settings.openai_embedding_model),
+        api_key=api_key,
+        model=model,
     )

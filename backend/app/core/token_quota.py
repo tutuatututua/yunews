@@ -7,7 +7,7 @@ from functools import lru_cache
 
 from starlette.requests import Request
 
-from app.settings import get_settings
+from app.core.config import get_settings
 
 
 def get_client_ip(request: Request) -> str:

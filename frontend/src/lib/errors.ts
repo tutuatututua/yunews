@@ -1,4 +1,4 @@
-import { ApiRequestError } from '../services/api'
+import { ApiRequestError } from '../api/client'
 
 type UiErrorInfo = {
   message: string

@@ -1,5 +1,5 @@
 import React from 'react'
-import { streamChat } from '../../services/api'
+import { streamChat } from '../../features/chat/api'
 import type { ChatHistoryMessage, ChatRetrievalChunk, ChatSource, QueryPlan } from '../../types'
 import { clearPersistedChat, readPersistedChatMessages, writePersistedChatMessages } from './chatStorage'
 import type { ChatMessage } from './chatTypes'

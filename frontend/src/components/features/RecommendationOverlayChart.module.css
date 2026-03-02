@@ -145,6 +145,18 @@
   stroke-width: 2;
 }
 
+.markerDotUp {
+  fill: var(--surface);
+  stroke: var(--sent-pos);
+  stroke-width: 2;
+}
+
+.markerDotDown {
+  fill: var(--surface);
+  stroke: var(--sent-neg);
+  stroke-width: 2;
+}
+
 .dot {
   fill: var(--primary);
   stroke: var(--surface);

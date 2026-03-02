@@ -145,12 +145,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className={styles.topbarRight}>
-            <button className={styles.iconButton} type="button" aria-label="Search (coming soon)" disabled>
-              <Search size={18} />
-            </button>
-            <button className={styles.iconButton} type="button" aria-label="Notifications (coming soon)" disabled>
-              <Bell size={18} />
-            </button>
             <TimeZoneMenu />
           </div>
         </header>
