@@ -9,6 +9,7 @@ import RecommendationPage from './pages/RecommendationPage'
 import TickerPage from './pages/TickerPage'
 import VideoInsightsPage from './pages/VideoInsightsPage'
 import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import React from 'react'
 import { getBackendBaseUrl } from './config/env'
 
@@ -67,6 +68,7 @@ export default function App() {
             </Routes>
           </AppShell>
           <Analytics />
+          <SpeedInsights />
         </BrowserRouter>
       </TimeZoneProvider>
     </QueryClientProvider>
