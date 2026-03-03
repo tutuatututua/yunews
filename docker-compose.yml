@@ -1,17 +1,13 @@
 services:
   local-pipeline:
-    build:
-      context: ./local-pipeline
+    build: ./local-pipeline
     env_file:
       - ./local-pipeline/.env
     profiles:
       - pipeline
-    restart: "no"
-    command: ["python", "run_daily_pipeline.py"]
 
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     env_file:
       - ./backend/.env
     environment:
@@ -25,7 +21,7 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_BACKEND_BASE_URL=${VITE_BACKEND_BASE_URL:-/api}
+        VITE_BACKEND_BASE_URL: ${VITE_BACKEND_BASE_URL:-/api}
     ports:
       - "5173:80"
     depends_on:

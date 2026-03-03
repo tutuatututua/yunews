@@ -551,13 +551,6 @@ export default function TickerPage() {
         </div>
 
         <div className={styles.headerRight}>
-          <span
-            className={cn(ui.chip, styles.marketChip)}
-            title="Market date used to anchor the analysis window"
-          >
-            {anchorDate ? `Market: ${anchorDate}` : 'Market: Latest'}
-          </span>
-
           <label className={styles.headerField}>
             <span className={styles.headerLabel}>Window</span>
             <select className={styles.headerSelect} value={String(days)} onChange={onChangeDays} aria-label="Select day window">

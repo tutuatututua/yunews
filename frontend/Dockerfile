@@ -1,4 +1,3 @@
-# Build
 FROM node:20-alpine AS build
 
 WORKDIR /app
@@ -16,7 +15,6 @@ COPY public /app/public
 
 RUN npm run build
 
-# Serve
 FROM nginx:1.27-alpine
 
 ENV PORT=80 \
