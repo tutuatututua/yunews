@@ -160,23 +160,11 @@ export default function VideoInsightsPage() {
       markCopied()
       return
     } catch {
-      // Fallback for older browsers / permissions.
+      // Clipboard access can fail (permission denied, insecure context, etc).
     }
 
-    try {
-      const el = document.createElement('textarea')
-      el.value = next
-      el.setAttribute('readonly', '')
-      el.style.position = 'fixed'
-      el.style.left = '-9999px'
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-      markCopied()
-    } catch {
-      // ignore
-    }
+    // Fallback: show the URL for manual copy.
+    window.prompt('Copy this link:', next)
   }
 
   const onChangeDays: React.ChangeEventHandler<HTMLSelectElement> = (e) => {

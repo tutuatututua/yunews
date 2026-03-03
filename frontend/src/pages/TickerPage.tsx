@@ -341,23 +341,11 @@ export default function TickerPage() {
       markCopied()
       return
     } catch {
-      // Fallback for older browsers / permissions.
+      // Clipboard access can fail (permission denied, insecure context, etc).
     }
 
-    try {
-      const el = document.createElement('textarea')
-      el.value = next
-      el.setAttribute('readonly', '')
-      el.style.position = 'fixed'
-      el.style.left = '-9999px'
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-      markCopied()
-    } catch {
-      // ignore
-    }
+    // Fallback: show the URL for manual copy.
+    window.prompt('Copy this link:', next)
   }
 
   useEffect(() => {
@@ -518,15 +506,15 @@ export default function TickerPage() {
     params,
     setParams,
     infographicQuery.isLoading,
+    dateBounds.hasReal,
+    dateBounds.minDay,
+    dateBounds.maxDay,
     publishedMinDay,
     publishedMaxDay,
     mentionsMin,
-    mentionsMax,
     mentionDefaultMin,
+    mentionsMax,
     maxMentionsObserved,
-    dateBounds.minDay,
-    dateBounds.maxDay,
-    dateBounds.hasReal,
   ])
 
   const sentimentTotals = useMemo(() => buildSentimentTotals(filteredItems), [filteredItems])

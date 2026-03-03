@@ -13,6 +13,7 @@ from app.core.time import market_today
 from app.core.token_quota import TokenQuota, estimate_tokens
 from app.schemas.chat import ChatRequest, RetrievedChunk
 from app.schemas.query_plan import QueryPlan
+from app.repositories.logs import LogsRepository
 from app.services.query_planner import QueryPlannerService
 from app.services.rag_retrieval import RagRetrievalService
 
@@ -158,12 +159,16 @@ class ChatService:
         planner: QueryPlannerService | None,
         quota: TokenQuota,
         retrieval: RagRetrievalService,
+        logs: LogsRepository | None = None,
+        log_chat_history: bool = True,
     ) -> None:
         self._openai_api_key = (openai_api_key or "").strip()
         self._chat_model = (chat_model or "").strip()
         self._planner = planner
         self._quota = quota
         self._retrieval = retrieval
+        self._logs = logs
+        self._log_chat_history = bool(log_chat_history)
 
     def stream_chat(self, *, req: ChatRequest, client_ip: str, request_id: str | None) -> StreamingResponse:
         question = (req.question or "").strip()
@@ -187,20 +192,37 @@ class ChatService:
         if query_plan is not None and (getattr(query_plan, "is_stock_related", True) is False):
 
             def event_stream_non_stock() -> Iterable[bytes]:
+                response_parts: list[str] = []
+                status = "non_stock"
                 yield _sse({"type": "query_plan", "query_plan": query_plan.model_dump(exclude_none=True)})
                 yield _sse({"type": "sources", "sources": []})
                 yield _sse({"type": "retrieval", "chunks": [], "context": ""})
+                msg = (
+                    "I can only help with stock/company/market questions. "
+                    "(Why you’re seeing this: the query planner marked this question as not stock-related.) "
+                    "If this is actually about a stock, include an explicit ticker (e.g., AAPL, TSLA — or 'SOFI' if you mean SoFi Technologies)."
+                )
+                response_parts.append(msg)
                 yield _sse(
                     {
                         "type": "delta",
-                        "delta": (
-                            "I can only help with stock/company/market questions. "
-                            "(Why you’re seeing this: the query planner marked this question as not stock-related.) "
-                            "If this is actually about a stock, include an explicit ticker (e.g., AAPL, TSLA — or 'SOFI' if you mean SoFi Technologies)."
-                        ),
+                        "delta": msg,
                     }
                 )
                 yield _sse({"type": "done"})
+
+                if self._logs is not None and self._log_chat_history:
+                    self._logs.insert_chat_log(
+                        ip=client_ip,
+                        request_id=request_id,
+                        question=question,
+                        history=history,
+                        response_text="".join(response_parts),
+                        sources=[],
+                        query_plan=query_plan.model_dump(exclude_none=True),
+                        model=self._chat_model,
+                        status=status,
+                    )
 
             return StreamingResponse(event_stream_non_stock(), media_type="text/event-stream")
 
@@ -224,6 +246,9 @@ class ChatService:
         quota = self._quota
 
         def event_stream() -> Iterable[bytes]:
+            response_parts: list[str] = []
+            status = "started"
+            error_message: str | None = None
             if query_plan is not None:
                 yield _sse({"type": "query_plan", "query_plan": query_plan.model_dump(exclude_none=True)})
 
@@ -231,6 +256,8 @@ class ChatService:
             yield _sse({"type": "retrieval", "chunks": _retrieval_payload(chunks), "context": prompt_context[:40_000]})
 
             if retrieval_error:
+                status = "retrieval_error"
+                error_message = retrieval_error
                 yield _sse(
                     {
                         "type": "error",
@@ -242,16 +269,57 @@ class ChatService:
                     }
                 )
                 yield _sse({"type": "done"})
+                if self._logs is not None and self._log_chat_history:
+                    self._logs.insert_chat_log(
+                        ip=client_ip,
+                        request_id=request_id,
+                        question=question,
+                        history=history,
+                        response_text=None,
+                        sources=_sources_payload(chunks),
+                        query_plan=query_plan.model_dump(exclude_none=True) if query_plan is not None else None,
+                        model=self._chat_model,
+                        status=status,
+                        error_message=error_message,
+                    )
                 return
 
             if not chunks:
-                yield _sse({"type": "delta", "delta": "I don't have that information.\n\n"})
+                status = "no_info"
+                msg = "I don't have that information.\n\n"
+                response_parts.append(msg)
+                yield _sse({"type": "delta", "delta": msg})
                 yield _sse({"type": "done"})
+                if self._logs is not None and self._log_chat_history:
+                    self._logs.insert_chat_log(
+                        ip=client_ip,
+                        request_id=request_id,
+                        question=question,
+                        history=history,
+                        response_text="".join(response_parts),
+                        sources=_sources_payload(chunks),
+                        query_plan=query_plan.model_dump(exclude_none=True) if query_plan is not None else None,
+                        model=self._chat_model,
+                        status=status,
+                    )
                 return
 
             if not self._openai_api_key:
+                status = "missing_openai_key"
                 yield _sse({"type": "error", "message": "Server is missing OPENAI_API_KEY"})
                 yield _sse({"type": "done"})
+                if self._logs is not None and self._log_chat_history:
+                    self._logs.insert_chat_log(
+                        ip=client_ip,
+                        request_id=request_id,
+                        question=question,
+                        history=history,
+                        response_text=None,
+                        sources=_sources_payload(chunks),
+                        query_plan=query_plan.model_dump(exclude_none=True) if query_plan is not None else None,
+                        model=self._chat_model,
+                        status=status,
+                    )
                 return
 
             date_context = (
@@ -284,6 +352,7 @@ class ChatService:
 
                 snap = quota.try_consume(client_ip, prompt_tokens)
                 if snap is None:
+                    status = "quota_exceeded_prompt"
                     current = quota.snapshot(client_ip)
                     yield _sse(
                         {
@@ -298,6 +367,18 @@ class ChatService:
                         }
                     )
                     yield _sse({"type": "done"})
+                    if self._logs is not None and self._log_chat_history:
+                        self._logs.insert_chat_log(
+                            ip=client_ip,
+                            request_id=request_id,
+                            question=question,
+                            history=history,
+                            response_text=None,
+                            sources=_sources_payload(chunks),
+                            query_plan=query_plan.model_dump(exclude_none=True) if query_plan is not None else None,
+                            model=self._chat_model,
+                            status=status,
+                        )
                     return
 
             try:
@@ -324,6 +405,7 @@ class ChatService:
                         delta_tokens = estimate_tokens(delta)
                         snap2 = quota.try_consume(client_ip, delta_tokens)
                         if snap2 is None:
+                            status = "quota_exceeded_response"
                             yield _sse(
                                 {
                                     "type": "error",
@@ -335,13 +417,56 @@ class ChatService:
                                 }
                             )
                             yield _sse({"type": "done"})
+                            if self._logs is not None and self._log_chat_history:
+                                self._logs.insert_chat_log(
+                                    ip=client_ip,
+                                    request_id=request_id,
+                                    question=question,
+                                    history=history,
+                                    response_text="".join(response_parts),
+                                    sources=_sources_payload(chunks),
+                                    query_plan=query_plan.model_dump(exclude_none=True)
+                                    if query_plan is not None
+                                    else None,
+                                    model=self._chat_model,
+                                    status=status,
+                                )
                             return
 
+                    response_parts.append(delta)
                     yield _sse({"type": "delta", "delta": delta})
 
+                status = "done"
                 yield _sse({"type": "done"})
+                if self._logs is not None and self._log_chat_history:
+                    self._logs.insert_chat_log(
+                        ip=client_ip,
+                        request_id=request_id,
+                        question=question,
+                        history=history,
+                        response_text="".join(response_parts),
+                        sources=_sources_payload(chunks),
+                        query_plan=query_plan.model_dump(exclude_none=True) if query_plan is not None else None,
+                        model=self._chat_model,
+                        status=status,
+                    )
             except Exception as exc:
                 logger.exception("Chat generation failed")
+                status = "upstream_error"
+                error_message = str(exc)[:200]
+                if self._logs is not None and self._log_chat_history:
+                    self._logs.insert_chat_log(
+                        ip=client_ip,
+                        request_id=request_id,
+                        question=question,
+                        history=history,
+                        response_text="".join(response_parts) or None,
+                        sources=_sources_payload(chunks),
+                        query_plan=query_plan.model_dump(exclude_none=True) if query_plan is not None else None,
+                        model=self._chat_model,
+                        status=status,
+                        error_message=error_message,
+                    )
                 raise UpstreamError("Chat model failed", details={"hint": str(exc)[:200]})
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")

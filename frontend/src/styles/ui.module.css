@@ -63,9 +63,6 @@
   gap: 8px;
 }
 
-.primary {}
-
-.ghost {}
 
 .button:focus-visible {
   outline: none;

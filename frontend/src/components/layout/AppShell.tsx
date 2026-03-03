@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Bell, Home, Image, Menu, MessageCircle, Search, TrendingUp, Video, X } from 'lucide-react'
+import { Home, Image, Menu, MessageCircle, TrendingUp, Video, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { TimeZoneMenu } from '../ui/TimeZoneMenu'
 import styles from './AppShell.module.css'
@@ -37,13 +37,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const onChange = () => setIsMobile(mediaQuery.matches)
 
     onChange()
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', onChange)
-      return () => mediaQuery.removeEventListener('change', onChange)
-    }
+    if (typeof (mediaQuery as any).addEventListener !== 'function') return
 
-    mediaQuery.addListener(onChange)
-    return () => mediaQuery.removeListener(onChange)
+    mediaQuery.addEventListener('change', onChange)
+    return () => mediaQuery.removeEventListener('change', onChange)
   }, [])
 
   const toggleSidebar = () => {
@@ -63,12 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen])
 
   return (
-    <div
-      className={cn(
-        styles.appShell,
-        collapsed && styles.appShellCollapsed
-      )}
-    >
+    <div className={cn(styles.appShell, collapsed && styles.appShellCollapsed)}>
       {/* Sidebar */}
       <aside
         className={cn(
@@ -95,7 +87,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <nav className={styles.nav}>
           <NavLink to="/" className={navLinkClassName}>
             <Home size={18} />
-          <span className={styles.navLabel}>Home</span>
+            <span className={styles.navLabel}>Home</span>
           </NavLink>
           <NavLink to="/videos" className={navLinkClassName}>
             <Video size={18} />

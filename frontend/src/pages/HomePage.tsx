@@ -143,7 +143,6 @@ export default function HomePage() {
     const next = new URLSearchParams(params)
     next.delete('date')
     setParams(next)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, availableDates.join('|')])
 
   // Movers are windowed independently from the daily summary; default to the last 3 days.
@@ -185,29 +184,29 @@ export default function HomePage() {
       <div className={styles.dashboard}>
         <div className={styles.mainCol}>
           <section className={ui.card} aria-label="Daily market summary">
-          <div className={ui.cardHeader}>
-            <h2>Market brief</h2>
-            <div className={styles.headerChips} aria-label="Market brief metadata">
-              <div className={styles.dateControls} aria-label="Select market date">
-                <label className={styles.dateLabel} htmlFor="marketDate">
-                  Market date
-                </label>
-                <select
-                  id="marketDate"
-                  className={styles.dateInput}
-                  value={selectedDate || ''}
-                  onChange={onChangeDate}
-                  aria-busy={availableDatesQuery.isLoading}
-                >
-                  <option value="">Latest</option>
-                  {availableDates.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
+            <div className={ui.cardHeader}>
+              <h2>Market brief</h2>
+              <div className={styles.headerChips} aria-label="Market brief metadata">
+                <div className={styles.dateControls} aria-label="Select market date">
+                  <label className={styles.dateLabel} htmlFor="marketDate">
+                    Market date
+                  </label>
+                  <select
+                    id="marketDate"
+                    className={styles.dateInput}
+                    value={selectedDate || ''}
+                    onChange={onChangeDate}
+                    aria-busy={availableDatesQuery.isLoading}
+                  >
+                    <option value="">Latest</option>
+                    {availableDates.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
                   className={cn(ui.button, ui.ghost)}
                   onClick={onClickLatest}
                   disabled={!selectedDate}

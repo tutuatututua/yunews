@@ -51,6 +51,9 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_EMBEDDING_MODEL"),
     )
 
+    log_visit_ips: bool = Field(default=True, validation_alias=AliasChoices("LOG_VISIT_IPS"))
+    log_chat_history: bool = Field(default=True, validation_alias=AliasChoices("LOG_CHAT_HISTORY"))
+
     @model_validator(mode="after")
     def _validate_supabase_keys(self):
         if self.supabase_service_role_key:

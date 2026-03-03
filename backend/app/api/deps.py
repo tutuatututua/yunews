@@ -11,6 +11,7 @@ from app.repositories.recommendations import RecommendationsRepository
 from app.repositories.rag_documents import RagDocumentsRepository
 from app.repositories.daily_summaries import DailySummariesRepository
 from app.repositories.entities import EntitiesRepository
+from app.repositories.logs import LogsRepository
 from app.repositories.videos import VideosRepository
 from app.services.chat import ChatService
 from app.services.embedding_service import get_embedding_service
@@ -25,6 +26,10 @@ from app.services.videos import VideosService
 
 def get_supabase() -> Any:
     return get_supabase_client()
+
+
+def get_logs_repo() -> LogsRepository:
+    return LogsRepository(supabase=get_supabase())
 
 
 def get_recommendations_repo() -> RecommendationsRepository:
@@ -122,4 +127,6 @@ def get_chat_service() -> ChatService:
         planner=get_query_planner_service(),
         quota=get_token_quota(),
         retrieval=get_rag_retrieval_service(),
+        logs=get_logs_repo(),
+        log_chat_history=settings.log_chat_history,
     )

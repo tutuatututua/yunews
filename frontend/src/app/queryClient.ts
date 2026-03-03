@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 
 /**
  * Central react-query configuration.
@@ -22,8 +22,20 @@ export const queryClient = new QueryClient({
 // Persist the query cache so a full page refresh doesn't immediately re-fetch the same data.
 // Safe default: short maxAge to prevent stale data lingering too long.
 if (typeof window !== 'undefined') {
-  const persister = createSyncStoragePersister({
-    storage: window.localStorage,
+  const asyncStorage = {
+    getItem: (key: string) => Promise.resolve(window.localStorage.getItem(key)),
+    setItem: (key: string, value: string) => {
+      window.localStorage.setItem(key, value)
+      return Promise.resolve()
+    },
+    removeItem: (key: string) => {
+      window.localStorage.removeItem(key)
+      return Promise.resolve()
+    },
+  }
+
+  const persister = createAsyncStoragePersister({
+    storage: asyncStorage,
     key: 'yunews-react-query',
   })
 
