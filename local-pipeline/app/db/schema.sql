@@ -185,6 +185,24 @@ create index if not exists idx_visit_logs_ip on public.visit_logs(ip);
 create index if not exists idx_visit_logs_path on public.visit_logs(path);
 
 
+-- In-app feedback submissions.
+create table if not exists public.feedback (
+  id bigserial primary key,
+  created_at timestamptz not null default now(),
+  ip text not null,
+  request_id text null,
+  email text null,
+  message text not null,
+  path text not null,
+  user_agent text null,
+  referrer text null
+);
+
+create index if not exists idx_feedback_created_at on public.feedback(created_at desc);
+create index if not exists idx_feedback_ip on public.feedback(ip);
+create index if not exists idx_feedback_path on public.feedback(path);
+
+
 -- Chat request/response persistence (server-side history).
 create table if not exists public.chat_logs (
   id bigserial primary key,

@@ -6,6 +6,7 @@ from app.api.v1.routers import (
     chat,
     daily_summaries,
     entities,
+    feedback,
     recommendations,
     track,
     videos,
@@ -15,6 +16,7 @@ from app.routes.health import router as health_router
 public_router = APIRouter()
 public_router.include_router(health_router)
 public_router.include_router(track.router)
+public_router.include_router(feedback.router)
 
 protected_router = APIRouter()
 protected_router.include_router(daily_summaries.router)

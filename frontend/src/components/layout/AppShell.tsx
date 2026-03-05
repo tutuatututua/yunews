@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Home, Image, Menu, MessageCircle, TrendingUp, Video, X } from 'lucide-react'
+import { Home, Image, Menu, MessageCircle, MessageSquare, TrendingUp, Video, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { TimeZoneMenu } from '../ui/TimeZoneMenu'
 import styles from './AppShell.module.css'
@@ -15,6 +15,7 @@ function pageTitleForPath(pathname: string) {
   if (pathname.startsWith('/infographic') || pathname.startsWith('/ticker')) return 'Infographic'
   if (pathname.startsWith('/recommendations') || pathname.startsWith('/recomendation')) return 'Recommendations'
   if (pathname.startsWith('/videos')) return 'Videos'
+  if (pathname.startsWith('/feedback')) return 'Feedback'
   return 'yuNews'
 }
 
@@ -104,6 +105,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <NavLink to="/chat" className={navLinkClassName}>
             <MessageCircle size={18} />
             <span className={styles.navLabel}>Chat</span>
+          </NavLink>
+          <NavLink to="/feedback" className={navLinkClassName}>
+            <MessageSquare size={18} />
+            <span className={styles.navLabel}>Feedback</span>
           </NavLink>
         </nav>
       </aside>

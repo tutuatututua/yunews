@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = dedent(
-    """\
+    """
     You are yuNews, a stock-video summary assistant.
     Answer the user's question using ONLY the retrieved context.
     The retrieved context may be incomplete, outdated, or internally inconsistent.

@@ -17,6 +17,9 @@ If you see `/chat` failing with `relation "public.rag_documents" does not exist`
 run:
 - `local-pipeline/app/db/migrations/2026-02-24_create_rag_documents_and_rpc.sql`
 
+If you want in-app feedback submissions stored in Supabase, also run:
+- `local-pipeline/app/db/migrations/2026-03-05_create_feedback.sql`
+
 ## 2) Configure environment
 1. Backend API env:
    - Create/fill `backend/.env` (tip: start from `backend/.env.example`)

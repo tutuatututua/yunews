@@ -18,4 +18,4 @@ COPY app /app/app
 EXPOSE 8080
 
 # Many platforms (Cloud Run, Render, etc.) inject the desired listening port via $PORT.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-${BACKEND_PORT:-8080}}"]

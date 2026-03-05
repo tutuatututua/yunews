@@ -8,6 +8,7 @@ import ChatPage from './pages/ChatPage'
 import RecommendationPage from './pages/RecommendationPage'
 import TickerPage from './pages/TickerPage'
 import VideoInsightsPage from './pages/VideoInsightsPage'
+import FeedbackPage from './pages/FeedbackPage'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import React from 'react'
@@ -64,6 +65,7 @@ export default function App() {
               <Route path="/recomendation" element={<Navigate to="/recommendations" replace />} />
               <Route path="/recommendations" element={<RecommendationPage />} />
               <Route path="/videos" element={<VideoInsightsPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AppShell>

@@ -11,6 +11,7 @@ from app.repositories.recommendations import RecommendationsRepository
 from app.repositories.rag_documents import RagDocumentsRepository
 from app.repositories.daily_summaries import DailySummariesRepository
 from app.repositories.entities import EntitiesRepository
+from app.repositories.feedback import FeedbackRepository
 from app.repositories.logs import LogsRepository
 from app.repositories.videos import VideosRepository
 from app.services.chat import ChatService
@@ -30,6 +31,10 @@ def get_supabase() -> Any:
 
 def get_logs_repo() -> LogsRepository:
     return LogsRepository(supabase=get_supabase())
+
+
+def get_feedback_repo() -> FeedbackRepository:
+    return FeedbackRepository(supabase=get_supabase())
 
 
 def get_recommendations_repo() -> RecommendationsRepository:
