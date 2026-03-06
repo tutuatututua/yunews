@@ -145,7 +145,7 @@ class DailyOverallSummary(BaseModel):
     title: str = ""
     # Plain-text, short daily TL;DR (in addition to summary_markdown).
     overall_summarize: str = ""
-    summary_markdown: str = ""
+    key_points: list[str] = Field(default_factory=list)
     movers: list[DailyMover] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     opportunities: list[str] = Field(default_factory=list)

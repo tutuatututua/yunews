@@ -56,7 +56,7 @@ create table if not exists public.daily_summaries (
   market_date date primary key,
   title text not null,
   overall_summarize text not null default '',
-  summary_markdown text not null,
+  key_points text[] not null default '{}',
   movers jsonb not null default '[]'::jsonb,
   risks text[] not null default '{}',
   opportunities text[] not null default '{}',

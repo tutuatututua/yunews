@@ -11,7 +11,7 @@ class DailySummariesRepository:
         resp = (
             self._supa.table("daily_summaries")
             .select(
-                "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,"
+                "market_date,title,overall_summarize,key_points,movers,risks,opportunities,"
                 "sentiment,sentiment_score,sentiment_reason,model,generated_at"
             )
             .eq("market_date", market_date_iso)
@@ -25,7 +25,7 @@ class DailySummariesRepository:
         resp = (
             self._supa.table("daily_summaries")
             .select(
-                "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,"
+                "market_date,title,overall_summarize,key_points,movers,risks,opportunities,"
                 "sentiment,sentiment_score,sentiment_reason,model,generated_at"
             )
             .order("market_date", desc=True)
@@ -52,7 +52,7 @@ class DailySummariesRepository:
         resp = (
             self._supa.table("daily_summaries")
             .select(
-                "market_date,title,overall_summarize,summary_markdown,movers,risks,opportunities,"
+                "market_date,title,overall_summarize,key_points,movers,risks,opportunities,"
                 "sentiment,sentiment_score,sentiment_reason,model,generated_at"
             )
             .in_("market_date", [str(x) for x in market_date_isos])

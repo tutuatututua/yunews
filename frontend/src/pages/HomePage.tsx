@@ -272,7 +272,7 @@ export default function HomePage() {
                   </div>
                 ) : null}
                 <div className={styles.overviewBody}>
-                  <Markdown markdown={dailyQuery.data.summary_markdown} />
+                  <Markdown markdown={(dailyQuery.data.key_points || []).map((x) => `- ${x}`).join('\n')} />
                 </div>
               </section>
 

@@ -21,7 +21,7 @@ class DailySummary(BaseModel):
     market_date: date
     title: str
     overall_summarize: str = ""
-    summary_markdown: str = ""
+    key_points: list[str] = Field(default_factory=list)
     movers: list[DailySummaryMover] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     opportunities: list[str] = Field(default_factory=list)

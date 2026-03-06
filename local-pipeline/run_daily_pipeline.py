@@ -484,12 +484,12 @@ def main() -> None:
 
             daily = summarizer.summarize_daily_overall(market_date=market_date, video_items=video_items)
 
-            if daily.summary_markdown.strip():
+            if getattr(daily, "key_points", None):
                 db.upsert_daily_summary(
                     market_date=market_date,
                     title=daily.title,
                     overall_summarize=getattr(daily, "overall_summarize", "") or "",
-                    summary_markdown=daily.summary_markdown,
+                    key_points=getattr(daily, "key_points", []) or [],
                     movers=[m.model_dump() for m in daily.movers],
                     risks=daily.risks,
                     opportunities=daily.opportunities,
@@ -507,7 +507,9 @@ def main() -> None:
                             "Type: daily_summary",
                             f"Market date: {market_date.isoformat()}",
                             f"Title: {daily.title}",
-                            daily.summary_markdown,
+                            "Key points:\n" + "\n".join(
+                                f"- {x}" for x in (getattr(daily, "key_points", None) or []) if str(x).strip()
+                            ),
                         ]
                     ).strip()
                     daily_vector = embedder.embed_text(daily_embed_text)
@@ -523,7 +525,9 @@ def main() -> None:
                                 "source_key": market_date.isoformat(),
                                 "video_title": f"Daily Summary {market_date.isoformat()}",
                                 "thumbnail_url": None,
-                                "summary_text": daily.summary_markdown,
+                                "summary_text": "\n".join(
+                                    f"- {x}" for x in (getattr(daily, "key_points", None) or []) if str(x).strip()
+                                ).strip(),
                                 "model": settings.openai_embedding_model,
                                 "dimension": dimension,
                                 "embedding": daily_vector,
@@ -533,7 +537,7 @@ def main() -> None:
                 except Exception:
                     logger.exception("Failed to embed/store daily_summary rag document")
             else:
-                logger.info("Daily summary markdown empty; skipping daily_summary upsert")
+                logger.info("Daily summary key_points empty; skipping daily_summary upsert")
     except Exception:
         logger.exception("Failed to store daily summary")
 

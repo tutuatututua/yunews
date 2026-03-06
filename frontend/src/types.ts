@@ -3,7 +3,7 @@ export type DailySummary = {
   market_date: string
   title: string
   overall_summarize?: string
-  summary_markdown: string
+  key_points: string[]
   movers: Array<{ symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }>
   risks: string[]
   opportunities: string[]
