@@ -1,60 +1,68 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .headerCard {
-  max-width: 860px;
+  max-width: 720px;
 }
 
 .form {
   display: grid;
-  gap: 12px;
+  gap: 16px;
+  margin-top: 4px;
 }
 
 .field {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .fieldLabel {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
 .input {
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  background: var(--surface-2);
   color: var(--text);
-  border-radius: 12px;
-  padding: 9px 12px;
-  font-weight: 600;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .input:focus-visible {
   outline: none;
   box-shadow: var(--ring);
+  border-color: var(--primary);
 }
 
 .textarea {
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  background: var(--surface-2);
   color: var(--text);
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-weight: 600;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-weight: 500;
+  font-size: 14px;
   resize: vertical;
-  min-height: 140px;
+  min-height: 148px;
+  line-height: 1.6;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .textarea:focus-visible {
   outline: none;
   box-shadow: var(--ring);
+  border-color: var(--primary);
 }
 
 .actions {

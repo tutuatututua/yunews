@@ -1,20 +1,22 @@
 .card {
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: var(--radius);
+  padding: var(--space-5);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-inset), var(--shadow-sm);
 }
 
 .card h2 {
-  margin: 0 0 10px;
-  font-size: 16px;
-  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-2);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .card h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -22,47 +24,52 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .cardHeaderRight {
   display: inline-flex;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 75%, transparent);
-  color: var(--muted);
-  font-size: 12px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(138, 166, 224, 0.22);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .button {
   appearance: none;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  padding: 9px 12px;
-  border-radius: 12px;
+  border: 1px solid rgba(138, 166, 224, 0.28);
+  background: var(--surface-3);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 13px;
   line-height: 1;
-  transition: transform 80ms ease, background 120ms ease, border-color 120ms ease;
-  color: inherit;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+  color: var(--text);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  white-space: nowrap;
 }
-
 
 .button:focus-visible {
   outline: none;
@@ -70,28 +77,39 @@
 }
 
 .button:hover {
-  border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-3));
+  border-color: rgba(138, 166, 224, 0.44);
+  color: var(--text);
 }
 
 .button:active {
-  transform: translateY(1px);
+  opacity: 0.82;
+  transform: scale(0.99);
 }
 
 .button.primary {
   background: var(--primary);
-  border-color: color-mix(in srgb, var(--primary) 70%, #000);
+  border-color: var(--primary);
   color: white;
 }
 
 .button.primary:hover {
   background: var(--primary-600);
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px var(--focus);
 }
 
 .button.ghost {
   background: transparent;
+  border-color: transparent;
+}
+
+.button.ghost:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 .button:disabled {
-  opacity: 0.6;
+  opacity: 0.38;
   cursor: not-allowed;
 }

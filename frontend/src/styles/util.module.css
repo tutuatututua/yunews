@@ -10,17 +10,20 @@
 
 .small {
   font-size: 12px;
+  line-height: 1.55;
 }
 
 .divider {
   height: 1px;
   background: var(--border-2);
-  margin: 14px 0;
+  margin: 16px 0;
 }
 
 .bullets {
   margin: 8px 0 0;
   padding-left: 18px;
+  display: grid;
+  gap: 6px;
 }
 
 .preWrap {

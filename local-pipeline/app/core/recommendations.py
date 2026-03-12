@@ -33,12 +33,6 @@ def is_recommendation_title(title: Any) -> bool:
     text = str(title or "").strip()
     if not text:
         return False
-
-    include = _RECOMMENDATION_TITLE_RE.search(text) is not None
-    if not include:
+    if _RECOMMENDATION_TITLE_EXCLUDE_RE.search(text):
         return False
-
-    # Titles can contain both "buy" and "avoid" (e.g., "3 stocks to buy and 2 to avoid").
-    # In those mixed cases we still want to treat the video as recommendation-style,
-    # and let downstream per-ticker filters decide what to store.
-    return True
+    return _RECOMMENDATION_TITLE_RE.search(text) is not None

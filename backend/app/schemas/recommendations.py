@@ -25,6 +25,7 @@ class RecommendationEvent(BaseModel):
     published_at: str | None = None
     video_url: str | None = None
     thumbnail_url: str | None = None
+    positive_keypoints: list[str] = Field(default_factory=list)
 
     # Computed from market data (best-effort; null when unavailable)
     entry_date: str | None = None

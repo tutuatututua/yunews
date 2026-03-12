@@ -119,6 +119,7 @@ export type RecommendationEvent = {
   published_at?: string | null
   video_url?: string | null
   thumbnail_url?: string | null
+  positive_keypoints?: string[]
   entry_date?: string | null
   entry_close?: number | null
   latest_date?: string | null

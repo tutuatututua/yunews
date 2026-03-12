@@ -87,8 +87,8 @@
   margin: 12px 0;
   padding: 10px 12px;
   border-left: 3px solid color-mix(in srgb, var(--primary) 45%, var(--border));
-  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
-  border-radius: 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
   color: color-mix(in srgb, var(--text) 86%, var(--muted));
 }
 
@@ -103,7 +103,7 @@
 .markdown img {
   max-width: 100%;
   height: auto;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-2);
 }
 
@@ -113,7 +113,7 @@
   border-spacing: 0;
   margin: 12px 0;
   border: 1px solid var(--border-2);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -127,7 +127,7 @@
 }
 
 .markdown th {
-  font-weight: 800;
+  font-weight: 700;
   color: color-mix(in srgb, var(--text) 92%, var(--muted));
   background: color-mix(in srgb, var(--surface) 70%, var(--surface-2));
 }
@@ -139,7 +139,7 @@
 .markdown code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 12px;
-  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  background: var(--surface-2);
   border: 1px solid var(--border-2);
   padding: 1px 6px;
   border-radius: 8px;
@@ -148,9 +148,9 @@
 .markdown pre {
   margin: 12px 0;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-2);
-  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  background: var(--surface-2);
   overflow: auto;
 }
 

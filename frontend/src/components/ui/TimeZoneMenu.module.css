@@ -4,9 +4,9 @@
 
 .trigger {
   height: 32px;
-  border-radius: 999px;
+  border-radius: 4px;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  background: var(--surface);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -21,7 +21,7 @@
 
 .trigger:hover {
   border-color: color-mix(in srgb, var(--border) 35%, var(--primary));
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  background: var(--surface);
 }
 
 .trigger:active {
@@ -52,8 +52,8 @@
   right: 0;
   width: min(460px, calc(100vw - 24px));
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border-radius: var(--radius);
+  background: var(--surface);
   box-shadow: var(--shadow-lg);
   padding: 14px;
   backdrop-filter: blur(12px);
@@ -83,14 +83,14 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .close {
   width: 32px;
   height: 32px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
@@ -110,7 +110,7 @@
 .previewRow {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: linear-gradient(
       135deg,
@@ -126,14 +126,14 @@
 
 .previewLabel {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--muted);
 }
 
 .previewValue {
   margin-top: 4px;
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -164,11 +164,11 @@
 
 .quick {
   height: 34px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  background: var(--surface);
   cursor: pointer;
-  font-weight: 750;
+  font-weight: 600;
   font-size: 12px;
 }
 
@@ -183,9 +183,9 @@
 
 .offsetCard {
   margin-top: 12px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background: var(--surface);
   padding: 12px;
 }
 
@@ -197,7 +197,7 @@
 }
 
 .offsetTitle {
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .offsetHint {
@@ -208,7 +208,7 @@
 }
 
 .offsetValue {
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -227,7 +227,7 @@
 .smallButton {
   height: 32px;
   padding: 0 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
@@ -250,9 +250,9 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 10px 12px;
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background: var(--surface);
 }
 
 .searchIcon {
@@ -278,8 +278,8 @@
 .results {
   margin-top: 10px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border-radius: var(--radius);
+  background: var(--surface);
   max-height: 260px;
   overflow: auto;
 }
@@ -295,7 +295,7 @@
 }
 
 .result:hover {
-  background: color-mix(in srgb, var(--surface) 65%, transparent);
+  background: var(--surface);
 }
 
 .resultActive {
@@ -311,11 +311,11 @@
 .footerButton {
   height: 34px;
   padding: 0 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 12px;
 }
 

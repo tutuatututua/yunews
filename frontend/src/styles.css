@@ -2,45 +2,54 @@
 
 :root {
   color-scheme: dark;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', 'Aptos', 'Aptos Display', 'Segoe UI Variable', 'IBM Plex Sans', 'Segoe UI', sans-serif;
 
-  --radius: 16px;
-  --radius-sm: 12px;
-  --ring: 0 0 0 3px var(--focus);
+  /* 8-point spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
 
-  --bg: #05070f;
-  --surface: #0b1020;
-  --surface-2: #0f172a;
-  --text: #e5e7eb;
-  --muted: #94a3b8;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --radius-lg: 16px;
+  --ring: 0 0 0 2px var(--focus);
+  --transition: 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
-  --border: rgba(148, 163, 184, 0.22);
-  --border-2: rgba(148, 163, 184, 0.14);
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
-  --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.35);
+  /* Professional navy-midnight dark palette */
+  --bg: #030712;
+  --surface: #0d1117;
+  --surface-2: #161c27;
+  --surface-3: #1e2a3f;
+  --text: #e2e8f4;
+  --text-2: #8fa3c8;
+  --muted: #4d5d7a;
 
-  --primary: #2563eb;
-  --primary-600: #1d4ed8;
-  --focus: rgba(59, 130, 246, 0.35);
+  --border: rgba(138, 166, 224, 0.16);
+  --border-2: rgba(138, 166, 224, 0.08);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.72);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  --primary: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-soft: rgba(59, 130, 246, 0.12);
+  --focus: rgba(59, 130, 246, 0.4);
 
   --infographic-border: var(--border);
-  --infographic-row-alt: rgba(148, 163, 184, 0.06);
+  --infographic-row-alt: rgba(255, 255, 255, 0.025);
 
-  --sent-pos: #16a34a;
-  --sent-neg: #dc2626;
-  --sent-neu: #64748b;
+  --sent-pos: #28c76f;
+  --sent-neg: #f05252;
+  --sent-neu: #6b6b78;
 
   --node-video: #e5e7eb;
   --node-ticker: #cbd5e1;
-
-  --bg-grid-color: rgba(148, 163, 184, 0.10);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Dark is now the default theme; keep this block for future overrides. */
-    --bg-grid-color: rgba(148, 163, 184, 0.10);
-  }
 }
 
 html, body, #root {
@@ -49,49 +58,44 @@ html, body, #root {
 
 body {
   margin: 0;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   background-color: var(--bg);
   background-image:
-    linear-gradient(
-      0deg,
-      transparent 24%,
-      var(--bg-grid-color) 25%,
-      var(--bg-grid-color) 26%,
-      transparent 27%,
-      transparent 74%,
-      var(--bg-grid-color) 75%,
-      var(--bg-grid-color) 76%,
-      transparent 77%,
-      transparent
-    ),
-    linear-gradient(
-      90deg,
-      transparent 24%,
-      var(--bg-grid-color) 25%,
-      var(--bg-grid-color) 26%,
-      transparent 27%,
-      transparent 74%,
-      var(--bg-grid-color) 75%,
-      var(--bg-grid-color) 76%,
-      transparent 77%,
-      transparent
-    );
-  background-size: 55px 55px;
+    linear-gradient(rgba(138, 166, 224, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 166, 224, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
   color: var(--text);
+}
+
+#root {
+  isolation: isolate;
 }
 
 h1, h2, h3 {
   margin: 0;
+  line-height: 1.1;
 }
 
 p {
   margin: 0;
 }
 
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 a { color: inherit; }
-a:hover { color: var(--primary); }
+a:hover { color: var(--primary); transition: color var(--transition); }
 
 :focus-visible {
-  outline: 3px solid var(--focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -102,9 +106,9 @@ pre {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 12px;
   color: var(--text);
-  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  background: var(--surface-2);
   border: 1px solid var(--border-2);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   overflow: auto;
 }

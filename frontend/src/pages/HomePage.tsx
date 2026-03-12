@@ -424,7 +424,7 @@ export default function HomePage() {
                     <div key={`${m.symbol}-${idx}`} className={cn(styles.moverRow, dirClass)}>
                     <div className={styles.moverLeft}>
                       <div className={styles.moverSymbol}>{m.symbol}</div>
-                      <div className={cn(util.muted, util.small)}>{m.reason}</div>
+                      <div className={styles.moverDesc}>{m.reason}</div>
                     </div>
                     <div className={styles.moverRight} aria-label="Mover stats">
                       {stats && stats.total ? (

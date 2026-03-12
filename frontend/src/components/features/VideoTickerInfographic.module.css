@@ -31,7 +31,7 @@
 
 .infographicStats {
   border: 1px solid var(--border-2);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 10px;
   background: var(--surface);
 }

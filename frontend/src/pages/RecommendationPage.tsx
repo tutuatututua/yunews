@@ -1,34 +1,38 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import RecommendationOverlayChart from '../components/features/RecommendationOverlayChart'
-import { ErrorCallout, EmptyState } from '../components/ui/Callout'
-import { LoadingLine } from '../components/ui/Loading'
-import { cn } from '../lib/cn'
+import RecommendationDashboard, {
+  type DashboardEventRow,
+  type DashboardRecommendationGroup,
+  type DashboardTickerItem,
+} from '../components/features/recommendations/RecommendationDashboard'
 import { getUiErrorInfo } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { safeExternalHref } from '../lib/safeUrl'
 import { resolveTimeShiftMinutes, resolveTimeZoneForIntl, useTimeZone } from '../app/timeZone'
 import { useRecommendationOverlay, useRecommendationsList } from '../features/recommendations/queries'
 import type { RecommendationEvent } from '../types'
-import { ui, util } from '../styles'
-import styles from './RecommendationPage.module.css'
 
-const WINDOW_OPTIONS = [
-  ['1y', '1y'],
-  ['6m', '6m'],
-  ['3m', '3m'],
-  ['1m', '1m'],
-] as const
+type RecommendationGroup = {
+  symbol: string
+  count: number
+  latestPublishedAt: string | null
+  latestTitle: string | null
+  positiveKeypoints: string[]
+  videos: RecommendationEvent[]
+  avgNowPct: number | null
+  avg7dPct: number | null
+  avg30dPct: number | null
+}
 
 function buildYouTubeWatchUrl(videoId: string): string {
   return `https://www.youtube.com/watch?v=${encodeURIComponent(String(videoId || '').trim())}`
 }
 
-function fmtPct(x: unknown): string {
-  const n = typeof x === 'number' ? x : Number(x)
-  if (!Number.isFinite(n)) return '—'
-  const s = (n * 100).toFixed(Math.abs(n) < 0.1 ? 1 : 0)
-  return `${s}%`
+const WINDOW_DAYS: Record<'1y' | '6m' | '3m' | '1m', number> = {
+  '1y': 365,
+  '6m': 183,
+  '3m': 92,
+  '1m': 31,
 }
 
 function avgFinite(values: Array<number | null | undefined>): number | null {
@@ -50,6 +54,68 @@ function normalizeSymbol(x: unknown): string | null {
   return sym || null
 }
 
+function isValidDateInput(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function groupRecommendationEvents(events: RecommendationEvent[] | undefined): RecommendationGroup[] {
+  const bySymbol = new Map<string, RecommendationGroup>()
+
+  for (const event of events || []) {
+    const symbol = normalizeSymbol(event?.ticker)
+    if (!symbol) continue
+
+    const existing =
+      bySymbol.get(symbol) ||
+      ({
+        symbol,
+        count: 0,
+        latestPublishedAt: null,
+        latestTitle: null,
+        positiveKeypoints: [],
+        videos: [],
+        avgNowPct: null,
+        avg7dPct: null,
+        avg30dPct: null,
+      } satisfies RecommendationGroup)
+
+    existing.count += 1
+    existing.videos.push(event)
+
+    for (const rawKeypoint of event?.positive_keypoints || []) {
+      const keypoint = String(rawKeypoint || '').trim()
+      if (!keypoint) continue
+      if (existing.positiveKeypoints.includes(keypoint)) continue
+      existing.positiveKeypoints.push(keypoint)
+    }
+
+    const publishedAt = isValidDateInput(event?.published_at) ? event.published_at : null
+    const latestMs = existing.latestPublishedAt ? Date.parse(existing.latestPublishedAt) : Number.NaN
+    const nextMs = publishedAt ? Date.parse(publishedAt) : Number.NaN
+    if (publishedAt && (!Number.isFinite(latestMs) || nextMs > latestMs)) {
+      existing.latestPublishedAt = publishedAt
+      existing.latestTitle = String(event?.title || '').trim() || null
+    }
+
+    bySymbol.set(symbol, existing)
+  }
+
+  const groups = Array.from(bySymbol.values()).map((group) => ({
+    ...group,
+    avgNowPct: avgFinite(group.videos.map((video) => video?.return_pct ?? null)),
+    avg7dPct: avgFinite(group.videos.map((video) => video?.return_7d_pct ?? null)),
+    avg30dPct: avgFinite(group.videos.map((video) => video?.return_30d_pct ?? null)),
+  }))
+
+  return groups.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count
+    const aMs = a.latestPublishedAt ? Date.parse(a.latestPublishedAt) : Number.NaN
+    const bMs = b.latestPublishedAt ? Date.parse(b.latestPublishedAt) : Number.NaN
+    if (Number.isFinite(aMs) && Number.isFinite(bMs) && bMs !== aMs) return bMs - aMs
+    return a.symbol.localeCompare(b.symbol)
+  })
+}
+
 export default function RecommendationPage() {
   const { timeZone, timeShiftMinutes } = useTimeZone()
   const intlTimeZone = resolveTimeZoneForIntl(timeZone)
@@ -57,29 +123,19 @@ export default function RecommendationPage() {
 
   const [params, setParams] = useSearchParams()
   const [tickerSearch, setTickerSearch] = useState('')
-  const [windowKey, setWindowKey] = useState<'1y' | '6m' | '3m' | '1m'>('1y')
+  const [windowKey, setWindowKey] = useState<'1y' | '6m' | '3m' | '1m'>('1m')
+  const deferredTickerSearch = useDeferredValue(tickerSearch)
 
-  const windowDays = useMemo(() => {
-    switch (windowKey) {
-      case '6m':
-        return 183
-      case '3m':
-        return 92
-      case '1m':
-        return 31
-      case '1y':
-      default:
-        return 365
-    }
-  }, [windowKey])
+  const windowDays = WINDOW_DAYS[windowKey]
 
   const selectedSymbol = useMemo(() => {
     return normalizeSymbol(params.get('symbol'))
   }, [params])
 
   const listQuery = useRecommendationsList({ days: 365, limit: 600 })
+  const recentQuery = useRecommendationsList({ days: 3, limit: 200 })
 
-  const tickerQuery = String(tickerSearch || '').trim().toUpperCase()
+  const tickerQuery = String(deferredTickerSearch || '').trim().toUpperCase()
   const hasTickerQuery = tickerQuery.length > 0
 
   const tickers = useMemo(() => {
@@ -95,19 +151,29 @@ export default function RecommendationPage() {
     return items
   }, [listQuery.data])
 
+  const recentTickerSet = useMemo(() => new Set(recentQuery.data?.map((event) => normalizeSymbol(event?.ticker)).filter(Boolean) as string[]), [recentQuery.data])
+
   const shownTickers = useMemo(() => {
-    if (!hasTickerQuery) return tickers
-    return tickers.filter((t) => t.symbol.includes(tickerQuery))
+    return tickers.filter((ticker) => {
+      return !hasTickerQuery || ticker.symbol.includes(tickerQuery)
+    })
   }, [hasTickerQuery, tickers, tickerQuery])
+
+  const recentGroups = useMemo(() => groupRecommendationEvents(recentQuery.data), [recentQuery.data])
+  const recentSelectedGroup = useMemo(
+    () => recentGroups.find((group) => group.symbol === selectedSymbol) || null,
+    [recentGroups, selectedSymbol],
+  )
 
   useEffect(() => {
     if (selectedSymbol) return
-    if (!tickers.length) return
+    const defaultSymbol = recentGroups[0]?.symbol || tickers[0]?.symbol
+    if (!defaultSymbol) return
 
     const next = new URLSearchParams(params)
-    next.set('symbol', tickers[0].symbol)
+    next.set('symbol', defaultSymbol)
     setParams(next, { replace: true })
-  }, [params, selectedSymbol, setParams, tickers])
+  }, [params, recentGroups, selectedSymbol, setParams, tickers])
 
   const overlayQuery = useRecommendationOverlay(selectedSymbol, { days: windowDays }, !!selectedSymbol)
   const overlay = overlayQuery.data || null
@@ -117,221 +183,135 @@ export default function RecommendationPage() {
     return avgFinite((overlay.events || []).map((e) => e?.return_pct ?? null))
   }, [overlay])
 
-  const errorInfo = getUiErrorInfo(listQuery.error) || getUiErrorInfo(overlayQuery.error) || null
+  const avg7dPct = useMemo(() => {
+    if (!overlay) return null
+    return avgFinite((overlay.events || []).map((e) => e?.return_7d_pct ?? null))
+  }, [overlay])
+
+  const avg30dPct = useMemo(() => {
+    if (!overlay) return null
+    return avgFinite((overlay.events || []).map((e) => e?.return_30d_pct ?? null))
+  }, [overlay])
+
+  const selectedLatestPublished = recentSelectedGroup?.latestPublishedAt
+    ? formatDateTime(recentSelectedGroup.latestPublishedAt, {
+        timeZone: intlTimeZone,
+        shiftMinutes: effectiveShiftMinutes,
+      })
+    : null
+
+  const errorInfo =
+    getUiErrorInfo(recentQuery.error) || getUiErrorInfo(listQuery.error) || getUiErrorInfo(overlayQuery.error) || null
+
+  const totalRecentMentions = recentQuery.data?.length || 0
+
+  const dashboardGroups = useMemo<DashboardRecommendationGroup[]>(
+    () =>
+      recentGroups.map((group) => ({
+        symbol: group.symbol,
+        count: group.count,
+        latestPublishedAtLabel: group.latestPublishedAt
+          ? formatDateTime(group.latestPublishedAt, {
+              timeZone: intlTimeZone,
+              shiftMinutes: effectiveShiftMinutes,
+            })
+          : null,
+        latestTitle: group.latestTitle,
+        reasonTags: group.positiveKeypoints,
+        avgNowPct: group.avgNowPct,
+        avg7dPct: group.avg7dPct,
+        avg30dPct: group.avg30dPct,
+      })),
+    [effectiveShiftMinutes, intlTimeZone, recentGroups],
+  )
+
+  const dashboardTickers = useMemo<DashboardTickerItem[]>(
+    () =>
+      shownTickers.map((ticker) => ({
+        symbol: ticker.symbol,
+        count: ticker.count,
+        isRecent: recentTickerSet.has(ticker.symbol),
+      })),
+    [recentTickerSet, shownTickers],
+  )
+
+  const featuredTickers = useMemo(
+    () => dashboardTickers.filter((ticker) => ticker.isRecent),
+    [dashboardTickers],
+  )
+
+  const historyTickers = useMemo(
+    () => dashboardTickers.filter((ticker) => !ticker.isRecent),
+    [dashboardTickers],
+  )
+
+  const eventRows = useMemo<DashboardEventRow[]>(() => {
+    if (!overlay?.events?.length) return []
+
+    return overlay.events.slice(0, 50).map((event) => {
+      const title = String(event?.title || 'Video').trim()
+      const channel = event?.channel ? String(event.channel).trim() : null
+      const published = event?.published_at
+        ? formatDateTime(String(event.published_at), {
+            timeZone: intlTimeZone,
+            shiftMinutes: effectiveShiftMinutes,
+          })
+        : null
+
+      const url = event?.video_url
+        ? safeExternalHref(event.video_url)
+        : event?.video_id
+          ? buildYouTubeWatchUrl(event.video_id)
+          : null
+
+      const thumbUrlRaw = event?.thumbnail_url ? safeExternalHref(event.thumbnail_url) : null
+      const thumbUrl = thumbUrlRaw && thumbUrlRaw !== '#' ? thumbUrlRaw : null
+      const safeVideoUrl = url && url !== '#' ? url : null
+
+      return {
+        id: `${event.video_id}:${event.ticker}`,
+        title,
+        subtitle: [channel, published].filter(Boolean).join(' • ') || null,
+        url: safeVideoUrl,
+        thumbUrl,
+        nowPct: event?.return_pct ?? null,
+        day7Pct: event?.return_7d_pct ?? null,
+        day30Pct: event?.return_30d_pct ?? null,
+        keyPoints: Array.isArray(event?.positive_keypoints) ? event.positive_keypoints.slice(0, 3) : [],
+      }
+    })
+  }, [effectiveShiftMinutes, intlTimeZone, overlay?.events])
 
   return (
-    <div className={styles.page}>
-      {errorInfo && <ErrorCallout message={errorInfo.message} requestId={errorInfo.requestId} />}
-
-      <div className={styles.headerRow}>
-        <div>
-          <h2>Recommendations</h2>
-          <div className={cn(util.muted, util.small)}>
-            Best-effort from video titles that look like buy recommendations.
-          </div>
-        </div>
-      </div>
-
-      {listQuery.isLoading && <LoadingLine label="Loading recommendation tickers…" />}
-
-      {!listQuery.isLoading && tickers.length === 0 && (
-        <EmptyState
-          title="No recommendation events yet"
-          body="Run the pipeline/backfill or wait for new videos to be ingested."
-        />
-      )}
-
-      {!listQuery.isLoading && tickers.length > 0 && (
-        <div className={styles.contentCol}>
-          <section className={ui.card} aria-label="Ticker selection">
-            <div className={cn(ui.cardHeader, styles.tickerHeader)}>
-              <div>
-                <h3>Ticker</h3>
-                {selectedSymbol && <div className={cn(util.muted, util.small)}>Selected: {selectedSymbol}</div>}
-              </div>
-
-              <div className={styles.headerActions}>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel} htmlFor="ticker-search">
-                    Search
-                  </label>
-                  <input
-                    id="ticker-search"
-                    className={styles.input}
-                    value={tickerSearch}
-                    onChange={(e) => setTickerSearch(e.target.value)}
-                    placeholder="Search tickers…"
-                    inputMode="search"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.tickerChips} role="list">
-              {hasTickerQuery && shownTickers.length === 0 ? (
-                <div className={cn(util.muted, util.small, styles.tickerNone)} role="status">
-                  Can't find any tickers matching "{tickerSearch}"
-                </div>
-              ) : (
-                shownTickers.map((t) => {
-                  const active = selectedSymbol === t.symbol
-                  return (
-                    <button
-                      key={t.symbol}
-                      type="button"
-                      className={cn(ui.chip, styles.tickerChip, active && styles.tickerChipActive)}
-                      aria-current={active ? 'true' : undefined}
-                      onClick={() => {
-                        const next = new URLSearchParams(params)
-                        next.set('symbol', t.symbol)
-                        setParams(next, { replace: true })
-                      }}
-                    >
-                      <span className={styles.tickerSym}>{t.symbol}</span>
-                      <span className={styles.tickerCount}>{t.count}</span>
-                    </button>
-                  )
-                })
-              )}
-            </div>
-          </section>
-
-          <main className={styles.main}>
-            {selectedSymbol ? (
-              <section className={ui.card} aria-label="Recommendation overlay">
-                {overlayQuery.isLoading && <LoadingLine label={`Loading ${selectedSymbol} overlay…`} />}
-
-                {overlay && (
-                  <>
-                    <RecommendationOverlayChart
-                      symbol={selectedSymbol}
-                      prices={overlay.prices || []}
-                      events={overlay.events || []}
-                      headerRight={
-                        <>
-                          <div className={cn(util.muted, util.small)}>
-                            Price series from yfinance (cached best-effort).
-                          </div>
-                          <div className={styles.windowChips} role="list" aria-label="Window">
-                            {WINDOW_OPTIONS.map(([key, label]) => {
-                              const active = windowKey === key
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  className={cn(ui.chip, styles.windowChip, active && styles.windowChipActive)}
-                                  aria-current={active ? 'true' : undefined}
-                                  onClick={() => setWindowKey(key)}
-                                >
-                                  {label}
-                                </button>
-                              )
-                            })}
-                          </div>
-                          {avgNowPct != null && <span className={ui.chip}>Avg: {fmtPct(avgNowPct)}</span>}
-                        </>
-                      }
-                    />
-
-                    {(overlay.events?.length || 0) === 0 ? (
-                      <div className={cn(util.muted, util.small)} style={{ marginTop: 12 }}>
-                        No recommendation-style videos found for this ticker.
-                      </div>
-                    ) : (
-                      <div className={styles.eventList}>
-                        {overlay.events.slice(0, 50).map((ev: RecommendationEvent) => {
-                          const title = String(ev?.title || 'Video').trim()
-                          const channel = ev?.channel ? String(ev.channel).trim() : null
-                          const published = ev?.published_at
-                            ? formatDateTime(String(ev.published_at), {
-                                timeZone: intlTimeZone,
-                                shiftMinutes: effectiveShiftMinutes,
-                              })
-                            : null
-                          const url = ev?.video_url
-                            ? safeExternalHref(ev.video_url)
-                            : ev?.video_id
-                              ? buildYouTubeWatchUrl(ev.video_id)
-                              : null
-
-                          const thumbUrlRaw = ev?.thumbnail_url ? safeExternalHref(ev.thumbnail_url) : null
-                          const thumbUrl = thumbUrlRaw && thumbUrlRaw !== '#' ? thumbUrlRaw : null
-                          const safeVideoUrl = url && url !== '#' ? url : null
-
-                          const subtitle = [channel, published].filter(Boolean).join(' • ') || null
-
-                          return (
-                            <div key={`${ev.video_id}:${ev.ticker}`} className={styles.eventRow}>
-                              <div className={styles.eventHeader}>
-                                <div className={styles.eventLeft}>
-                                  {thumbUrl &&
-                                    (safeVideoUrl ? (
-                                      <a
-                                        className={styles.eventThumbLink}
-                                        href={safeVideoUrl}
-                                        target="_blank"
-                                        rel="noreferrer noopener"
-                                      >
-                                        <img
-                                          className={styles.eventThumb}
-                                          src={thumbUrl}
-                                          alt=""
-                                          loading="lazy"
-                                          decoding="async"
-                                        />
-                                      </a>
-                                    ) : (
-                                      <span className={styles.eventThumbLink}>
-                                        <img
-                                          className={styles.eventThumb}
-                                          src={thumbUrl}
-                                          alt=""
-                                          loading="lazy"
-                                          decoding="async"
-                                        />
-                                      </span>
-                                    ))}
-
-                                  <div className={styles.eventText}>
-                                    {safeVideoUrl ? (
-                                      <a
-                                        className={styles.eventTitle}
-                                        href={safeVideoUrl}
-                                        target="_blank"
-                                        rel="noreferrer noopener"
-                                      >
-                                        {title}
-                                      </a>
-                                    ) : (
-                                      <div className={styles.eventTitle}>{title}</div>
-                                    )}
-                                    {subtitle && <div className={styles.eventMeta}>{subtitle}</div>}
-                                  </div>
-                                </div>
-
-                                <div className={styles.chips}>
-                                  <span className={ui.chip}>Now: {fmtPct(ev?.return_pct)}</span>
-                                  <span className={ui.chip}>7d: {fmtPct(ev?.return_7d_pct)}</span>
-                                  <span className={ui.chip}>30d: {fmtPct(ev?.return_30d_pct)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </section>
-            ) : (
-              <div className={cn(util.muted, util.small)} style={{ marginTop: 8 }}>
-                Select a ticker to view its overlay.
-              </div>
-            )}
-          </main>
-        </div>
-      )}
-    </div>
+    <RecommendationDashboard
+      errorMessage={errorInfo?.message || null}
+      errorRequestId={errorInfo?.requestId || null}
+      recentLoading={recentQuery.isLoading}
+      tickersLoading={listQuery.isLoading}
+      recentGroups={dashboardGroups}
+      totalTickerCount={tickers.length}
+      totalRecentMentions={totalRecentMentions}
+      selectedSymbol={selectedSymbol}
+      selectedRecentCount={recentSelectedGroup?.count || null}
+      selectedLatestPublished={selectedLatestPublished}
+      tickerSearch={tickerSearch}
+      onTickerSearchChange={setTickerSearch}
+      featuredTickers={featuredTickers}
+      historyTickers={historyTickers}
+      hasTickerQuery={hasTickerQuery}
+      windowKey={windowKey}
+      onWindowChange={setWindowKey}
+      onSelectSymbol={(symbol) => {
+        const next = new URLSearchParams(params)
+        next.set('symbol', symbol)
+        setParams(next, { replace: true })
+      }}
+      overlayLoading={overlayQuery.isLoading}
+      overlay={overlay}
+      avgNowPct={avgNowPct}
+      avg7dPct={avg7dPct}
+      avg30dPct={avg30dPct}
+      eventRows={eventRows}
+    />
   )
 }

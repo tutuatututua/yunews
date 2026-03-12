@@ -5,23 +5,37 @@ import { cn } from '../../lib/cn'
 import { TimeZoneMenu } from '../ui/TimeZoneMenu'
 import styles from './AppShell.module.css'
 
+const NAV_ITEMS = [
+  { to: '/', label: 'Home', icon: Home },
+  { to: '/videos', label: 'Videos', icon: Video },
+  { to: '/infographic', label: 'Infographic', icon: Image },
+  { to: '/recommendations', label: 'Recommendations', icon: TrendingUp },
+  { to: '/chat', label: 'Chat', icon: MessageCircle },
+  { to: '/feedback', label: 'Feedback', icon: MessageSquare },
+] as const
+
+type PageMeta = {
+  title: string
+}
+
 function navLinkClassName({ isActive }: { isActive: boolean }) {
   return cn(styles.navLink, isActive && styles.navLinkActive)
 }
 
-function pageTitleForPath(pathname: string) {
-  if (pathname === '/' || pathname === '') return 'Home'
-  if (pathname.startsWith('/chat')) return 'Chat'
-  if (pathname.startsWith('/infographic') || pathname.startsWith('/ticker')) return 'Infographic'
-  if (pathname.startsWith('/recommendations') || pathname.startsWith('/recomendation')) return 'Recommendations'
-  if (pathname.startsWith('/videos')) return 'Videos'
-  if (pathname.startsWith('/feedback')) return 'Feedback'
-  return 'yuNews'
+function pageMetaForPath(pathname: string): PageMeta {
+  if (pathname === '/' || pathname === '') return { title: 'Home' }
+  if (pathname.startsWith('/chat')) return { title: 'Chat' }
+  if (pathname.startsWith('/infographic') || pathname.startsWith('/ticker')) return { title: 'Infographic' }
+  if (pathname.startsWith('/recommendations') || pathname.startsWith('/recomendation')) return { title: 'Recommendations' }
+  if (pathname.startsWith('/videos')) return { title: 'Videos' }
+  if (pathname.startsWith('/feedback')) return { title: 'Feedback' }
+  return { title: 'yuNews' }
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const pageTitle = pageTitleForPath(location.pathname)
+  const pageMeta = pageMetaForPath(location.pathname)
+  const isWideLayout = location.pathname.startsWith('/recommendations')
 
   const [collapsed, setCollapsed] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
@@ -62,7 +76,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={cn(styles.appShell, collapsed && styles.appShellCollapsed)}>
-      {/* Sidebar */}
       <aside
         className={cn(
           styles.sidebar,
@@ -70,50 +83,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           mobileOpen && styles.sidebarMobileOpen
         )}
       >
-        <button
-          className={styles.iconButton}
-          aria-label="Toggle sidebar"
-          onClick={toggleSidebar}
-          type="button"
-        >
-          {isMobile ? (
-            mobileOpen ? <X size={18} /> : <Menu size={18} />
-          ) : collapsed ? (
-            <Menu size={18} />
-          ) : (
-            <X size={18} />
-          )}
-        </button>
+        <div className={styles.sidebarHeader}>
+          <button
+            className={styles.iconButton}
+            aria-label="Toggle sidebar"
+            onClick={toggleSidebar}
+            type="button"
+          >
+            {isMobile ? mobileOpen ? <X size={18} /> : <Menu size={18} /> : collapsed ? <Menu size={18} /> : <X size={18} />}
+          </button>
+        </div>
 
         <nav className={styles.nav}>
-          <NavLink to="/" className={navLinkClassName}>
-            <Home size={18} />
-            <span className={styles.navLabel}>Home</span>
-          </NavLink>
-          <NavLink to="/videos" className={navLinkClassName}>
-            <Video size={18} />
-            <span className={styles.navLabel}>Videos</span>
-          </NavLink>
-          <NavLink to="/infographic" className={navLinkClassName}>
-            <Image size={18} />
-            <span className={styles.navLabel}>Infographic</span>
-          </NavLink>
-          <NavLink to="/recommendations" className={navLinkClassName}>
-            <TrendingUp size={18} />
-            <span className={styles.navLabel}>Recommendations</span>
-          </NavLink>
-          <NavLink to="/chat" className={navLinkClassName}>
-            <MessageCircle size={18} />
-            <span className={styles.navLabel}>Chat</span>
-          </NavLink>
-          <NavLink to="/feedback" className={navLinkClassName}>
-            <MessageSquare size={18} />
-            <span className={styles.navLabel}>Feedback</span>
-          </NavLink>
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink key={item.to} to={item.to} className={navLinkClassName}>
+                <Icon size={18} />
+                <span className={styles.navLabel}>{item.label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
+
+
       </aside>
 
-      {/* Mobile backdrop */}
       {mobileOpen && (
         <button
           type="button"
@@ -123,7 +118,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Main */}
       <div className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
@@ -138,7 +132,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             )}
 
-            <div className={styles.pageTitle}>{pageTitle}</div>
+            <div className={styles.topbarCopy}>
+              <div className={styles.pageTitle}>{pageMeta.title}</div>
+            </div>
           </div>
 
           <div className={styles.topbarRight}>
@@ -146,7 +142,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className={styles.container}>{children}</main>
+        <main className={cn(styles.container, isWideLayout && styles.containerWide)}>{children}</main>
       </div>
     </div>
   )

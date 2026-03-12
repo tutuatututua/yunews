@@ -102,3 +102,24 @@ class RecommendationsRepository:
                     return []
                 logger.exception("Failed to query youtuber_recommendations")
                 return []
+
+    def fetch_summary_rows_for_recommendations(self, *, video_ids: list[str], tickers: list[str]) -> list[dict[str, Any]]:
+        video_ids_norm = [str(v).strip() for v in video_ids if str(v).strip()]
+        tickers_norm = [str(t).strip().upper() for t in tickers if str(t).strip()]
+        if not video_ids_norm or not tickers_norm:
+            return []
+
+        try:
+            resp = (
+                self._supa.table("summaries")
+                .select("video_id,ticker,summary")
+                .in_("video_id", video_ids_norm)
+                .in_("ticker", tickers_norm)
+                .limit(max(1, min(5000, len(video_ids_norm) * 4)))
+                .execute()
+            )
+            rows = resp.data or []
+            return [r for r in rows if isinstance(r, dict)]
+        except Exception:
+            logger.exception("Failed to query summaries for recommendations")
+            return []

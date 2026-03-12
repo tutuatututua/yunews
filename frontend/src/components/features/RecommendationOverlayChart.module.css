@@ -32,7 +32,7 @@
 
 .symbol {
   color: var(--text);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 36px;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -42,37 +42,37 @@
   color: var(--text);
   font-size: 36px;
   line-height: 1;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .priceUnit {
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 16px;
 }
 
 .deltaUp {
   color: var(--sent-pos);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 16px;
 }
 
 .deltaDown {
   color: var(--sent-neg);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 16px;
 }
 
 .deltaFlat {
   color: var(--muted);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 16px;
 }
 
 .rangeText {
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 12px;
 }
 
@@ -81,8 +81,8 @@
   height: 400px;
   display: block;
   border: 1px solid var(--border-2);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-radius: var(--radius);
+  background: var(--surface);
   cursor: crosshair;
   user-select: none;
   -webkit-user-select: none;
@@ -238,7 +238,7 @@
 .rangeLabel {
   fill: var(--text);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -247,7 +247,7 @@
 .rangeLabelUp {
   fill: var(--sent-pos);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -256,7 +256,7 @@
 .rangeLabelDown {
   fill: var(--sent-neg);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -277,7 +277,7 @@
 }
 
 .tooltipBox {
-  fill: color-mix(in srgb, var(--surface) 92%, transparent);
+  fill: var(--surface);
   stroke: var(--border-2);
   stroke-width: 1;
   pointer-events: none;
@@ -286,7 +286,7 @@
 .tooltipPrice {
   fill: var(--text);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -295,8 +295,9 @@
 .tooltipDate {
   fill: var(--muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
 }
+

@@ -182,29 +182,6 @@ export default function VideoInsightsPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.headerRow}>
-        <div>
-          <h2>Video insights</h2>
-          <div className={cn(util.muted, util.small)}>
-            {anchorDate ? `Anchored to ${anchorDate}` : 'Latest'} • Last {days} days • Showing {limit}
-          </div>
-        </div>
-
-        <div className={styles.headerActions}>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>Window</span>
-            <select className={styles.select} value={String(days)} onChange={onChangeDays} aria-label="Select day window">
-              <option value="7">Last 7 days</option>
-              <option value="14">Last 14 days</option>
-              <option value="30">Last 30 days</option>
-            </select>
-          </label>  
-
-          <Link className={cn(ui.button, ui.ghost)} to={`/infographic?days=${encodeURIComponent(String(days))}`}>
-            Ticker view
-          </Link>
-        </div>
-      </div>
 
       {errorInfo && <ErrorCallout message={errorInfo.message} requestId={errorInfo.requestId} />}
 

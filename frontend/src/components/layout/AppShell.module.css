@@ -1,10 +1,9 @@
 :root {
-  --sidebar-open: 220px;
-  --sidebar-collapsed: 56px;
+  --sidebar-open: 224px;
+  --sidebar-collapsed: 58px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* App shell */
 .appShell {
   --sidebar-width: var(--sidebar-open);
   min-height: 100vh;
@@ -14,7 +13,6 @@
   --sidebar-width: var(--sidebar-collapsed);
 }
 
-/* Sidebar */
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
@@ -22,52 +20,72 @@
   height: 100vh;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 12px 12px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   z-index: 50;
-
-  transition: width 260ms var(--ease);
+  transition: width 240ms var(--ease);
   will-change: width;
+  overflow: hidden;
 }
 
-/* Nav */
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 2px;
+  margin-bottom: 18px;
+}
+
+
+
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
 }
 
 .navLink {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
-  border-radius: 12px;
+  padding: 8px 11px;
+  border-radius: var(--radius);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
   color: var(--muted);
-  min-height: 40px;
+  min-height: 37px;
+  transition: color var(--transition), background var(--transition);
 }
 
-/* Keep Lucide icons from shrinking when the sidebar collapses */
 .navLink svg {
   flex: 0 0 auto;
+  opacity: 0.65;
+  transition: opacity var(--transition);
 }
 
 .navLink:hover {
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  color: var(--text);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.navLink:hover svg {
+  opacity: 0.9;
 }
 
 .navLinkActive {
-  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-2));
   color: var(--text);
+  font-weight: 600;
 }
 
-/* TEXT FADE (ChatGPT-style) */
+.navLinkActive svg {
+  opacity: 1;
+  color: var(--primary);
+}
+
 .navLabel {
   opacity: 1;
   transform: translateX(0);
@@ -82,6 +100,9 @@
 
 .sidebarCollapsed .navLink {
   gap: 0;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .sidebarCollapsed .navLabel {
@@ -91,36 +112,45 @@
   max-width: 0;
 }
 
-/* Main */
+
 .main {
   padding-left: var(--sidebar-width);
   min-height: 100vh;
+  transition: padding-left 240ms var(--ease);
 }
 
-/* Topbar */
+/* Topbar — subtle glass-like appearance */
 .topbar {
   position: sticky;
   top: 0;
-  height: 56px;
-  padding: 0 16px;
+  min-height: 54px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  backdrop-filter: blur(10px);
+  background: rgba(3, 7, 18, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 30;
 }
 
 .topbarLeft {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.topbarCopy {
+  display: flex;
+  flex-direction: column;
 }
 
 .pageTitle {
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .topbarRight {
@@ -128,38 +158,57 @@
   gap: 8px;
 }
 
-/* Buttons */
 .iconButton {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  color: var(--muted);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 
-/* Content */
+.iconButton:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: rgba(138, 166, 224, 0.3);
+}
+
 .container {
-  width: min(1160px, 100%);
+  width: 100%;
+  max-width: 1340px;
   margin: 0 auto;
-  padding: 22px 22px 28px;
+  padding: 28px 28px 44px;
+}
+
+.containerWide {
+  max-width: 1520px;
+  padding: 28px 32px 48px;
 }
 
 @media (max-width: 540px) {
+  .topbar {
+    padding: 0 16px;
+  }
+
   .container {
-    padding: 16px 14px 22px;
+    padding: 18px 16px 28px;
+  }
+
+  .containerWide {
+    padding: 18px 16px 32px;
   }
 }
 
-/* ===== MOBILE ===== */
 @media (max-width: 860px) {
   .sidebar {
     width: var(--sidebar-open);
     transform: translateX(-100%);
-    transition: transform 260ms var(--ease);
+    transition: transform 240ms var(--ease);
     will-change: transform;
   }
 
@@ -174,8 +223,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.6);
     z-index: 40;
   }
 }

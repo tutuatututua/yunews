@@ -16,11 +16,11 @@ export function ErrorCallout(props: {
       <div className={styles.alertBody}>{message}</div>
 
       {(requestId || details) && (
-        <details className={cn(util.small)} style={{ marginTop: 10 }}>
-          <summary className={cn(util.muted)} style={{ cursor: 'pointer' }}>
+        <details className={cn(util.small, styles.alertDetails)}>
+          <summary className={cn(util.muted, styles.alertDetailsSummary)}>
             Details
           </summary>
-          <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+          <div className={styles.alertDetailsBody}>
             {requestId ? (
               <div className={cn(util.muted, util.small)}>
                 Request id: <span className={cn(util.preWrap)}>{requestId}</span>
