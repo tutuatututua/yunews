@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     )
 
     # YouTube discovery config
-    discovery_lookback_hours: int = Field(default=36, alias="DISCOVERY_LOOKBACK_HOURS")
+    discovery_lookback_hours: int = Field(default=48, alias="DISCOVERY_LOOKBACK_HOURS")
     discovery_max_videos: int = Field(
         default=10,
         validation_alias=AliasChoices("DISCOVERY_MAX_VIDEOS", "PIPELINE_MAX_VIDEOS"),
@@ -75,6 +75,7 @@ class Settings(BaseSettings):
         default="en",
         validation_alias=AliasChoices("DISCOVERY_LANGUAGE", "PIPELINE_LANGUAGE"),
     )
+    daily_summary_lookback_hours: int = Field(default=24, alias="DAILY_SUMMARY_LOOKBACK_HOURS")
 
     # Backward-compatible pipeline config (local-pipeline/.env)
     pipeline_search_query: str = Field(default="stock", alias="PIPELINE_SEARCH_QUERY")

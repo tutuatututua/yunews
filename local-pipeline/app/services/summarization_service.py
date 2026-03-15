@@ -81,10 +81,10 @@ class SummarizationService:
                 "Use ONLY inputs; do not invent facts/tickers/numbers. Omit uncertainty.\n"
                 "Only include bullets you are confident are supported by the inputs.\n"
                 "overall_summarize is plain text (max 5 sentences). It is ONLY the high-level story/context for the day.\n"
-                "overall_summarize MUST NOT restate or paraphrase any bullet that appears in risks/opportunities/movers.\n"
+                    "overall_summarize MUST NOT restate or paraphrase any bullet that appears in risks/opportunities.\n"
                 "overall_summarize MUST NOT be a list; no bullet characters, no numbered lists; keep it as prose.\n"
                 "key_points are the main takeaways for the day (max 12).\n"
-                "key_points MUST NOT repeat any item in risks/opportunities/movers; if it fits those sections, put it there instead.\n"
+                    "key_points MUST NOT repeat any item in risks/opportunities; if it fits those sections, put it there instead.\n"
                 "key_points items must be plain strings (no markdown), concise, and must not contain curly braces.\n"
                 "sentiment is bullish|bearish|mixed|neutral or null.\n"
                 "sentiment_score is a number between -1 and 1 (inclusive), where -1 is very bearish, 0 is neutral, and 1 is very bullish; or null if unclear.\n"
@@ -94,8 +94,6 @@ class SummarizationService:
                 "sentiment_reason is plain text (max 2 sentences) explaining the expected tone for the next market session, grounded in the inputs (no investment advice).\n"
                 "Deduplicate bullets; keep concise.\n\n"
                 "Title must be exactly: Market Summary — {market_date}\n"
-                "movers: ONLY include the MOST IMPORTANT movers; skip minor/unclear movers; if none are clearly supported, return an empty array.\n"
-                "movers: each item is symbol + direction (up|down|mixed) + 1-sentence reason (max 5 items no hype).\n"
                 "risks/opportunities: max 10 bullets each.\n"
                 "risks/opportunities bullets MUST be 'solid': each bullet must include a concrete because/driver clause (cause → impact), grounded in the inputs.\n"
                 "Avoid vague bullets (e.g., 'macro uncertainty'); if you cannot name the driver from inputs, omit the bullet.\n"
@@ -104,7 +102,7 @@ class SummarizationService:
                 "Market date (UTC): {market_date}\n"
                 "Video inputs (JSON list; keys: title,tickers,overall_explanation,key_points,risks,opportunities):\n"
                 "{items}\n\n"
-                "Schema: {{\"title\":...,\"overall_summarize\":...,\"key_points\":[...],\"movers\":[{{\"symbol\":...,\"direction\":...,\"reason\":...}}],\"risks\":[...],\"opportunities\":[...],\"sentiment\":null,\"sentiment_score\":null,\"sentiment_reason\":...}}"
+                    "Schema: {{\"title\":...,\"overall_summarize\":...,\"key_points\":[...],\"risks\":[...],\"opportunities\":[...],\"sentiment\":null,\"sentiment_score\":null,\"sentiment_reason\":...}}"
             ),
         )
 

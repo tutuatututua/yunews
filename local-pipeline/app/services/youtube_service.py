@@ -23,7 +23,7 @@ class YouTubeService:
     """YouTube Data API v3 discovery (search endpoint).
 
     Requirements implemented:
-    - published in last N hours
+    - published in last N hours (filtered after search)
     - order by relevance
     - language: English
     - type: video
@@ -67,7 +67,7 @@ class YouTubeService:
         min_duration_seconds: int = 2 * 60,
         max_duration_seconds: int = 60 * 60,
     ) -> List[VideoMetadata]:
-        published_after = (datetime.now(timezone.utc) - timedelta(hours=lookback_hours)).isoformat()
+        published_after = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
 
         collected: Dict[str, VideoMetadata] = {}
 
@@ -77,11 +77,11 @@ class YouTubeService:
 
             items = self._search_youtube(
                 query=q.query,
-                published_after=published_after,
                 language=language,
                 region_code=region_code,
                 max_results=max_videos,
             )
+            items = [item for item in items if item.published_at >= published_after]
 
             new_ids = [v.video_id for v in items if v.video_id not in collected]
             details = self._fetch_video_details(new_ids)
@@ -143,7 +143,6 @@ class YouTubeService:
         self,
         *,
         query: str,
-        published_after: str,
         language: str,
         region_code: str,
         max_results: int,
@@ -159,7 +158,6 @@ class YouTubeService:
             "safeSearch": "moderate",
             "regionCode": region_code,
             "relevanceLanguage": language,
-            "publishedAfter": published_after,
         }
 
         resp = self._session.get(self.BASE_URL, params=params, timeout=30)

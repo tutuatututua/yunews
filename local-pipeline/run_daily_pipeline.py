@@ -420,29 +420,29 @@ def main() -> None:
 
     # 10) Store an overall daily summary for the UI (optional table)
     try:
-        # Use a fixed EST day boundary (UTC-5) for the daily summary window.
-        # This avoids the UTC day rollover making the "daily" summary feel like the wrong day.
+        # Keep the daily summary labeled by the current EST market date.
         est = timezone(timedelta(hours=-5))
         market_date = run_started.astimezone(est).date()
 
-        start_local = datetime(market_date.year, market_date.month, market_date.day, 0, 0, 0, tzinfo=est)
-        end_local = datetime(market_date.year, market_date.month, market_date.day, 23, 59, 59, tzinfo=est)
-        start = start_local.astimezone(timezone.utc).isoformat()
-        end = end_local.astimezone(timezone.utc).isoformat()
+        summary_lookback_hours = max(settings.daily_summary_lookback_hours, 1)
+        summary_start = (run_started - timedelta(hours=summary_lookback_hours)).isoformat()
 
-        # Prefer LLM daily summary from per-video summaries (or fall back to derived from aggregated summaries).
-        # Run-based ("what we processed today"): filter by summarized_at within the EST day window.
-        vs_resp = (
-            db.client.table("video_summaries")
-            .select(
-                "video_id,video_titles,published_at,overall_explanation,risks,opportunities,key_points,summarized_at"
+        # Prefer the actual video publish timestamp for the daily summary input window.
+        try:
+            vs_resp = (
+                db.client.table("video_summaries")
+                .select(
+                    "video_id,video_titles,published_at,overall_explanation,risks,opportunities,key_points,summarized_at"
+                )
+                .gte("published_at", summary_start)
+                .order("published_at", desc=True)
+                .limit(1000)
+                .execute()
             )
-            .gte("summarized_at", start)
-            .lte("summarized_at", end)
-            .order("summarized_at", desc=True)
-            .limit(1000)
-            .execute()
-        )
+        except Exception as exc:
+            raise RuntimeError(f"Failed to query video_summaries for daily summary: {exc}") from exc
+    
+    
         raw_items = [r for r in (vs_resp.data or []) if isinstance(r, dict)]
         video_ids: list[str] = [str(r.get("video_id")) for r in raw_items if r.get("video_id")]
         if raw_items:
@@ -474,6 +474,7 @@ def main() -> None:
                 video_items.append(
                     {
                         "title": r.get("video_titles") or "",
+                        "sentiment": r.get("sentiment") or "",
                         "tickers": tickers_market_only,
                         "overall_explanation": r.get("overall_explanation") or "",
                         "risks": r.get("risks") or [],

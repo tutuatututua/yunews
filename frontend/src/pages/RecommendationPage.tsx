@@ -35,6 +35,8 @@ const WINDOW_DAYS: Record<'1y' | '6m' | '3m' | '1m', number> = {
   '1m': 31,
 }
 
+const RECENT_LOOKBACK_DAYS = 7
+
 function avgFinite(values: Array<number | null | undefined>): number | null {
   let sum = 0
   let n = 0
@@ -133,7 +135,7 @@ export default function RecommendationPage() {
   }, [params])
 
   const listQuery = useRecommendationsList({ days: 365, limit: 600 })
-  const recentQuery = useRecommendationsList({ days: 3, limit: 200 })
+  const recentQuery = useRecommendationsList({ days: RECENT_LOOKBACK_DAYS, limit: 200 })
 
   const tickerQuery = String(deferredTickerSearch || '').trim().toUpperCase()
   const hasTickerQuery = tickerQuery.length > 0
@@ -286,6 +288,7 @@ export default function RecommendationPage() {
     <RecommendationDashboard
       errorMessage={errorInfo?.message || null}
       errorRequestId={errorInfo?.requestId || null}
+      recentWindowDays={RECENT_LOOKBACK_DAYS}
       recentLoading={recentQuery.isLoading}
       tickersLoading={listQuery.isLoading}
       recentGroups={dashboardGroups}

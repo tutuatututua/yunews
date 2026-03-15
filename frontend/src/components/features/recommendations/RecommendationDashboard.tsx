@@ -38,6 +38,7 @@ export type DashboardEventRow = {
 type RecommendationDashboardProps = {
   errorMessage: string | null
   errorRequestId?: string | null
+  recentWindowDays: number
   recentLoading: boolean
   tickersLoading: boolean
   recentGroups: DashboardRecommendationGroup[]
@@ -174,6 +175,7 @@ export default function RecommendationDashboard(props: RecommendationDashboardPr
   const {
     errorMessage,
     errorRequestId,
+    recentWindowDays,
     recentLoading,
     tickersLoading,
     recentGroups,
@@ -222,7 +224,7 @@ export default function RecommendationDashboard(props: RecommendationDashboardPr
           <section className={cn(ui.card, styles.recentRailCard)} aria-label="Recent recommendations">
             <div className={styles.sectionHeader}>
               <div>
-                <div className={styles.sectionEyebrow}>Last 3 days</div>
+                <div className={styles.sectionEyebrow}>Last {recentWindowDays} days</div>
                 <h3 className={styles.sectionTitle}>Recent recommendations</h3>
               </div>
               <div className={styles.sectionMeta}>
@@ -235,7 +237,7 @@ export default function RecommendationDashboard(props: RecommendationDashboardPr
               <LoadingLine label="Loading recent recommendations..." />
             ) : recentGroups.length === 0 ? (
               <div className={cn(util.muted, util.small, styles.emptyCopy)}>
-                No stocks were detected as recommendation-style picks in the last 3 days.
+                No stocks were detected as recommendation-style picks in the last {recentWindowDays} days.
               </div>
             ) : (
               <div className={styles.recentRail} role="list" aria-label="Recent recommendation tickers">

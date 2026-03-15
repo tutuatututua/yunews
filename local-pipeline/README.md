@@ -5,6 +5,8 @@ This folder is a **batch job** that is meant to run to completion (daily/cron), 
 ## Local (Docker Compose)
 
 - Ensure `local-pipeline/.env` exists and contains required secrets (Supabase + OpenAI + YouTube).
+- The daily summary aggregates stored videos published in the last 24 hours. This is filtered in the pipeline summary query, so it does not require widening the YouTube API discovery window.
+- You can still override the summary window with `DAILY_SUMMARY_LOOKBACK_HOURS` if needed.
 - Run once:
 
 ```bash
