@@ -57,7 +57,6 @@ create table if not exists public.daily_summaries (
   title text not null,
   overall_summarize text not null default '',
   key_points text[] not null default '{}',
-  movers jsonb not null default '[]'::jsonb,
   risks text[] not null default '{}',
   opportunities text[] not null default '{}',
   sentiment text null,

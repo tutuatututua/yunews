@@ -18,14 +18,6 @@ from app.services.youtube_service import YouTubeSearchQuery, YouTubeService
 
 logger = logging.getLogger(__name__)
 
-
-def _clip(text: str, n: int = 1200) -> str:
-    s = str(text or "")
-    if len(s) <= n:
-        return s
-    return s[:n] + "…"
-
-
 def _keypoints_to_markdown(keypoints: dict[str, Any]) -> str:
     def _section(name: str, items: Any) -> str:
         lst = items if isinstance(items, list) else []
@@ -50,7 +42,10 @@ def main() -> None:
 
     youtube = YouTubeService(api_key=settings.youtube_api_key)
     transcript = TranscriptService()
-    chunker = ChunkingService(window_seconds=settings.chunk_window_seconds)
+    chunker = ChunkingService(
+        window_seconds=settings.chunk_window_seconds,
+        overlap_seconds=settings.chunk_overlap_seconds,
+    )
 
     extractor = TickerTopicService(
         openai_api_key=settings.openai_api_key,
@@ -491,7 +486,6 @@ def main() -> None:
                     title=daily.title,
                     overall_summarize=getattr(daily, "overall_summarize", "") or "",
                     key_points=getattr(daily, "key_points", []) or [],
-                    movers=[m.model_dump() for m in daily.movers],
                     risks=daily.risks,
                     opportunities=daily.opportunities,
                     sentiment=getattr(daily, "sentiment", None),

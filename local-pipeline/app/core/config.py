@@ -85,6 +85,7 @@ class Settings(BaseSettings):
 
     # Chunking
     chunk_window_seconds: int = Field(default=300, alias="CHUNK_WINDOW_SECONDS")
+    chunk_overlap_seconds: int = Field(default=90, alias="CHUNK_OVERLAP_SECONDS")
 
 
 def get_settings() -> Settings:

@@ -8,10 +8,15 @@ from app.models.schemas import TranscriptChunk, TranscriptEntry
 class ChunkingService:
     """Time-window chunking (< 5 minutes) using transcript timestamps."""
 
-    def __init__(self, window_seconds: int = 300) -> None:
+    def __init__(self, window_seconds: int = 300, overlap_seconds: int = 90) -> None:
         if window_seconds <= 0:
             raise ValueError("window_seconds must be positive")
+        if overlap_seconds < 0:
+            raise ValueError("overlap_seconds must be non-negative")
+        if overlap_seconds >= window_seconds:
+            raise ValueError("overlap_seconds must be smaller than window_seconds")
         self._window = float(window_seconds)
+        self._overlap = float(overlap_seconds)
 
     def chunk_by_time(self, video_id: str, entries: List[TranscriptEntry]) -> List[TranscriptChunk]:
         # Defensive: upstream typically provides sorted, non-empty entries,
@@ -24,14 +29,14 @@ class ChunkingService:
 
         chunks: List[TranscriptChunk] = []
 
-        current_text_parts: List[str] = []
+        current_entries: List[TranscriptEntry] = []
         chunk_start = 0.0
         chunk_end = 0.0
         chunk_index = 0
 
         def flush() -> None:
-            nonlocal chunk_index, current_text_parts, chunk_start, chunk_end
-            text = " ".join(p.strip() for p in current_text_parts if p.strip()).strip()
+            nonlocal chunk_index, current_entries, chunk_start, chunk_end
+            text = " ".join(str(entry.text).strip() for entry in current_entries if str(entry.text).strip()).strip()
             if text:
                 chunks.append(
                     TranscriptChunk(
@@ -44,29 +49,46 @@ class ChunkingService:
                 )
                 chunk_index += 1
 
-            current_text_parts = []
+            current_entries = []
+
+        def overlap_entries(entries_in_chunk: List[TranscriptEntry], current_chunk_end: float) -> List[TranscriptEntry]:
+            if self._overlap <= 0:
+                return []
+
+            overlap_start = max(chunk_start, current_chunk_end - self._overlap)
+            return [entry for entry in entries_in_chunk if float(entry.start + max(entry.duration, 0.0)) > overlap_start]
 
         for e in entries:
             entry_start = float(e.start)
             entry_end = float(e.start + max(e.duration, 0.0))
 
             # Initialize a chunk when empty
-            if not current_text_parts:
+            if not current_entries:
                 chunk_start = entry_start
                 chunk_end = entry_end
-                current_text_parts.append(e.text)
+                current_entries.append(e)
                 continue
 
             # If adding this entry exceeds the window, flush and start a new chunk
             proposed_end = max(chunk_end, entry_end)
             if proposed_end - chunk_start > self._window:
+                retained_entries = overlap_entries(current_entries, chunk_end)
                 flush()
-                chunk_start = entry_start
-                chunk_end = entry_end
-                current_text_parts.append(e.text)
+
+                current_entries = list(retained_entries)
+                if current_entries:
+                    chunk_start = float(current_entries[0].start)
+                    chunk_end = max(float(entry.start + max(entry.duration, 0.0)) for entry in current_entries)
+                else:
+                    chunk_start = entry_start
+                    chunk_end = entry_start
+
+                if not current_entries or current_entries[-1] is not e:
+                    current_entries.append(e)
+                chunk_end = max(chunk_end, entry_end)
             else:
                 chunk_end = proposed_end
-                current_text_parts.append(e.text)
+                current_entries.append(e)
 
         flush()
         return chunks

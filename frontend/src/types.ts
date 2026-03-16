@@ -4,7 +4,6 @@ export type DailySummary = {
   title: string
   overall_summarize?: string
   key_points: string[]
-  movers: Array<{ symbol: string; direction: 'up' | 'down' | 'mixed'; reason: string }>
   risks: string[]
   opportunities: string[]
   sentiment?: string | null

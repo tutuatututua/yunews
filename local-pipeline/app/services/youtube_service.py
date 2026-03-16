@@ -52,9 +52,9 @@ class YouTubeService:
         except Exception:
             return None
 
-    def __init__(self, api_key: str, session: Optional[requests.Session] = None) -> None:
+    def __init__(self, api_key: str):
         self._api_key = api_key
-        self._session = session or requests.Session()
+        self._session = requests.Session()
 
     def discover_daily_videos(
         self,

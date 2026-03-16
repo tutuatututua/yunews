@@ -242,7 +242,6 @@ class SupabaseDB:
         title: str,
         overall_summarize: str | None = None,
         key_points: list[str],
-        movers: list[dict[str, Any]],
         risks: list[str],
         opportunities: list[str],
         sentiment: str | None = None,
@@ -256,7 +255,6 @@ class SupabaseDB:
             "title": title,
             "overall_summarize": overall_summarize or "",
             "key_points": key_points,
-            "movers": movers,
             "risks": risks,
             "opportunities": opportunities,
             "sentiment": sentiment,
@@ -269,7 +267,6 @@ class SupabaseDB:
         # Some clients only report one missing column per failure, so retry until stable.
         candidate_cols = (
             "overall_summarize",
-            "movers",
             "risks",
             "opportunities",
             "sentiment",

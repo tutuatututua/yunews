@@ -319,7 +319,6 @@ class SummarizationService:
             title=f"Market Summary — {market_date.isoformat()}",
             overall_summarize="",
             key_points=[],
-            movers=[],
             risks=[],
             opportunities=[],
         )

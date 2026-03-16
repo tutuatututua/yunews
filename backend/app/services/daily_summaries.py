@@ -19,7 +19,6 @@ def shape_daily_summary_row(row: dict[str, Any] | None, market_date: date) -> di
         "title": row.get("title") or f"Market Summary — {market_date.isoformat()}",
         "overall_summarize": row.get("overall_summarize") or "",
         "key_points": row.get("key_points") or [],
-        "movers": row.get("movers") or [],
         "risks": row.get("risks") or [],
         "opportunities": row.get("opportunities") or [],
         "sentiment": row.get("sentiment"),

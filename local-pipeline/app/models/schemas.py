@@ -133,12 +133,6 @@ class VideoOverallSummary(BaseModel):
     events: list[VideoEvent] = Field(default_factory=list)
 
 
-class DailyMover(BaseModel):
-    symbol: str
-    direction: Literal["up", "down", "mixed"]
-    reason: str
-
-
 class DailyOverallSummary(BaseModel):
     """Overall per-day summary (stored in `daily_summaries`)."""
 
@@ -146,7 +140,6 @@ class DailyOverallSummary(BaseModel):
     # Plain-text, short daily TL;DR (in addition to summary_markdown).
     overall_summarize: str = ""
     key_points: list[str] = Field(default_factory=list)
-    movers: list[DailyMover] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     opportunities: list[str] = Field(default_factory=list)
     # Overall market tone for the next session, grounded in the input videos.
