@@ -17,11 +17,11 @@ const NAV_ITEMS = [
 
 const DEV_MESSAGE = {
   title: 'Message from the developer',
-  intro: 'Hi, I\'m Tua. I started building this site as a small side project, and it has grown into something with real potential. My focus now is turning it into a fast, reliable product people can trust every day.',
+  intro: 'Hi, I\'m Tua. I started this as a side project, and now I\'m focused on making it reliable and genuinely useful for investors.',
   details:
-    'The next stage is clear: stronger infrastructure, better performance for users outside Thailand, email alerts for important market updates, broader news coverage from sources like Yahoo Finance, and smarter features such as candle prediction.',
+    'Next, I want stronger infrastructure, better performance outside Thailand, broader news coverage, email alerts, and smarter tools like candlestick analysis.',
   closing:
-    'If you want to help shape that direction, please send feedback. Tell me what feels valuable, what is missing, and what would make this product worth returning to. Your feedback will directly influence what gets built next.',
+    'If you have 5 minutes, please share feedback. Tell me what feels valuable, what is missing, and what would make you return. Your input will shape what gets built next.',
   cta: 'Share feedback',
 } as const
 
