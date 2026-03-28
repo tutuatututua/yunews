@@ -473,16 +473,13 @@ export default function FeedbackPage() {
 
             <div className={ui.cardHeader}>
               <div>
-                <div className={styles.kicker}>One-time survey</div>
+                <div className={styles.kicker}>This survey is limited to one response</div>
                 <h2>Product and feature survey</h2>
                 <div className={cn(util.muted, util.small)}>
-                  Separate from the feedback box above. This survey is limited to one response per IP so the answers stay useful.
-                </div>
-                <div className={cn(util.muted, util.small)}>
-                  These answers help with pricing, retention, trust, and deciding which features to build next.
+                    Just to make sure you don't misunderstand me: my goal is not to get rich, but to build a website that people genuinely want to use. I don't want to drain your money. I just want enough to cover the server costs.
                 </div>
               </div>
-            </div>
+              </div>
 
             <form
               className={styles.form}
@@ -770,7 +767,7 @@ export default function FeedbackPage() {
                 <div className={styles.kicker}>Survey received</div>
                 <h2>Thank you for your time</h2>
                 <div className={cn(util.muted, util.small)}>
-                  Your response has been re corded and will help shape pricing and product decisions.
+                  Your response has been recorded and will help shape future decisions.
                 </div>
               </div>
             </div>

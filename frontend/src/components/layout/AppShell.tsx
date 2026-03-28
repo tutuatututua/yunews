@@ -17,7 +17,7 @@ const NAV_ITEMS = [
 
 const DEV_MESSAGE = {
   title: 'Message from the developer',
-  intro: 'Hi, I\'m Tua. I started this as a side project, and now I\'m focused on making it reliable and genuinely useful for investors.',
+  intro: 'Hi, I\'m Tua. I started this as a side project, and it has grown into something that could be genuinely useful for investors.',
   details:
     'Next, I want stronger infrastructure, better performance outside Thailand, broader news coverage, email alerts, and smarter tools like candlestick analysis.',
   closing:
