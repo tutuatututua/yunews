@@ -23,6 +23,10 @@ If you created the schema before 2026-03-16 and want to remove `daily_summaries.
 If you want in-app feedback submissions stored in Supabase, also run:
 - `local-pipeline/app/db/migrations/2026-03-05_create_feedback.sql`
 
+If you created the feedback survey schema before 2026-03-28, also run:
+- `local-pipeline/app/db/migrations/2026-03-28_drop_feedback_fair_price_currency.sql`
+- `local-pipeline/app/db/migrations/2026-03-28_update_feedback_survey_enum_choices.sql`
+
 ## 2) Configure environment
 1. Backend API env:
    - Create/fill `backend/.env` (tip: start from `backend/.env.example`)

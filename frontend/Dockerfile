@@ -1,3 +1,16 @@
+# ── Dev stage: Vite dev server with HMR ──────────────────────────────────────
+FROM node:20-alpine AS dev
+
+WORKDIR /app
+
+COPY package.json package-lock.json /app/
+RUN npm ci
+
+EXPOSE 80
+# Listen on port 80 so the existing 5173:80 port mapping still works.
+CMD ["npm", "run", "dev", "--", "--port", "80"]
+
+# ── Production build ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS build
 
 WORKDIR /app

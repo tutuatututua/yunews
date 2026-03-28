@@ -70,3 +70,14 @@ class ForbiddenError(AppError):
         details: Any | None = None,
     ):
         super().__init__(status_code=403, code=code, message=message, details=details)
+
+
+class ConflictError(AppError):
+    def __init__(
+        self,
+        message: str = "Conflict",
+        *,
+        code: str = "conflict",
+        details: Any | None = None,
+    ):
+        super().__init__(status_code=409, code=code, message=message, details=details)

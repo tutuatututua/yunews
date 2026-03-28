@@ -46,6 +46,257 @@
   gap: 1px;
 }
 
+/* ─── Floating "Built independently" window ─────────────────────────── */
+.floatingInfo {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  min-width: 0;
+  width: min(248px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 60%),
+    var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  transition: box-shadow 0.22s ease, width 0.22s ease, max-width 0.22s ease;
+  animation: floatingPulse 2.2s ease-in-out 4;
+}
+
+.floatingInfoExpanded {
+  width: min(468px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+}
+
+/* ─── Pixel cat sprite — calico face (brown / white / pink) ─────── */
+.floatingInfoCat {
+  display: inline-block;
+  position: relative;
+  width: 27px;
+  height: 27px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  animation: catBob 3.2s ease-in-out infinite;
+}
+
+/*
+  9-col × 9-row grid, each pixel = 3 px
+  Col 0 row 0 = element (transparent)
+  Colors:
+    #9B6A2F  brown fur
+    #F9C0CC  pink (ears + cheeks)
+    #EEE9E3  white / cream face
+    #200E00  dark eye
+    #E8758A  pink nose
+*/
+.floatingInfoCat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  box-shadow:
+    /* row 0 — ear tips */
+    3px  0px 0 0 #9B6A2F,
+    18px 0px 0 0 #9B6A2F,
+    /* row 1 — ear sides */
+    0px  3px 0 0 #9B6A2F,  3px  3px 0 0 #F9C0CC,  6px  3px 0 0 #9B6A2F,
+    18px 3px 0 0 #9B6A2F, 21px  3px 0 0 #F9C0CC, 24px  3px 0 0 #9B6A2F,
+    /* row 2 — ears merge into head */
+    0px  6px 0 0 #9B6A2F,  3px  6px 0 0 #F9C0CC,  6px  6px 0 0 #9B6A2F,
+    9px  6px 0 0 #9B6A2F, 12px  6px 0 0 #9B6A2F, 15px  6px 0 0 #9B6A2F,
+   18px  6px 0 0 #9B6A2F, 21px  6px 0 0 #F9C0CC, 24px  6px 0 0 #9B6A2F,
+    /* row 3 — head top, all brown */
+    0px  9px 0 0 #9B6A2F,  3px  9px 0 0 #9B6A2F,  6px  9px 0 0 #9B6A2F,
+    9px  9px 0 0 #9B6A2F, 12px  9px 0 0 #9B6A2F, 15px  9px 0 0 #9B6A2F,
+   18px  9px 0 0 #9B6A2F, 21px  9px 0 0 #9B6A2F, 24px  9px 0 0 #9B6A2F,
+    /* row 4 — eyes */
+    0px 12px 0 0 #9B6A2F,  3px 12px 0 0 #9B6A2F,  6px 12px 0 0 #200E00,
+    9px 12px 0 0 #9B6A2F, 12px 12px 0 0 #9B6A2F, 15px 12px 0 0 #9B6A2F,
+   18px 12px 0 0 #200E00, 21px 12px 0 0 #9B6A2F, 24px 12px 0 0 #9B6A2F,
+    /* row 5 — white face + pink nose */
+    0px 15px 0 0 #9B6A2F,  3px 15px 0 0 #EEE9E3,  6px 15px 0 0 #EEE9E3,
+    9px 15px 0 0 #EEE9E3, 12px 15px 0 0 #E8758A, 15px 15px 0 0 #EEE9E3,
+   18px 15px 0 0 #EEE9E3, 21px 15px 0 0 #EEE9E3, 24px 15px 0 0 #9B6A2F,
+    /* row 6 — cheeks */
+    0px 18px 0 0 #9B6A2F,  3px 18px 0 0 #EEE9E3,  6px 18px 0 0 #F9C0CC,
+    9px 18px 0 0 #EEE9E3, 12px 18px 0 0 #EEE9E3, 15px 18px 0 0 #EEE9E3,
+   18px 18px 0 0 #F9C0CC, 21px 18px 0 0 #EEE9E3, 24px 18px 0 0 #9B6A2F,
+    /* row 7 — chin */
+    0px 21px 0 0 #9B6A2F,  3px 21px 0 0 #EEE9E3,  6px 21px 0 0 #EEE9E3,
+    9px 21px 0 0 #EEE9E3, 12px 21px 0 0 #EEE9E3, 15px 21px 0 0 #EEE9E3,
+   18px 21px 0 0 #EEE9E3, 21px 21px 0 0 #EEE9E3, 24px 21px 0 0 #9B6A2F,
+    /* row 8 — head bottom edge */
+    3px  24px 0 0 #9B6A2F,  6px 24px 0 0 #9B6A2F,  9px 24px 0 0 #9B6A2F,
+   12px  24px 0 0 #9B6A2F, 15px 24px 0 0 #9B6A2F, 18px 24px 0 0 #9B6A2F,
+   21px  24px 0 0 #9B6A2F;
+}
+
+@keyframes catBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%       { transform: translateY(-3px) rotate(-4deg); }
+  75%       { transform: translateY(-3px) rotate(4deg); }
+}
+
+@keyframes floatingPulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18); }
+  40%       { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 4px rgba(99, 102, 241, 0.38); }
+  60%       { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 4px rgba(99, 102, 241, 0.38); }
+}
+
+.floatingInfoToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.floatingInfoToggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.floatingInfoLabel {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+
+.floatingInfoChevron {
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.floatingInfoBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.floatingInfoLangRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.floatingInfoLangLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.floatingInfoLangBtn {
+  appearance: none;
+  min-height: 26px;
+  min-width: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+
+.floatingInfoLangBtn:hover {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.floatingInfoLangBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.floatingInfoLangBtnActive {
+  border-color: color-mix(in srgb, var(--primary) 46%, var(--border));
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface-2));
+  color: #dbeafe;
+}
+
+.floatingInfoTitle {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.floatingInfoContent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.floatingInfoContent p {
+  margin: 0;
+}
+
+.floatingInfoCta {
+  width: 100%;
+}
+
+@media (max-height: 820px) {
+  .floatingInfo {
+    bottom: 12px;
+    right: 12px;
+  }
+
+  .floatingInfoExpanded {
+    width: min(408px, calc(100vw - 24px));
+  }
+
+  .floatingInfoBody {
+    gap: 8px;
+    padding: 6px 12px 12px;
+  }
+
+  .floatingInfoContent {
+    font-size: 11.5px;
+    line-height: 1.45;
+    gap: 7px;
+  }
+}
+
+@media (max-width: 640px) {
+  .floatingInfo {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  .floatingInfoExpanded {
+    width: auto;
+    max-width: none;
+  }
+}
+
 .navLink {
   display: flex;
   align-items: center;

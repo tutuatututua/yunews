@@ -28,3 +28,6 @@ Thumbs.db
 
 # Local data
 .local/
+
+# Nested repositories
+sodality_technical_challenge/

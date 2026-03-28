@@ -16,6 +16,10 @@
 .sidebar {
   position: sticky;
   top: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 72px);
 }
 
 .mainColumn {
@@ -30,6 +34,12 @@
 .sidebarCard,
 .deepDiveCard {
   padding: 22px 24px;
+}
+
+.sidebarCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* ─── Section headers ───────────────────────────────────────────── */
@@ -273,13 +283,14 @@
   flex-direction: column;
   gap: 18px;
   margin-top: 18px;
-  max-height: calc(100vh - 260px);
+  max-height: calc(100vh - 420px);
   overflow: auto;
   overflow-x: hidden;
   padding-right: 4px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
+
 
 .tickerGroup {
   display: flex;
@@ -494,6 +505,7 @@
 
   .sidebar {
     position: static;
+    max-height: none;
   }
 }
 

@@ -83,19 +83,22 @@
 .messages {
   flex: 1 1 auto;
   padding: 14px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .bubble {
+  width: fit-content;
   max-width: 92%;
   padding: 10px 12px;
   border-radius: var(--radius);
   border: 1px solid var(--border-2);
   background: var(--surface-2);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
   font-size: 13px;
   line-height: 1.35;
@@ -108,7 +111,8 @@
 }
 
 .assistant {
-  align-self: flex-start;
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .messageText {
@@ -135,6 +139,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.sourcesDetails[open] .sourcesList {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .sourceItem {
@@ -220,6 +230,11 @@
   word-break: break-word;
   font-family: inherit;
   line-height: 1.35;
+}
+
+.retrieval details[open] pre {
+  max-height: 320px;
+  overflow: auto;
 }
 
 .composer {

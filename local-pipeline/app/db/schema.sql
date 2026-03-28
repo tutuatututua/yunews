@@ -202,6 +202,34 @@ create index if not exists idx_feedback_ip on public.feedback(ip);
 create index if not exists idx_feedback_path on public.feedback(path);
 
 
+-- One-time product survey submissions.
+create table if not exists public.feedback_surveys (
+  id bigserial primary key,
+  created_at timestamptz not null default now(),
+  ip text not null,
+  request_id text null,
+  email text null,
+  subscription_intent text not null,
+  fair_price_monthly numeric(10, 2) null,
+  usage_frequency text not null default 'occasionally',
+  primary_market_focus text not null default 'other',
+  discovery_source text not null default 'other',
+  trust_score smallint not null default 3,
+  referral_likelihood smallint not null default 5,
+  web_helpful text null,
+  most_wanted_feature text not null default '',
+  must_improve_before_pay text not null default '',
+  ideal_alert_channel text null,
+  additional_notes text null,
+  path text not null,
+  user_agent text null,
+  referrer text null
+);
+
+create unique index if not exists idx_feedback_surveys_ip_unique on public.feedback_surveys(ip);
+create index if not exists idx_feedback_surveys_created_at on public.feedback_surveys(created_at desc);
+
+
 -- Chat request/response persistence (server-side history).
 create table if not exists public.chat_logs (
   id bigserial primary key,

@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     # YouTube discovery config
     discovery_lookback_hours: int = Field(default=48, alias="DISCOVERY_LOOKBACK_HOURS")
     discovery_max_videos: int = Field(
-        default=10,
+        default=20,
         validation_alias=AliasChoices("DISCOVERY_MAX_VIDEOS", "PIPELINE_MAX_VIDEOS"),
     )
     discovery_language: str = Field(

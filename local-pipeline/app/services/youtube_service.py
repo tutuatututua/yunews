@@ -5,7 +5,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import requests
 
@@ -27,7 +27,7 @@ class YouTubeService:
     - order by relevance
     - language: English
     - type: video
-    - fetch exactly `max_videos` (unique video_ids)
+    - fetch up to `max_videos` unique video_ids after filters
     """
 
     BASE_URL = "https://www.googleapis.com/youtube/v3/search"
@@ -75,64 +75,74 @@ class YouTubeService:
             if len(collected) >= max_videos:
                 break
 
-            items = self._search_youtube(
-                query=q.query,
-                language=language,
-                region_code=region_code,
-                max_results=max_videos,
-            )
-            items = [item for item in items if item.published_at >= published_after]
+            next_page_token: Optional[str] = None
 
-            new_ids = [v.video_id for v in items if v.video_id not in collected]
-            details = self._fetch_video_details(new_ids)
-
-            channel_ids_set: set[str] = set()
-            for d in details.values():
-                channel_id = d.get("channel_id")
-                if isinstance(channel_id, str) and channel_id:
-                    channel_ids_set.add(channel_id)
-
-            channel_ids = sorted(channel_ids_set)
-            channel_details = self._fetch_channel_details(channel_ids)
-
-            for v in items:
-                d: Dict[str, Any] = details.get(v.video_id) or {}
-
-                duration_seconds = d.get("duration_seconds")
-                if not isinstance(duration_seconds, int):
-                    duration_seconds = None
-                if duration_seconds is None:
-                    continue
-
-                if duration_seconds < min_duration_seconds or duration_seconds > max_duration_seconds:
-                    continue
-
-                channel_id = d.get("channel_id")
-                if not isinstance(channel_id, str):
-                    channel_id = None
-
-                ch = channel_details.get(channel_id) if channel_id else None
-
-                v = v.model_copy(
-                    update={
-                        "duration_seconds": duration_seconds,
-                        # Persist only `channel` in the videos table.
-                        "channel": d.get("channel_title") or v.channel,
-                        "video_url": d.get("video_url"),
-                        "thumbnail_url": d.get("thumbnail_url"),
-                        "view_count": d.get("view_count"),
-                        "like_count": d.get("like_count"),
-                        "comment_count": d.get("comment_count"),
-                        "tags": d.get("tags"),
-                        "category_id": d.get("category_id"),
-                        "default_language": d.get("default_language"),
-                        "default_audio_language": d.get("default_audio_language"),
-                        "channel_subscriber_count": (ch or {}).get("subscriber_count"),
-                        "channel_video_count": (ch or {}).get("video_count"),
-                    }
+            while len(collected) < max_videos:
+                remaining_slots = max_videos - len(collected)
+                items, next_page_token = self._search_youtube(
+                    query=q.query,
+                    language=language,
+                    region_code=region_code,
+                    max_results=remaining_slots,
+                    published_after=published_after,
+                    page_token=next_page_token,
                 )
-                collected.setdefault(v.video_id, v)
-                if len(collected) >= max_videos:
+                if not items:
+                    break
+
+                new_ids = [v.video_id for v in items if v.video_id not in collected]
+                details = self._fetch_video_details(new_ids)
+
+                channel_ids_set: set[str] = set()
+                for d in details.values():
+                    channel_id = d.get("channel_id")
+                    if isinstance(channel_id, str) and channel_id:
+                        channel_ids_set.add(channel_id)
+
+                channel_ids = sorted(channel_ids_set)
+                channel_details = self._fetch_channel_details(channel_ids)
+
+                for v in items:
+                    d: Dict[str, Any] = details.get(v.video_id) or {}
+
+                    duration_seconds = d.get("duration_seconds")
+                    if not isinstance(duration_seconds, int):
+                        duration_seconds = None
+                    if duration_seconds is None:
+                        continue
+
+                    if duration_seconds < min_duration_seconds or duration_seconds > max_duration_seconds:
+                        continue
+
+                    channel_id = d.get("channel_id")
+                    if not isinstance(channel_id, str):
+                        channel_id = None
+
+                    ch = channel_details.get(channel_id) if channel_id else None
+
+                    v = v.model_copy(
+                        update={
+                            "duration_seconds": duration_seconds,
+                            # Persist only `channel` in the videos table.
+                            "channel": d.get("channel_title") or v.channel,
+                            "video_url": d.get("video_url"),
+                            "thumbnail_url": d.get("thumbnail_url"),
+                            "view_count": d.get("view_count"),
+                            "like_count": d.get("like_count"),
+                            "comment_count": d.get("comment_count"),
+                            "tags": d.get("tags"),
+                            "category_id": d.get("category_id"),
+                            "default_language": d.get("default_language"),
+                            "default_audio_language": d.get("default_audio_language"),
+                            "channel_subscriber_count": (ch or {}).get("subscriber_count"),
+                            "channel_video_count": (ch or {}).get("video_count"),
+                        }
+                    )
+                    collected.setdefault(v.video_id, v)
+                    if len(collected) >= max_videos:
+                        break
+
+                if not next_page_token:
                     break
 
         videos = list(collected.values())[:max_videos]
@@ -146,7 +156,9 @@ class YouTubeService:
         language: str,
         region_code: str,
         max_results: int,
-    ) -> List[VideoMetadata]:
+        published_after: datetime,
+        page_token: Optional[str] = None,
+    ) -> Tuple[List[VideoMetadata], Optional[str]]:
         safe_max_results = min(max_results, 50)
         params = {
             "key": self._api_key,
@@ -158,7 +170,10 @@ class YouTubeService:
             "safeSearch": "moderate",
             "regionCode": region_code,
             "relevanceLanguage": language,
+            "publishedAfter": published_after.isoformat().replace("+00:00", "Z"),
         }
+        if page_token:
+            params["pageToken"] = page_token
 
         resp = self._session.get(self.BASE_URL, params=params, timeout=30)
         try:
@@ -169,6 +184,7 @@ class YouTubeService:
 
         payload = resp.json()
         items = payload.get("items", [])
+        next_page_token = payload.get("nextPageToken")
 
         results: List[VideoMetadata] = []
         for item in items:
@@ -190,6 +206,9 @@ class YouTubeService:
             except ValueError:
                 continue
 
+            if published_at < published_after:
+                continue
+
             results.append(
                 VideoMetadata(
                     video_id=video_id,
@@ -200,7 +219,7 @@ class YouTubeService:
                 )
             )
 
-        return results
+        return results, next_page_token
 
     def _fetch_video_details(self, video_ids: List[str]) -> Dict[str, Dict[str, Any]]:
         """Fetch rich metadata for videos.

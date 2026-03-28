@@ -1,8 +1,9 @@
 import React from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Home, Image, Menu, MessageCircle, MessageSquare, TrendingUp, Video, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { TimeZoneMenu } from '../ui/TimeZoneMenu'
+import { ui } from '../../styles'
 import styles from './AppShell.module.css'
 
 const NAV_ITEMS = [
@@ -13,6 +14,16 @@ const NAV_ITEMS = [
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/feedback', label: 'Feedback', icon: MessageSquare },
 ] as const
+
+const DEV_MESSAGE = {
+  title: 'Message from the developer',
+  intro: 'Hi, I\'m Tua. I started building this site as a small side project, and it has grown into something with real potential. My focus now is turning it into a fast, reliable product people can trust every day.',
+  details:
+    'The next stage is clear: stronger infrastructure, better performance for users outside Thailand, email alerts for important market updates, broader news coverage from sources like Yahoo Finance, and smarter features such as candle prediction.',
+  closing:
+    'If you want to help shape that direction, please send feedback. Tell me what feels valuable, what is missing, and what would make this product worth returning to. Your feedback will directly influence what gets built next.',
+  cta: 'Share feedback',
+} as const
 
 type PageMeta = {
   title: string
@@ -39,6 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const [collapsed, setCollapsed] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [floatingExpanded, setFloatingExpanded] = React.useState(false)
 
   const [isMobile, setIsMobile] = React.useState(() => {
     if (typeof window === 'undefined') return false
@@ -106,7 +118,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-
       </aside>
 
       {mobileOpen && (
@@ -119,6 +130,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className={styles.main}>
+
+      {/* Floating "Built independently" info window */}
+      <div className={cn(styles.floatingInfo, floatingExpanded && styles.floatingInfoExpanded)}>
+        {floatingExpanded && (
+          <div className={styles.floatingInfoBody}>
+            <div className={styles.floatingInfoTitle}>{DEV_MESSAGE.title}</div>
+            <div className={styles.floatingInfoContent}>
+              <p>{DEV_MESSAGE.intro}</p>
+              <p>{DEV_MESSAGE.details}</p>
+              <p>{DEV_MESSAGE.closing}</p>
+            </div>
+            <Link className={cn(ui.button, styles.floatingInfoCta)} to="/feedback">
+              {DEV_MESSAGE.cta}
+            </Link>
+          </div>
+        )}
+        <button
+          type="button"
+          className={styles.floatingInfoToggle}
+          onClick={() => setFloatingExpanded(v => !v)}
+          aria-expanded={floatingExpanded}
+          aria-label={floatingExpanded ? 'Collapse developer info' : 'Expand developer info'}
+        >
+          <span className={styles.floatingInfoCat} aria-hidden="true" />
+          <span className={styles.floatingInfoLabel}>message from dev</span>
+          <span className={styles.floatingInfoChevron}>{floatingExpanded ? '▼' : '▲'}</span>
+        </button>
+      </div>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
             {isMobile && (

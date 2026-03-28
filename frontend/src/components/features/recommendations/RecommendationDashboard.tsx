@@ -1,3 +1,4 @@
+import React from 'react';
 import type { RecommendationOverlay } from '../../../types'
 import RecommendationOverlayChart from '../RecommendationOverlayChart'
 import { EmptyState, ErrorCallout } from '../../ui/Callout'
@@ -200,7 +201,9 @@ export default function RecommendationDashboard(props: RecommendationDashboardPr
     eventRows,
   } = props
 
-  const allTickers = [...featuredTickers, ...historyTickers]
+  const allTickers = [...featuredTickers, ...historyTickers].sort(
+    (a, b) => Number(b.isRecent) - Number(a.isRecent) || b.count - a.count || a.symbol.localeCompare(b.symbol),
+  )
   const hasTickers = totalTickerCount > 0
   const selectedGroup = recentGroups.find((group) => group.symbol === selectedSymbol) || null
   const visibleTickerCount = allTickers.length
@@ -284,9 +287,9 @@ export default function RecommendationDashboard(props: RecommendationDashboardPr
                 ) : (
                   <div className={styles.tickerExplorerBody}>
                     <TickerExplorerGroup
-                      title="Archive coverage"
-                      description="Older picks still available in the one-year history."
-                      items={historyTickers}
+                      title="Ticker coverage"
+                      description="Recommendation picks across recent and archive history."
+                      items={allTickers}
                       selectedSymbol={selectedSymbol}
                       onSelectSymbol={onSelectSymbol}
                     />
