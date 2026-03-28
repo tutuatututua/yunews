@@ -19,7 +19,7 @@ const DEV_MESSAGE = {
   title: 'Message from the developer',
   intro: 'Hi, I\'m Tua. I started this as a side project, and it has grown into something that could be genuinely useful for investors.',
   details:
-    'Next, I want stronger infrastructure, better performance outside Thailand, broader news coverage, email alerts, and smarter tools like candlestick analysis.',
+    'Next, I want stronger infrastructure, better performance outside Thailand, broader news coverage, email alerts, and smarter tools like candlestick prediction model.',
   closing:
     'If you have 5 minutes, please share feedback. Tell me what feels valuable, what is missing, and what would make you return. Your input will shape what gets built next.',
   cta: 'Share feedback',

@@ -691,12 +691,12 @@ export default function FeedbackPage() {
               </div>
 
               <label className={styles.field}>
-                <span className={styles.fieldLabel}>What feature do you want the most? (optional)</span>
+                <span className={styles.fieldLabel}>What feature do you want the most, and what would bring you back to this website? (optional)</span>
                 <textarea
                   className={styles.textarea}
                   value={mostWantedFeature}
                   onChange={(e) => setMostWantedFeature(e.target.value)}
-                  placeholder="Email alerts, better global performance, more market sources, smarter AI summaries..."
+                  placeholder="Email alerts, better global performance, more market sources, smarter AI summaries, or anything that would make you come back more often..."
                   rows={4}
                   disabled={surveySubmitting}
                 />
