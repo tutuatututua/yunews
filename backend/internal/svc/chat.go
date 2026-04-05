@@ -137,7 +137,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 
 		if s.logs != nil && s.logChatHistory {
-			_ = s.logs.InsertChatLog(repo.ChatLogParams{
+			s.logs.InsertChatLog(repo.ChatLogParams{
 				IP:          clientIP,
 				RequestID:   requestID,
 				Question:    question,
@@ -179,7 +179,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 		}))
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 		if s.logs != nil && s.logChatHistory {
-			_ = s.logs.InsertChatLog(repo.ChatLogParams{
+			s.logs.InsertChatLog(repo.ChatLogParams{
 				IP: clientIP, RequestID: requestID, Question: question,
 				History: historyToAny(history), Sources: sourcesPayload(chunks),
 				QueryPlan: planToMap(plan), Model: s.chatModel, Status: "retrieval_error",
@@ -195,7 +195,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "delta", "delta": msg}))
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 		if s.logs != nil && s.logChatHistory {
-			_ = s.logs.InsertChatLog(repo.ChatLogParams{
+			s.logs.InsertChatLog(repo.ChatLogParams{
 				IP: clientIP, RequestID: requestID, Question: question,
 				History: historyToAny(history), ResponseText: &msg, Sources: sourcesPayload(chunks),
 				QueryPlan: planToMap(plan), Model: s.chatModel, Status: "no_info",
@@ -210,7 +210,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "error", "message": errMsg}))
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 		if s.logs != nil && s.logChatHistory {
-			_ = s.logs.InsertChatLog(repo.ChatLogParams{
+			s.logs.InsertChatLog(repo.ChatLogParams{
 				IP: clientIP, RequestID: requestID, Question: question,
 				History: historyToAny(history), Sources: sourcesPayload(chunks),
 				QueryPlan: planToMap(plan), Model: s.chatModel, Status: "missing_openai_key",
@@ -247,7 +247,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 			}))
 			flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 			if s.logs != nil && s.logChatHistory {
-				_ = s.logs.InsertChatLog(repo.ChatLogParams{
+				s.logs.InsertChatLog(repo.ChatLogParams{
 					IP: clientIP, RequestID: requestID, Question: question,
 					History: historyToAny(history), Sources: sourcesPayload(chunks),
 					QueryPlan: planToMap(plan), Model: s.chatModel, Status: "quota_exceeded_prompt",
@@ -272,7 +272,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 		flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 		errStr := err.Error()
 		if s.logs != nil && s.logChatHistory {
-			_ = s.logs.InsertChatLog(repo.ChatLogParams{
+			s.logs.InsertChatLog(repo.ChatLogParams{
 				IP: clientIP, RequestID: requestID, Question: question,
 				History: historyToAny(history), Sources: sourcesPayload(chunks),
 				QueryPlan: planToMap(plan), Model: s.chatModel, Status: "upstream_error",
@@ -319,7 +319,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 				flushWrite(w, flusher, sseBytes(map[string]interface{}{"type": "done"}))
 				full := strings.Join(responseParts, "")
 				if s.logs != nil && s.logChatHistory {
-					_ = s.logs.InsertChatLog(repo.ChatLogParams{
+					s.logs.InsertChatLog(repo.ChatLogParams{
 						IP: clientIP, RequestID: requestID, Question: question,
 						History: historyToAny(history), ResponseText: &full, Sources: sourcesPayload(chunks),
 						QueryPlan: planToMap(plan), Model: s.chatModel, Status: status,
@@ -348,7 +348,7 @@ func (s *ChatService) StreamChat(req ChatRequest, clientIP, requestID string, w 
 		if streamErr != "" {
 			params.ErrorMessage = &streamErr
 		}
-		_ = s.logs.InsertChatLog(params)
+		s.logs.InsertChatLog(params)
 	}
 }
 

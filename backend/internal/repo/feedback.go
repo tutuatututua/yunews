@@ -28,7 +28,7 @@ func (r *FeedbackRepository) InsertFeedback(ip, requestID, message string, email
 		"request_id":  truncateOrNil(requestID, 100),
 		"message":     truncate(strings.TrimSpace(message), 10000),
 		"email":       truncateOrNilPtr(email, 320),
-		"path":        truncate(strDefault(path, "/"), 500),
+		"path":        truncate(*strDefault(path, "/"), 500),
 		"user_agent":  truncateOrNilPtr(userAgent, 500),
 		"referrer":    truncateOrNilPtr(referrer, 500),
 	}
@@ -76,7 +76,7 @@ func (r *FeedbackRepository) InsertFeedbackSurvey(params FeedbackSurveyParams) e
 		"additional_notes":      truncateOrNil(params.AdditionalNotes, 4000),
 		"web_helpful":           truncateOrNil(params.WebHelpful, 20),
 		"email":                 truncateOrNilPtr(params.Email, 320),
-		"path":                  truncate(strDefault(&params.Path, "/"), 500),
+		"path":                  truncate(*strDefault(&params.Path, "/"), 500),
 		"user_agent":            truncateOrNilPtr(params.UserAgent, 500),
 		"referrer":              truncateOrNilPtr(params.Referrer, 500),
 	}

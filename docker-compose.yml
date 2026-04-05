@@ -7,9 +7,9 @@ services:
       - pipeline
 
   backend:
-    build: ./backend-go
+    build: ./backend
     env_file:
-      - ./backend-go/.env
+      - ./backend/.env
     environment:
       # Allow the local frontend dev origin to call the API.
       # You can override this in ./backend-go/.env via CORS_ALLOW_ORIGINS.

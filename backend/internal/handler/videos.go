@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"yunews/backend/internal/svc"
@@ -20,11 +21,17 @@ func NewVideosHandler(s *svc.VideosService) *VideosHandler {
 // List handles GET /videos.
 func (h *VideosHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	date := q.Get("date")
+	var datePtr *time.Time
+	if raw := q.Get("date"); raw != "" {
+		if t, err := time.Parse("2006-01-02", raw); err == nil {
+			datePtr = &t
+		}
+	}
 	days := queryInt(r, "days", 7)
+	daysPtr := &days
 	limit := queryInt(r, "limit", 50)
 
-	result, err := h.svc.ListVideos(date, days, limit)
+	result, err := h.svc.ListVideos(datePtr, daysPtr, limit)
 	if err != nil {
 		HandleAppError(w, err)
 		return
@@ -35,11 +42,16 @@ func (h *VideosHandler) List(w http.ResponseWriter, r *http.Request) {
 // Infographic handles GET /videos/infographic.
 func (h *VideosHandler) Infographic(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	date := q.Get("date")
+	var datePtr *time.Time
+	if raw := q.Get("date"); raw != "" {
+		if t, err := time.Parse("2006-01-02", raw); err == nil {
+			datePtr = &t
+		}
+	}
 	days := queryInt(r, "days", 7)
 	limit := queryInt(r, "limit", 200)
 
-	result, err := h.svc.VideoInfographic(date, days, limit)
+	result, err := h.svc.VideoInfographic(datePtr, days, limit)
 	if err != nil {
 		HandleAppError(w, err)
 		return

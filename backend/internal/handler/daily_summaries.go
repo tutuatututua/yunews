@@ -3,8 +3,10 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"yunews/backend/internal/apperr"
 	"yunews/backend/internal/svc"
 )
 
@@ -30,8 +32,13 @@ func (h *DailySummariesHandler) Latest(w http.ResponseWriter, r *http.Request) {
 
 // ByDate handles GET /daily-summaries/{market_date}.
 func (h *DailySummariesHandler) ByDate(w http.ResponseWriter, r *http.Request) {
-	date := chi.URLParam(r, "market_date")
-	summary, err := h.svc.GetDailySummary(date)
+	raw := chi.URLParam(r, "market_date")
+	marketDate, parseErr := time.Parse("2006-01-02", raw)
+	if parseErr != nil {
+		WriteError(w, apperr.BadRequest("invalid date format, expected YYYY-MM-DD"))
+		return
+	}
+	summary, err := h.svc.GetDailySummary(marketDate)
 	if err != nil {
 		HandleAppError(w, err)
 		return

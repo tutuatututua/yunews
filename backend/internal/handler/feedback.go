@@ -102,7 +102,6 @@ func (h *FeedbackHandler) SubmitSurvey(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, apperr.ConflictCode(
 			"This survey has already been submitted from your connection.",
 			"feedback_survey_already_submitted",
-			nil,
 		))
 		return
 	}
@@ -147,7 +146,6 @@ func (h *FeedbackHandler) SubmitSurvey(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, apperr.ConflictCode(
 				"This survey has already been submitted from your connection.",
 				"feedback_survey_already_submitted",
-				nil,
 			))
 			return
 		}

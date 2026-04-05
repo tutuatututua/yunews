@@ -1,7 +1,6 @@
 package svc
 
 import (
-	"strings"
 	"time"
 
 	"yunews/backend/internal/apperr"
@@ -62,7 +61,15 @@ func (s *RecommendationsService) ListRecommendations(symbol *string, days, limit
 		limit = 1
 	}
 
-	rows, err := s.repo.FetchRecommendationRows(symbol, days, limit)
+	start := timeutil.MarketToday().AddDate(0, 0, -days)
+	startISO := start.Format("2006-01-02")
+
+	var sym string
+	if symbol != nil {
+		sym = *symbol
+	}
+
+	rows, err := s.repo.FetchRecommendationRows(sym, startISO, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -220,10 +227,7 @@ func closeOnOrAfter(prices []repo.CloseBar, target time.Time, fallback bool) (st
 	var latestClose *float64
 
 	for _, b := range prices {
-		d := ""
-		if b.Date != nil {
-			d = *b.Date
-		}
+		d := b.Date
 		if d == "" {
 			continue
 		}
@@ -319,11 +323,6 @@ func extractPositiveKeypoints(summaryRaw interface{}, maxItems int) []string {
 		out = append(out, value)
 	}
 	return out
-}
-
-func normalizeSymbol(s string) string {
-	s = strings.TrimSpace(strings.ToUpper(s))
-	return s
 }
 
 func strPtr(s string) *string {

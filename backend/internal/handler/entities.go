@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"yunews/backend/internal/svc"
@@ -19,11 +20,16 @@ func NewEntitiesHandler(s *svc.EntitiesService) *EntitiesHandler {
 
 // TopMovers handles GET /entities/top-movers.
 func (h *EntitiesHandler) TopMovers(w http.ResponseWriter, r *http.Request) {
-	date := r.URL.Query().Get("date")
+	var datePtr *time.Time
+	if raw := r.URL.Query().Get("date"); raw != "" {
+		if t, err := time.Parse("2006-01-02", raw); err == nil {
+			datePtr = &t
+		}
+	}
 	days := queryInt(r, "days", 7)
 	limit := queryInt(r, "limit", 8)
 
-	result, err := h.svc.TopMovers(date, days, limit)
+	result, err := h.svc.TopMovers(datePtr, days, limit)
 	if err != nil {
 		HandleAppError(w, err)
 		return

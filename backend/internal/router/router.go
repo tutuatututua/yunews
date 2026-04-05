@@ -27,7 +27,7 @@ func New(cfg *config.Config) http.Handler {
 	entitiesRepo := repo.NewEntitiesRepository(db)
 	recsRepo := repo.NewRecommendationsRepository(db)
 	ragRepo := repo.NewRagDocumentsRepository(db)
-	marketRepo := repo.NewMarketDataRepository()
+	marketRepo := repo.NewMarketDataRepository(db)
 
 	// Services.
 	marketSvc := svc.NewMarketDataService(marketRepo)
