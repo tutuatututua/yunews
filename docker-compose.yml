@@ -7,12 +7,12 @@ services:
       - pipeline
 
   backend:
-    build: ./backend
+    build: ./backend-go
     env_file:
-      - ./backend/.env
+      - ./backend-go/.env
     environment:
       # Allow the local frontend dev origin to call the API.
-      # You can override this in ./backend/.env via CORS_ALLOW_ORIGINS.
+      # You can override this in ./backend-go/.env via CORS_ALLOW_ORIGINS.
       - CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
     ports:
       - "8080:8080"

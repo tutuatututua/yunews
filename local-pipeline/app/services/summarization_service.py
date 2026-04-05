@@ -76,22 +76,34 @@ class SummarizationService:
             input_variables=["market_date", "items"],
             template=(
                 "Create a daily market summary from the provided video inputs.\n"
-                "Return a SINGLE JSON object only (no markdown fences, no extra text).\n"
-                "Use double quotes for all keys/strings; no trailing commas.\n"
+                "OUTPUT FORMAT: before the JSON, write a private <scratchpad>...</scratchpad> block. Then output the JSON object on a new line.\n"
+                "The JSON must use double quotes for all keys/strings; no trailing commas; no markdown fences.\n"
                 "Use ONLY inputs; do not invent facts/tickers/numbers. Omit uncertainty.\n"
-                "Only include bullets you are confident are supported by the inputs.\n"
+                "Only include bullets you are confident are supported by the inputs.\n\n"
+                "=== SCRATCHPAD (do this before writing JSON) ===\n"
+                "Inside <scratchpad>, work through these steps:\n"
+                "S1. List up to 5 high-conviction OPPORTUNITIES from the inputs (named driver + market impact).\n"
+                "S2. List up to 5 high-conviction RISKS from the inputs (named driver + market impact).\n"
+                "S3. Count: opp_count vs risk_count. Note which side dominates and by how much.\n"
+                "S4. Pick sentiment_score using the bracket guide:\n"
+                "      very favorable   +0.70 to +1.00  (opportunities dominate, few or weak risks)\n"
+                "      moderately fav.  +0.35 to +0.69  (more opps than risks, moderate conviction)\n"
+                "      slightly fav.    +0.10 to +0.34  (slight net positive, mixed evidence)\n"
+                "      neutral          -0.09 to +0.09  (balanced — use sparingly; commit to a side if any signal exists)\n"
+                "      slightly unfav.  -0.10 to -0.34  (slight net negative, mixed evidence)\n"
+                "      moderately unfav -0.35 to -0.69  (more risks than opps, moderate conviction)\n"
+                "      very unfavorable -0.70 to -1.00  (risks dominate, few or weak opportunities)\n"
+                "      null             only when inputs have zero tradeable market signal\n"
+                "S5. Derive sentiment label FROM the score (never choose independently):\n"
+                "      score >= +0.10 → bullish | score <= -0.10 → bearish | -0.09 to +0.09 → neutral | explicitly split inputs → mixed | score null → null\n"
+                "S6. Draft sentiment_reason (1–2 sentences): name the dominant driver(s) that placed the score where it is.\n"
+                "=== END SCRATCHPAD ===\n\n"
                 "overall_summarize is plain text (max 5 sentences). It is ONLY the high-level story/context for the day.\n"
-                    "overall_summarize MUST NOT restate or paraphrase any bullet that appears in risks/opportunities.\n"
+                "overall_summarize MUST NOT restate or paraphrase any bullet that appears in risks/opportunities.\n"
                 "overall_summarize MUST NOT be a list; no bullet characters, no numbered lists; keep it as prose.\n"
                 "key_points are the main takeaways for the day (max 12).\n"
-                    "key_points MUST NOT repeat any item in risks/opportunities; if it fits those sections, put it there instead.\n"
+                "key_points MUST NOT repeat any item in risks/opportunities; if it fits those sections, put it there instead.\n"
                 "key_points items must be plain strings (no markdown), concise, and must not contain curly braces.\n"
-                "sentiment is bullish|bearish|mixed|neutral or null.\n"
-                "sentiment_score is a number between -1 and 1 (inclusive), where -1 means it is a very unfavorable time to invest, 0 is neutral or wait-and-see, and 1 means it is a very favorable time to invest; or null if unclear.\n"
-                "Avoid clustering near 0: use the full range when supported by inputs.\n"
-                "Consistency rules: if sentiment is bullish, sentiment_score must be >= 0.25; if bearish, <= -0.25; if neutral, between -0.2 and 0.2; if mixed, between -0.35 and 0.35.\n"
-                "Score guidance (pick the closest): very favorable +0.7 to +1.0; moderately favorable +0.35 to +0.65; slightly favorable +0.25 to +0.35; neutral ~0.0; slightly unfavorable -0.25 to -0.35; moderately unfavorable -0.35 to -0.65; very unfavorable -0.7 to -1.0.\n"
-                "sentiment_reason is plain text (max 2 sentences) explaining why the setup appears favorable, unfavorable, or neutral for investing, grounded in the inputs.\n"
                 "Deduplicate bullets; keep concise.\n\n"
                 "Title must be exactly: Market Summary — {market_date}\n"
                 "risks/opportunities: max 10 bullets each.\n"
@@ -362,6 +374,8 @@ class SummarizationService:
         text = (text or "").strip()
         if not text:
             return None
+        # Strip any scratchpad block the model may have emitted before the JSON.
+        text = re.sub(r"<scratchpad>.*?</scratchpad>", "", text, flags=re.DOTALL).strip()
         first = text.find("{")
         last = text.rfind("}")
         if first == -1 or last == -1 or last <= first:

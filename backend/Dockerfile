@@ -1,21 +1,30 @@
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Build stage
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-# Ensure HTTPS works reliably (Slim images may omit cert bundle).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies first (cache layer)
+COPY go.mod ./
+RUN go mod download || true
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Copy source
+COPY . .
 
-COPY app /app/app
+# Ensure dependencies are resolved (handles missing go.sum)
+RUN go mod tidy
+
+# Build binary
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /server ./cmd/server
+
+# Runtime stage
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /app
+
+COPY --from=builder /server .
 
 EXPOSE 8080
 
-# Many platforms (Cloud Run, Render, etc.) inject the desired listening port via $PORT.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-${BACKEND_PORT:-8080}}"]
+CMD ["./server"]
