@@ -103,12 +103,14 @@ If you take approach (2), build the frontend with the correct API base URL baked
 
   ## Deploy: Vercel (Backend)
 
-  Vercel can run the FastAPI app as a Python Serverless Function (see `backend/api/index.py`).
+  The backend is a Go HTTP server in `backend/cmd/server/main.go`.
 
-  1. In Vercel Project Settings → General → **Root Directory**, set it to `backend`.
-  2. Add the backend env vars in Vercel (see `backend/.env.example`).
-  3. If you previously saw a Vercel memory error during backend build: it was likely from installing `torch/sentence-transformers`. The default backend requirements are now Vercel-friendly.
-  4. Embeddings on Vercel use OpenAI (no `torch`).
+  1. Create a separate Vercel project for the backend.
+  2. In Vercel Project Settings → General → **Root Directory**, set it to `backend`.
+  3. Use the Go framework preset. `backend/vercel.json` now pins this in-repo.
+  4. Add the backend env vars in Vercel (see `backend/.env.example`).
+  5. Keep `backend/go.sum` committed so Vercel can resolve module checksums during `go build`.
+  6. The server already listens on `PORT`, which is what Vercel expects for Go services.
 
 ## 4) Run local pipeline (LOCAL ONLY)
 ```bash
